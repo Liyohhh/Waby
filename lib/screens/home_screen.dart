@@ -488,13 +488,17 @@ class _ChildCard extends StatelessWidget {
     required this.battery,
   });
 
-  // All cards share the same calm blue background.
-  Color get _cardBg => AppColors.safeCard;
+  // Safe & caution share the calm blue background; warning gets red.
+  Color get _cardBg => switch (status) {
+        _CardStatus.safe    => AppColors.safeCard,
+        _CardStatus.caution => AppColors.safeCard,
+        _CardStatus.warning => AppColors.warningCard,
+      };
 
   Color get _badgeColor => switch (status) {
-        _CardStatus.safe    => AppColors.safe,    // green — all good
-        _CardStatus.caution => AppColors.accent,  // blue  — attention, no alarm
-        _CardStatus.warning => AppColors.warning, // red   — triggers escalation
+        _CardStatus.safe    => AppColors.safe,               // green
+        _CardStatus.caution => const Color(0xFFE6A817),      // yellow/amber
+        _CardStatus.warning => AppColors.warning,            // red
       };
 
   String get _badgeLabel => switch (status) {
