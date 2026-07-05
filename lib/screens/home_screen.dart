@@ -188,7 +188,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () => _confirmSignOut(context),
-                  child: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                  child: const Icon(Icons.logout, color: Colors.white, size: 26),
                 ),
               ],
             ),

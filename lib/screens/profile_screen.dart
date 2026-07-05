@@ -3,7 +3,6 @@ import '../core/theme.dart';
 import '../widgets/auth_widgets.dart';
 
 /// Edit profile screen for the account owner (Mom / primary caregiver).
-/// Reached from Settings → Mom card and from Home → avatar.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -12,20 +11,57 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey   = GlobalKey<FormState>();
-  final _nameCtrl  = TextEditingController(text: 'Mom');
-  final _phoneCtrl = TextEditingController(text: '+60 12 345 6789');
-  final _relCtrl   = TextEditingController(text: 'Mother');
-  final _countryCtrl = TextEditingController(text: 'Malaysia');
+  static const _relations = [
+    'Parent',
+    'Sibling',
+    'Guardian',
+    'Relative',
+    'Other',
+  ];
 
-  bool _saving = false;
+  static const _countries = [
+    'Malaysia',
+    'Singapore',
+    'Indonesia',
+    'Thailand',
+    'Philippines',
+    'Vietnam',
+    'Brunei',
+    'Myanmar',
+    'Cambodia',
+    'Laos',
+    'Australia',
+    'United Kingdom',
+    'United States',
+    'Canada',
+    'Japan',
+    'South Korea',
+    'China',
+    'India',
+    'Saudi Arabia',
+    'United Arab Emirates',
+    'Qatar',
+    'Kuwait',
+    'Turkey',
+    'Germany',
+    'France',
+    'Netherlands',
+    'New Zealand',
+    'Other',
+  ];
+
+  final _formKey  = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController(text: 'Mom');
+  final _phoneCtrl = TextEditingController(text: '+60 12 345 6789');
+
+  String _relation = 'Parent';
+  String _country  = 'Malaysia';
+  bool   _saving   = false;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
-    _relCtrl.dispose();
-    _countryCtrl.dispose();
     super.dispose();
   }
 
@@ -44,15 +80,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ── Generic bottom-sheet picker ─────────────────────────────────────────────
+
+  Future<void> _pickOption({
+    required String title,
+    required List<String> options,
+    required String current,
+    required ValueChanged<String> onSelected,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _PickerSheet(
+        title: title,
+        options: options,
+        current: current,
+        onSelected: (v) {
+          onSelected(v);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  // ── Build ───────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
       body: Column(
         children: [
-          // ── Wave header with avatar ──────────────────────────────────────
           _ProfileHeader(onBack: () => Navigator.of(context).pop()),
-          // ── Form ────────────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
@@ -61,6 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Card 1: name + phone ──────────────────────────────
                     _card([
                       _fieldRow(
                         label: 'Full Name',
@@ -81,19 +142,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ]),
                     const SizedBox(height: 16),
+                    // ── Card 2: relation + country ────────────────────────
                     _card([
-                      _fieldRow(
+                      _selectRow(
                         label: 'Relationship to Child',
                         icon: Icons.favorite_border,
-                        controller: _relCtrl,
-                        hint: 'e.g. Mother, Father, Guardian',
+                        value: _relation,
+                        onTap: () => _pickOption(
+                          title: 'Relationship to Child',
+                          options: _relations,
+                          current: _relation,
+                          onSelected: (v) => setState(() => _relation = v),
+                        ),
                       ),
                       _divider(),
-                      _fieldRow(
+                      _selectRow(
                         label: 'Country',
                         icon: Icons.public_outlined,
-                        controller: _countryCtrl,
-                        hint: 'e.g. Malaysia',
+                        value: _country,
+                        onTap: () => _pickOption(
+                          title: 'Country',
+                          options: _countries,
+                          current: _country,
+                          onSelected: (v) => setState(() => _country = v),
+                        ),
                       ),
                     ]),
                     const SizedBox(height: 32),
@@ -130,26 +202,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _card(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(children: children),
-    );
-  }
+  // ── Reusable widgets ─────────────────────────────────────────────────────────
 
-  Widget _divider() =>
-      const Divider(color: Colors.black12, height: 1, thickness: 1,
-          indent: 20, endIndent: 20);
+  Widget _card(List<Widget> children) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(children: children),
+      );
+
+  Widget _divider() => const Divider(
+      color: Colors.black12, height: 1, thickness: 1,
+      indent: 20, endIndent: 20);
 
   Widget _fieldRow({
     required String label,
@@ -164,14 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 36, height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0xFFD4EEF8),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.accent, size: 18),
-          ),
+          _iconBubble(icon),
           const SizedBox(width: 12),
           Expanded(
             child: TextFormField(
@@ -195,6 +260,139 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  Widget _selectRow({
+    required String label,
+    required IconData icon,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            _iconBubble(icon),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
+                  Text(value,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right,
+                color: AppColors.textSecondary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBubble(IconData icon) => Container(
+        width: 36, height: 36,
+        decoration: const BoxDecoration(
+          color: Color(0xFFD4EEF8),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: AppColors.accent, size: 18),
+      );
+}
+
+// ── Bottom-sheet picker ───────────────────────────────────────────────────────
+
+class _PickerSheet extends StatelessWidget {
+  final String title;
+  final List<String> options;
+  final String current;
+  final ValueChanged<String> onSelected;
+
+  const _PickerSheet({
+    required this.title,
+    required this.options,
+    required this.current,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy)),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: options.length,
+              itemBuilder: (_, i) {
+                final opt = options[i];
+                final selected = opt == current;
+                return ListTile(
+                  title: Text(opt,
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: selected
+                              ? AppColors.navy
+                              : AppColors.textPrimary)),
+                  trailing: selected
+                      ? const Icon(Icons.check_circle,
+                          color: AppColors.accent, size: 20)
+                      : null,
+                  onTap: () => onSelected(opt),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Profile header (wave + overlapping avatar) ────────────────────────────────
@@ -210,7 +408,6 @@ class _ProfileHeader extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Wave gradient
           Positioned(
             top: 0, left: 0, right: 0,
             child: ClipPath(
@@ -221,7 +418,6 @@ class _ProfileHeader extends StatelessWidget {
               ),
             ),
           ),
-          // Back + title
           Positioned(
             top: 0, left: 0, right: 0,
             child: SafeArea(
@@ -244,10 +440,8 @@ class _ProfileHeader extends StatelessWidget {
               ),
             ),
           ),
-          // Avatar overlapping wave bottom
           Positioned(
-            bottom: 0,
-            left: 0, right: 0,
+            bottom: 0, left: 0, right: 0,
             child: Center(
               child: Container(
                 width: 80, height: 80,
