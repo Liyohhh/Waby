@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/auth_gate.dart';
 import '../core/theme.dart';
@@ -15,6 +16,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: AppColors.navy,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
     _bootstrap();
   }
 
@@ -36,62 +43,64 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final insets = MediaQuery.paddingOf(context);
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: kHeaderGradient),
-        child: SafeArea(
+      backgroundColor: AppColors.headerTop,
+      body: SizedBox.expand(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(gradient: kHeaderGradient),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 36),
+            padding: EdgeInsets.fromLTRB(
+                36, insets.top, 36, insets.bottom),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Spacer(flex: 2),
+              const Spacer(flex: 2),
 
-                // Logo
-                Image.asset(
-                  'assets/images/Waby_Logo_clean.png',
-                  height: 150,
-                  errorBuilder: (_, __, ___) => const Icon(
-                      Icons.child_care, size: 100, color: Colors.white),
+              // Logo
+              Image.asset(
+                'assets/images/Waby_Logo_clean.png',
+                height: 150,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.child_care, size: 100, color: Colors.white),
+              ),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'Waby',
+                style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 2,
                 ),
+              ),
 
-                const SizedBox(height: 24),
+              const SizedBox(height: 8),
 
-                const Text(
-                  'Waby',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                  ),
+              const Text(
+                'Smart Baby Car Seat Monitoring',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.white70,
+                  height: 1.5,
                 ),
+              ),
 
-                const SizedBox(height: 8),
+              const Spacer(flex: 2),
 
-                const Text(
-                  'Smart Baby Car Seat Monitoring',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.white70,
-                    height: 1.5,
-                  ),
+              // Loading indicator — splash advances on its own.
+              const SizedBox(
+                height: 28,
+                width: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
                 ),
+              ),
 
-                const Spacer(flex: 2),
-
-                // Loading indicator — splash advances on its own.
-                const SizedBox(
-                  height: 28,
-                  width: 28,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                ),
-
-                const SizedBox(height: 36),
+              const SizedBox(height: 36),
               ],
             ),
           ),

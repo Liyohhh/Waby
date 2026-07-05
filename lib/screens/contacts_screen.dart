@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/demo_data.dart';
 import '../core/theme.dart';
+import '../models/child.dart';
 import '../models/contact.dart';
+import '../models/seat_status.dart';
+import '../services/auth_service.dart';
+import '../services/child_service.dart';
 import '../services/contact_service.dart';
+import '../services/family_service.dart';
 
 class ContactsScreen extends StatelessWidget {
   ContactsScreen({super.key, this.showBack = true});
@@ -312,22 +318,45 @@ class _ChildrenSection extends StatefulWidget {
 }
 
 class _ChildrenSectionState extends State<_ChildrenSection> {
-  final List<_ChildProfile> _children = [
-    _ChildProfile(
-      id: '1',
-      name: 'Jason Tan',
-      dob: DateTime(2024, 1, 15),
-      battery: 88,
-      isWarning: false,
-    ),
-    _ChildProfile(
-      id: '2',
-      name: 'Nur Alysha',
-      dob: DateTime(2025, 3, 20),
-      battery: 15,
-      isWarning: true,
-    ),
-  ];
+  final ChildService _childService = ChildService();
+  final FamilyService _familyService = FamilyService();
+  final AuthService _auth = AuthService();
+  late final Stream<List<Child>> _childrenStream =
+      _childService.myChildrenStream();
+
+  bool _demoFamily = false;
+
+  // Local overrides for edit/delete UI until child CRUD is wired to Supabase.
+  final Map<String, _ChildProfile> _localOverrides = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDemoFamily();
+  }
+
+  Future<void> _loadDemoFamily() async {
+    final v = await _familyService.isDemoFamily();
+    if (mounted) setState(() => _demoFamily = v);
+  }
+
+  _ChildProfile _toProfile(Child c) {
+    if (_localOverrides.containsKey(c.id)) {
+      return _localOverrides[c.id]!;
+    }
+    final useDemo = DemoAccount.useDemoDisplay(
+      isDemoUser: _auth.isDemoUser,
+      isDemoFamily: _demoFamily,
+    );
+    final seed = useDemo ? DemoAccount.childSeedFor(c.name) : null;
+    return _ChildProfile(
+      id: c.id,
+      name: c.name,
+      dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
+      battery: seed?.battery ?? 88,
+      isWarning: seed?.status == SeatSeverity.warning,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -342,14 +371,38 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF031E2A))),
           const SizedBox(height: 12),
-          ...List.generate(_children.length, (i) {
-            final child = _children[i];
-            return Padding(
-              padding: EdgeInsets.only(
-                  bottom: i < _children.length - 1 ? 8 : 0),
-              child: _childCard(context, child),
-            );
-          }),
+          StreamBuilder<List<Child>>(
+            stream: _childrenStream,
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final children = snap.data ?? [];
+              if (children.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    'No children yet. Add a device from Home to register a child.',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                );
+              }
+              return Column(
+                children: List.generate(children.length, (i) {
+                  final profile = _toProfile(children[i]);
+                  return Padding(
+                    padding: EdgeInsets.only(
+                        bottom: i < children.length - 1 ? 8 : 0),
+                    child: _childCard(context, profile),
+                  );
+                }),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -489,7 +542,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         onSave: (name, dob, weight, height) {
           setState(() {
             child.name = name;
-            child.dob  = dob;
+            child.dob = dob;
+            _localOverrides[child.id] = child;
           });
         },
       ),
@@ -515,8 +569,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
               minimumSize: const Size(88, 44),
             ),
             onPressed: () {
-              setState(
-                  () => _children.removeWhere((c) => c.id == child.id));
+              setState(() => _localOverrides.remove(child.id));
               Navigator.pop(dialogContext);
             },
             child: const Text('Delete'),

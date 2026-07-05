@@ -3,6 +3,7 @@ import '../core/theme.dart';
 import '../models/contact.dart';
 import '../services/auth_service.dart';
 import '../services/contact_service.dart';
+import '../services/family_service.dart';
 import '../widgets/invite_family_sheet.dart';
 import 'help_support_screen.dart';
 import 'login_screen.dart';
@@ -23,6 +24,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _audibleWarn   = false;
   double _distance    = 2;   // meters
   double _alertTimer  = 1;   // minutes
+  String _displayName = 'Account owner';
+
+  final _auth = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisplayName();
+  }
+
+  Future<void> _loadDisplayName() async {
+    final name = await _auth.getDisplayName();
+    if (mounted) setState(() => _displayName = name);
+  }
 
   // ── Design constants ──────────────────────────────────────────────────────
   static const _kGutter        = 20.0;
@@ -159,63 +174,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildProfileCard(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 0,
+      child: _cardContainer(
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ProfileScreen()),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x12000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
+          borderRadius: BorderRadius.circular(_kCardRadius),
+          onTap: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            );
+            _loadDisplayName();
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: _kGutter, vertical: _kRowV),
+            child: Row(
+              children: [
+                _iconBubble(Icons.person),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_displayName,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy)),
+                      const SizedBox(height: 2),
+                      const Text('Account owner',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary)),
+                    ],
+                  ),
                 ),
+                const Icon(Icons.chevron_right,
+                    color: AppColors.textSecondary, size: 22),
               ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: _kGutter, vertical: _kRowV),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      color: _kIconBg,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.person,
-                        color: AppColors.accent, size: 30),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Mom',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.navy)),
-                        SizedBox(height: 2),
-                        Text('Account owner',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right,
-                      color: AppColors.textSecondary, size: 22),
-                ],
-              ),
             ),
           ),
         ),
@@ -607,8 +601,28 @@ class _FamilyManagementSheet extends StatefulWidget {
 
 class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
   final _service = ContactService();
+  final _familyService = FamilyService();
+  String? _joinCode;
+  bool _loadingCode = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJoinCode();
+  }
+
+  Future<void> _loadJoinCode() async {
+    final code = await _familyService.getInviteCode();
+    if (mounted) {
+      setState(() {
+        _joinCode = code;
+        _loadingCode = false;
+      });
+    }
+  }
 
   void _openInvite() {
+    if (_joinCode == null) return;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -616,7 +630,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
       barrierColor: Colors.black54,
       useSafeArea: true,
       builder: (sheetCtx) => InviteFamilySheet(
-        joinCode: 'BT - 8942',
+        joinCode: _joinCode!,
         onInvite: (name, email, phone, relation) async {
           await _service.addContact(
               name: name, phone: phone, relation: relation);
@@ -793,6 +807,46 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
             ),
           ),
           const SizedBox(height: 20),
+          if (_loadingCode)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          else if (_joinCode != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9F5FE),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.vpn_key_outlined,
+                      color: AppColors.accent, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Family join code',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary)),
+                        Text(_joinCode!,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navy,
+                                letterSpacing: 1.2)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           // title + add button
           Row(
             children: [

@@ -91,6 +91,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _country = country;
         }
       }
+
+      if (_nameCtrl.text.trim().isEmpty) {
+        final meta =
+            (_auth.currentUser?.userMetadata?['full_name'] as String?)
+                ?.trim();
+        if (meta != null && meta.isNotEmpty) {
+          _nameCtrl.text = meta;
+        }
+      }
     } catch (_) {
       // Leave fields blank on failure; user can still edit and save.
     } finally {

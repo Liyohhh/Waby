@@ -1,11 +1,13 @@
 import 'dart:math' show pi;
 import 'package:flutter/material.dart';
+import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
 import '../models/seat_status.dart';
 import '../services/auth_service.dart';
 import '../services/child_service.dart';
 import '../services/device_service.dart';
+import '../services/family_service.dart';
 import '../services/live_service.dart';
 import '../widgets/status_pill.dart';
 import 'login_screen.dart';
@@ -21,11 +23,32 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final LiveService _liveService = LiveService();
+  final AuthService _auth = AuthService();
   late final Stream<SeatStatus> _liveStream = _liveService.liveStream();
 
   final ChildService _childService = ChildService();
   late final Stream<List<Child>> _childrenStream =
       _childService.myChildrenStream();
+
+  String _firstName = 'there';
+  bool _demoFamily = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+    _loadDemoFamily();
+  }
+
+  Future<void> _loadDemoFamily() async {
+    final v = await FamilyService().isDemoFamily();
+    if (mounted) setState(() => _demoFamily = v);
+  }
+
+  Future<void> _loadUserName() async {
+    final name = await _auth.getFirstName();
+    if (mounted) setState(() => _firstName = name);
+  }
 
   _CardStatus _mapSeverity(SeatSeverity s) => switch (s) {
         SeatSeverity.safe => _CardStatus.safe,
@@ -73,12 +96,19 @@ class _HomeScreenState extends State<HomeScreen> {
           return StreamBuilder<SeatStatus>(
             stream: _liveStream,
             builder: (context, liveSnap) {
-              final status = liveSnap.data ?? SeatStatus.empty();
+              final rawLive = liveSnap.data ?? SeatStatus.empty();
+              final useDemo = DemoAccount.useDemoDisplay(
+                isDemoUser: _auth.isDemoUser,
+                isDemoFamily: _demoFamily,
+              );
+              final headerStatus = useDemo
+                  ? (rawLive.temperature > 0 ? rawLive : DemoAccount.headerLive)
+                  : rawLive;
               return SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _header(context, status),
+                    _header(context, headerStatus, _firstName),
                     const SizedBox(height: 16),
                     _sounds(),
                     const SizedBox(height: 16),
@@ -90,17 +120,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           children: [
                             for (final c in children) ...[
-                              _ChildCard(
-                                name: c.name,
-                                dob: _formatDob(c.dob),
-                                details:
-                                    _formatDetails(c.weightKg, c.heightCm),
-                                status: _mapSeverity(status.severity),
-                                present: status.present,
-                                buckled: status.buckled,
-                                near: status.distanceNear,
-                                battery: status.battery,
-                              ),
+                              Builder(builder: (_) {
+                                final seed = useDemo
+                                    ? DemoAccount.childSeedFor(c.name)
+                                    : null;
+                                return _ChildCard(
+                                  name: c.name,
+                                  dob: _formatDob(c.dob),
+                                  details:
+                                      _formatDetails(c.weightKg, c.heightCm),
+                                  status: _mapSeverity(
+                                      seed?.status ?? rawLive.severity),
+                                  present: seed?.present ?? rawLive.present,
+                                  buckled: seed?.buckled ?? rawLive.buckled,
+                                  near: seed?.near ?? rawLive.distanceNear,
+                                  battery: seed?.battery ?? rawLive.battery,
+                                );
+                              }),
                               const SizedBox(height: 16),
                             ],
                           ],
@@ -167,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _header(BuildContext context, SeatStatus status) {
+  Widget _header(BuildContext context, SeatStatus status, String firstName) {
     // Outer Stack: bg → wave → car (on top of wave) → text
     return Stack(
       children: [
@@ -212,9 +248,12 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  ),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    );
+                    _loadUserName();
+                  },
                   child: const CircleAvatar(
                     radius: 22,
                     backgroundColor: Colors.white,
@@ -222,13 +261,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Hi, Mom!',
-                          style: TextStyle(color: Colors.white, fontSize: 12)),
-                      Text('Welcome back!',
+                      Text('Hi, $firstName!',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12)),
+                      const Text('Welcome back!',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -271,8 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: Color(0xFF0063BA),
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800)),
-                            const Text("Mom's car",
-                                style: TextStyle(
+                            Text("$firstName's car",
+                                style: const TextStyle(
                                     color: Color(0xFF031E2A), fontSize: 14)),
                           ],
                         ),

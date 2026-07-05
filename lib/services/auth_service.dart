@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../core/constants.dart';
+import '../core/demo_data.dart';
+import 'demo_seed_service.dart';
+import 'family_service.dart';
 
 class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -10,11 +12,82 @@ class AuthService {
     required String password,
   }) async {
     await _client.auth.signInWithPassword(email: email, password: password);
+    if (isDemoUser) {
+      await DemoSeedService().seedIfNeeded();
+    }
   }
 
-  /// Sign in using the fixed demo account. Throws [AuthException] on failure.
+  /// True when the signed-in user is the shared demo account.
+  bool get isDemoUser {
+    final email = currentUser?.email?.toLowerCase();
+    return email == DemoAccount.email.toLowerCase();
+  }
+
+  /// Display name for the current user — profiles row, then auth metadata,
+  /// then the email local-part, then a generic fallback.
+  Future<String> getDisplayName() async {
+    final user = currentUser;
+    if (user == null) return 'User';
+
+    try {
+      final data = await getProfile();
+      final fromProfile = (data?['full_name'] as String?)?.trim();
+      if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
+    } catch (_) {}
+
+    final fromMeta =
+        (user.userMetadata?['full_name'] as String?)?.trim();
+    if (fromMeta != null && fromMeta.isNotEmpty) return fromMeta;
+
+    final email = user.email;
+    if (email != null && email.contains('@')) {
+      return email.split('@').first;
+    }
+    return 'User';
+  }
+
+  /// First word of the display name — used in greetings.
+  Future<String> getFirstName() async {
+    final full = await getDisplayName();
+    final trimmed = full.trim();
+    if (trimmed.isEmpty) return 'there';
+    return trimmed.split(RegExp(r'\s+')).first;
+  }
+
+  /// Sign in using the demo account. Creates the account on first use, then
+  /// ensures it belongs to a demo family so the app opens with data context.
   Future<void> signInDemo() async {
-    await signIn(email: DemoAccount.email, password: DemoAccount.password);
+    try {
+      await signIn(email: DemoAccount.email, password: DemoAccount.password);
+    } on AuthException catch (e) {
+      final msg = e.message.toLowerCase();
+      final missing = msg.contains('invalid') ||
+          msg.contains('credentials') ||
+          msg.contains('not found');
+      if (!missing) rethrow;
+
+      final active = await signUp(
+        name: DemoAccount.displayName,
+        email: DemoAccount.email,
+        password: DemoAccount.password,
+      );
+      if (!active) {
+        throw AuthException(
+          'Demo account could not be activated. Disable email confirmation in Supabase.',
+        );
+      }
+      await signIn(email: DemoAccount.email, password: DemoAccount.password);
+    }
+
+    await _ensureDemoFamily();
+    await DemoSeedService().seedIfNeeded();
+  }
+
+  Future<void> _ensureDemoFamily() async {
+    if (!isDemoUser) return;
+    final familyId = await FamilyService().myFamilyId();
+    if (familyId != null) return;
+    await FamilyService().createFamily(DemoAccount.familyName);
   }
 
   /// Register a new account, then insert a profile row with [name].

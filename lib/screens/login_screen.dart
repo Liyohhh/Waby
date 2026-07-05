@@ -4,7 +4,6 @@ import '../core/auth_gate.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
-import 'main_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
 
   bool _loading = false;
-  bool _demoLoading = false;
   bool _obscure = true;
   String? _error;
 
@@ -55,35 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _loading = false;
       });
     }
-  }
-
-  // ── Demo account sign-in ──────────────────────────────────────────────────
-
-  Future<void> _viewDemo() async {
-    setState(() { _demoLoading = true; _error = null; });
-    try {
-      await _auth.signInDemo();
-      if (!mounted) return;
-      await routeAfterAuth(context);
-    } on AuthException catch (e) {
-      if (!mounted) return;
-      setState(() { _error = e.message; _demoLoading = false; });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Something went wrong. Please try again.';
-        _demoLoading = false;
-      });
-    }
-  }
-
-  // ── Demo bypass ───────────────────────────────────────────────────────────
-
-  void _demoLogin() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainScreen()),
-      (r) => false,
-    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -262,58 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text('Sign In',
                                 style: TextStyle(
                                     fontSize: 15, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // View demo — signs in with the fixed demo account
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: TextButton(
-                        onPressed: _demoLoading ? null : _viewDemo,
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.accent,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: _demoLoading
-                            ? const SizedBox(
-                                height: 20, width: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: AppColors.accent))
-                            : const Text('View Demo',
-                                style: TextStyle(
-                                    fontSize: 15, fontWeight: FontWeight.w600)),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Demo mode
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton(
-                        onPressed: _demoLogin,
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                              color: AppColors.navy.withValues(alpha: 0.3)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          foregroundColor: AppColors.navy,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.play_circle_outline, size: 18),
-                            SizedBox(width: 8),
-                            Text('Demo Mode',
-                                style: TextStyle(
-                                    fontSize: 15, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
                       ),
                     ),
 

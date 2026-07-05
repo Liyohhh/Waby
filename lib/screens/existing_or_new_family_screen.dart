@@ -291,6 +291,7 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
         ],
         decoration: InputDecoration(
           labelText: 'Invite code',
+          hintText: 'e.g. BT-8942',
           filled: true,
           fillColor: AppColors.field,
           border: OutlineInputBorder(
