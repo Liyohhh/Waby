@@ -1,5 +1,5 @@
-name: seatcare_app
-description: "A new Flutter project."
+name: waby
+description: "Waby — smart baby car seat safety monitoring."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,8 +34,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
   supabase_flutter: ^2.15.0
-  flutter_blue_plus: ^2.3.9
-  permission_handler: ^12.0.3
   google_sign_in: ^6.2.2
 
 dev_dependencies:

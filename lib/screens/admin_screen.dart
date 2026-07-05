@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/theme.dart';
 
 /// Admin dashboard — shows all monitored users and their live seat data.
-/// Data is mocked for demo; wire to Firebase/Supabase in production.
+/// Data is mocked for demo; wire to Supabase in production.
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
 

@@ -1,17 +1,7 @@
-# seatcare_app
+# Waby
 
-A new Flutter project.
+Waby is a smart baby car seat safety system built as a final-year BIT project. An ESP32 seat module reads sensors (weight, buckle, temperature, GPS) over Wi-Fi and sends live data to Supabase. The Flutter app lets caregivers monitor seat status, manage family members, and receive escalating alerts when a child may be at risk.
 
-## Getting Started
+The stack is Flutter (Dart) on mobile, Supabase for auth and realtime data, and ESP32 firmware for on-seat sensing and local alarms. Data is scoped per family — users create or join a family after sign-up before they can read or write anything.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+This repo was originally named `seatcare_app`; user-facing branding is **Waby** throughout the app.

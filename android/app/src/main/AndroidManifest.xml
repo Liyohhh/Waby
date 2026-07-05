@@ -1,25 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ── Bluetooth (Android 12+ / API 31+) ─────────────────────────────── -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-
-    <!-- ── Bluetooth (Android 6–11 / API 23–30) ──────────────────────────── -->
-    <uses-permission android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="30" />
-
-    <!-- ── BLE hardware feature (optional — won't block install on non-BLE) ─ -->
-    <uses-feature android:name="android.hardware.bluetooth_le"
-        android:required="false" />
-
-    <!-- ── Companion Device Manager ──────────────────────────────────────── -->
-    <uses-permission android:name="android.permission.REQUEST_COMPANION_USE_DATA_IN_BACKGROUND" />
-
     <application
         android:label="seatcare_app"
         android:name="${applicationName}"

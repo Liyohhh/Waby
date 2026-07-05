@@ -747,8 +747,6 @@ class _ChildDetailSheet extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF031E2A))),
                   const SizedBox(height: 12),
-                  _infoRow(Icons.bluetooth, 'Connection',
-                      'Connected via WiFi'),
                   _infoRow(Icons.gps_fixed, 'GPS',
                       '3.1478° N, 101.6953° E'),
                   _infoRow(

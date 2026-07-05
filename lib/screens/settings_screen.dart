@@ -104,9 +104,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _sectionLabel('Connectivity & Access'),
             const SizedBox(height: _kLabelCardGap),
             _card([
-              _navRow(Icons.bluetooth,       'Bluetooth Devices',  subtitle: 'Not connected',
-                  onTap: () => _showBluetoothDialog()),
-              _divider(),
               _navRow(Icons.people_outlined, 'Family Management',  subtitle: '3 members',
                   onTap: () => _showFamilyManagement()),
             ]),
@@ -370,58 +367,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               divisions: divisions,
               onChanged: onChanged,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Bluetooth dialog ──────────────────────────────────────────────────────
-
-  void _showBluetoothDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(children: const [
-          Icon(Icons.bluetooth, color: AppColors.accent, size: 22),
-          SizedBox(width: 10),
-          Text('Bluetooth Devices',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F6F9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.bluetooth_disabled,
-                      color: AppColors.textSecondary, size: 20),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text('No Bluetooth devices connected',
-                        style: TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close',
-                style: TextStyle(
-                    color: AppColors.accent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
