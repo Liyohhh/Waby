@@ -96,10 +96,7 @@ class ContactsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<Contact>>(
-            stream: _service.contactsStream().timeout(
-              const Duration(seconds: 6),
-              onTimeout: (sink) => sink.add([]),
-            ),
+            stream: _service.contactsStream(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Padding(
@@ -277,20 +274,34 @@ class ContactsScreen extends StatelessWidget {
 
 // ── Children section (unchanged) ──────────────────────────────────────────────
 
+// Returns a human-readable age string from a date of birth.
+String _ageFromDob(DateTime dob) {
+  final now = DateTime.now();
+  int years  = now.year  - dob.year;
+  int months = now.month - dob.month;
+  if (now.day < dob.day) months--;
+  if (months < 0) { years--; months += 12; }
+  if (years > 0) return months > 0 ? '$years yr $months mo' : '$years yr';
+  if (months > 0) return '$months mo';
+  return '< 1 mo';
+}
+
 class _ChildProfile {
   _ChildProfile({
     required this.id,
     required this.name,
-    required this.ageLabel,
+    required this.dob,
     required this.battery,
     required this.isWarning,
   });
 
   final String id;
   String name;
-  String ageLabel;
+  DateTime dob;
   int battery;
   bool isWarning;
+
+  String get ageLabel => _ageFromDob(dob);
 }
 
 class _ChildrenSection extends StatefulWidget {
@@ -305,14 +316,14 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     _ChildProfile(
       id: '1',
       name: 'Jason Tan',
-      ageLabel: '2 year',
+      dob: DateTime(2024, 1, 15),
       battery: 88,
       isWarning: false,
     ),
     _ChildProfile(
       id: '2',
       name: 'Nur Alysha',
-      ageLabel: '8 Month',
+      dob: DateTime(2025, 3, 20),
       battery: 15,
       isWarning: true,
     ),
@@ -325,33 +336,11 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Children',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF031E2A))),
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF6391C9)),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('Manage',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1F61B2))),
-              ),
-            ],
-          ),
+          const Text('Children',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF031E2A))),
           const SizedBox(height: 12),
           ...List.generate(_children.length, (i) {
             final child = _children[i];
@@ -489,63 +478,20 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 
   void _openEditChild(BuildContext context, _ChildProfile child) {
-    final nameCtrl = TextEditingController(text: child.name);
-    final ageCtrl = TextEditingController(text: child.ageLabel);
-    final batteryCtrl =
-        TextEditingController(text: child.battery.toString());
-
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: const Text('Edit profile'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(hintText: 'Name'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ageCtrl,
-              decoration:
-                  const InputDecoration(hintText: 'Age (e.g. 2 year)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: batteryCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: 'Battery %'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                minimumSize: const Size(88, 44)),
-            onPressed: () {
-              final name = nameCtrl.text.trim();
-              final age = ageCtrl.text.trim();
-              final battery = int.tryParse(batteryCtrl.text.trim());
-              if (name.isEmpty || age.isEmpty || battery == null) return;
-              setState(() {
-                child.name = name;
-                child.ageLabel = age;
-                child.battery = battery.clamp(0, 100);
-                child.isWarning = child.battery <= 20;
-              });
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      useSafeArea: true,
+      builder: (_) => _ChildEditSheet(
+        child: child,
+        onSave: (name, dob, weight, height) {
+          setState(() {
+            child.name = name;
+            child.dob  = dob;
+          });
+        },
       ),
     );
   }
@@ -728,6 +674,20 @@ class _ChildDetailSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
+                  // ── Temperature Analytics ────────────────────────────────
+                  const Text('Temperature Analytics',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF031E2A))),
+                  const SizedBox(height: 4),
+                  const Text('Last 12 hours',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0x8C031E2A))),
+                  const SizedBox(height: 12),
+                  const _TempGraph(),
+                  const SizedBox(height: 24),
                   const Text('Device Info',
                       style: TextStyle(
                           fontSize: 15,
@@ -834,6 +794,606 @@ class _ChildDetailSheet extends StatelessWidget {
     );
   }
 }
+
+// ── Temperature graph widget (custom painted) ────────────────────────────────
+
+class _TempGraph extends StatelessWidget {
+  const _TempGraph();
+
+  // Mock hourly readings for the last 12 hours
+  static const _data = <double>[
+    22.1, 22.8, 23.2, 23.5, 24.0, 23.8,
+    23.4, 23.1, 22.9, 23.3, 23.6, 23.0,
+  ];
+  static const _dangerLine = 32.0;
+  static const _minY = 20.0;
+  static const _maxY = 36.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F7FF),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _TempLinePainter(
+                  data: _data,
+                  minY: _minY,
+                  maxY: _maxY,
+                  dangerLine: _dangerLine),
+            ),
+          ),
+          const SizedBox(height: 6),
+          // X-axis labels
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(
+              7,
+              (i) {
+                final hoursAgo = 12 - i * 2;
+                final label = hoursAgo == 0 ? 'Now' : '-${hoursAgo}h';
+                return Text(label,
+                    style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0x8C031E2A)));
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TempLinePainter extends CustomPainter {
+  final List<double> data;
+  final double minY, maxY, dangerLine;
+  const _TempLinePainter(
+      {required this.data,
+      required this.minY,
+      required this.maxY,
+      required this.dangerLine});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+    final w = size.width;
+    final h = size.height;
+
+    double xOf(int i) => i / (data.length - 1) * w;
+    double yOf(double v) => h - ((v - minY) / (maxY - minY)) * h;
+
+    // ── danger threshold line
+    final dangerY = yOf(dangerLine);
+    canvas.drawLine(
+      Offset(0, dangerY),
+      Offset(w, dangerY),
+      Paint()
+        ..color = const Color(0xFFFF4444).withValues(alpha: 0.5)
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true
+        ..filterQuality = FilterQuality.high,
+    );
+    // label
+    const dangerStyle = TextStyle(
+        fontSize: 9, color: Color(0xFFFF4444), fontWeight: FontWeight.w600);
+    final dangerTp = TextPainter(
+        text: const TextSpan(text: '32°C danger', style: dangerStyle),
+        textDirection: TextDirection.ltr)
+      ..layout();
+    dangerTp.paint(canvas, Offset(w - dangerTp.width - 4, dangerY - 12));
+
+    // ── filled area
+    final fillPath = Path();
+    fillPath.moveTo(xOf(0), yOf(data[0]));
+    for (int i = 1; i < data.length; i++) {
+      final x0 = xOf(i - 1), y0 = yOf(data[i - 1]);
+      final x1 = xOf(i), y1 = yOf(data[i]);
+      final cx = (x0 + x1) / 2;
+      fillPath.cubicTo(cx, y0, cx, y1, x1, y1);
+    }
+    fillPath.lineTo(xOf(data.length - 1), h);
+    fillPath.lineTo(0, h);
+    fillPath.close();
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF088BEA).withValues(alpha: 0.25),
+            const Color(0xFF088BEA).withValues(alpha: 0.02),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, w, h))
+        ..style = PaintingStyle.fill,
+    );
+
+    // ── line
+    final linePath = Path();
+    linePath.moveTo(xOf(0), yOf(data[0]));
+    for (int i = 1; i < data.length; i++) {
+      final x0 = xOf(i - 1), y0 = yOf(data[i - 1]);
+      final x1 = xOf(i), y1 = yOf(data[i]);
+      final cx = (x0 + x1) / 2;
+      linePath.cubicTo(cx, y0, cx, y1, x1, y1);
+    }
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..color = const Color(0xFF088BEA)
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true,
+    );
+
+    // ── dots + value labels at start / peak / end
+    final highlights = {0, 5, data.length - 1};
+    for (int i = 0; i < data.length; i++) {
+      final cx = xOf(i);
+      final cy = yOf(data[i]);
+      if (highlights.contains(i)) {
+        canvas.drawCircle(
+          Offset(cx, cy),
+          4,
+          Paint()..color = const Color(0xFF088BEA),
+        );
+        canvas.drawCircle(
+          Offset(cx, cy),
+          2.5,
+          Paint()..color = Colors.white,
+        );
+        final label = '${data[i].toStringAsFixed(1)}°';
+        final tp = TextPainter(
+            text: TextSpan(
+                text: label,
+                style: const TextStyle(
+                    fontSize: 9,
+                    color: Color(0xFF088BEA),
+                    fontWeight: FontWeight.w600)),
+            textDirection: TextDirection.ltr)
+          ..layout();
+        tp.paint(canvas,
+            Offset(cx - tp.width / 2, cy - tp.height - 5));
+      }
+    }
+
+    // ── Y-axis labels
+    for (final temp in [22.0, 26.0, 30.0, 34.0]) {
+      final ty = yOf(temp);
+      if (ty < 0 || ty > h) continue;
+      final tp = TextPainter(
+          text: TextSpan(
+              text: '${temp.toInt()}°',
+              style: const TextStyle(
+                  fontSize: 9, color: Color(0x8C031E2A))),
+          textDirection: TextDirection.ltr)
+        ..layout();
+      tp.paint(canvas, Offset(0, ty - tp.height / 2));
+      canvas.drawLine(
+        Offset(tp.width + 2, ty),
+        Offset(w, ty),
+        Paint()
+          ..color = const Color(0x18031E2A)
+          ..strokeWidth = 0.5,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// ── Child edit profile bottom sheet ─────────────────────────────────────────
+
+class _ChildEditSheet extends StatefulWidget {
+  final _ChildProfile child;
+  final void Function(String name, DateTime dob, String weight, String height) onSave;
+
+  const _ChildEditSheet({required this.child, required this.onSave});
+
+  @override
+  State<_ChildEditSheet> createState() => _ChildEditSheetState();
+}
+
+class _ChildEditSheetState extends State<_ChildEditSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _weightCtrl;
+  late final TextEditingController _heightCtrl;
+  late DateTime _selectedDob;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl   = TextEditingController(text: widget.child.name);
+    _weightCtrl = TextEditingController(text: '8.5');
+    _heightCtrl = TextEditingController(text: '73');
+    _selectedDob = widget.child.dob;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _weightCtrl.dispose();
+    _heightCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDob,
+      firstDate: DateTime(now.year - 18),
+      lastDate: now,
+      helpText: 'Select date of birth',
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
+                primary: AppColors.navy,
+                onPrimary: Colors.white,
+              ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDob = picked);
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    widget.onSave(
+      _nameCtrl.text.trim(),
+      _selectedDob,
+      _weightCtrl.text.trim(),
+      _heightCtrl.text.trim(),
+    );
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.6,
+      maxChildSize: 0.95,
+      builder: (_, scrollCtrl) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: Container(
+          color: const Color(0xFFF4F6F9),
+          child: Column(
+            children: [
+              // ── Gradient header with drag handle + title + avatar ──────
+              _ChildEditHeader(
+                name: widget.child.name,
+                onClose: () => Navigator.of(context).pop(),
+              ),
+              // ── Scrollable form ────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        _section([
+                          _formRow(
+                            label: 'Child Name',
+                            icon: Icons.person_outline,
+                            controller: _nameCtrl,
+                            hint: 'e.g. Jason Tan',
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'Name is required'
+                                    : null,
+                          ),
+                          _sep(),
+                          // Date of birth picker row
+                          InkWell(
+                            onTap: _pickDate,
+                            borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(16)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36, height: 36,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFD4EEF8),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.cake_outlined,
+                                        color: AppColors.accent, size: 18),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Date of Birth',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w500)),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${_selectedDob.day.toString().padLeft(2, '0')} '
+                                          '${_monthName(_selectedDob.month)} '
+                                          '${_selectedDob.year}',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.textPrimary,
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Computed age badge
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD4EEF8),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _ageFromDob(_selectedDob),
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.accent),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.chevron_right,
+                                      color: AppColors.textSecondary, size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 14),
+                        _section([
+                          _formRow(
+                            label: 'Weight (kg)',
+                            icon: Icons.monitor_weight_outlined,
+                            controller: _weightCtrl,
+                            hint: 'e.g. 8.5',
+                            keyboard: TextInputType.number,
+                          ),
+                          _sep(),
+                          _formRow(
+                            label: 'Height (cm)',
+                            icon: Icons.straighten_outlined,
+                            controller: _heightCtrl,
+                            hint: 'e.g. 73',
+                            keyboard: TextInputType.number,
+                          ),
+                        ]),
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _saving ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.navy,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: _saving
+                                ? const SizedBox(
+                                    height: 22, width: 22,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white))
+                                : const Text('Save Changes',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _monthName(int m) => const [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ][m];
+
+  Widget _section(List<Widget> rows) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(children: rows),
+      );
+
+  Widget _sep() => const Divider(
+      height: 1, thickness: 1, color: Colors.black12,
+      indent: 60, endIndent: 16);
+
+  Widget _formRow({
+    required String label,
+    required IconData icon,
+    required TextEditingController controller,
+    required String hint,
+    TextInputType? keyboard,
+    String? Function(String?)? validator,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 36, height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFFD4EEF8),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.accent, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: controller,
+                keyboardType: keyboard,
+                validator: validator,
+                style: const TextStyle(
+                    fontSize: 14, color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: hint,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                        color: AppColors.accent.withValues(alpha: 0.4),
+                        width: 1),
+                  ),
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  labelStyle: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500),
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+// ── Child edit header ─────────────────────────────────────────────────────────
+
+class _ChildEditHeader extends StatelessWidget {
+  final String name;
+  final VoidCallback onClose;
+  const _ChildEditHeader({required this.name, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 160,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Drag handle
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+          // Gradient wave
+          Positioned(
+            top: 24, left: 0, right: 0,
+            child: ClipPath(
+              clipper: _WaveClipper(),
+              child: Container(
+                height: 100,
+                decoration: const BoxDecoration(gradient: kHeaderGradient),
+              ),
+            ),
+          ),
+          // Close + title
+          Positioned(
+            top: 28, left: 0, right: 0,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 22),
+                  onPressed: onClose,
+                ),
+                Text(
+                  'Edit — $name',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          // Avatar overlapping wave bottom
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Center(
+              child: Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4EEF8),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.child_care,
+                    color: AppColors.accent, size: 32),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _WaveClipper extends CustomClipper<Path> {
   @override

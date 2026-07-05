@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../widgets/auth_widgets.dart';
 
-/// The single place to edit the mom's profile details.
-/// Navigated to from the Settings card AND the Home header avatar.
+/// Edit profile screen for the account owner (Mom / primary caregiver).
+/// Reached from Settings → Mom card and from Home → avatar.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -13,24 +13,25 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey   = GlobalKey<FormState>();
-  final _namCtrl   = TextEditingController(text: 'Mom');
+  final _nameCtrl  = TextEditingController(text: 'Mom');
+  final _phoneCtrl = TextEditingController(text: '+60 12 345 6789');
   final _relCtrl   = TextEditingController(text: 'Mother');
-  final _cntryCtrl = TextEditingController(text: 'Malaysia');
+  final _countryCtrl = TextEditingController(text: 'Malaysia');
 
   bool _saving = false;
 
   @override
   void dispose() {
-    _namCtrl.dispose();
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
     _relCtrl.dispose();
-    _cntryCtrl.dispose();
+    _countryCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    // TODO: persist to Supabase profiles table when auth is wired.
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() => _saving = false);
@@ -43,126 +44,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Design constants ──────────────────────────────────────────────────────
-
-  static const _kWaveH  = 140.0;
-  static const _kAvatarD = 80.0;
-  static const _kGutter  = 24.0;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF4F6F9),
       body: Column(
         children: [
-          // ── Wave + avatar overlap ────────────────────────────────────────
-          SizedBox(
-            height: _kWaveH + _kAvatarD / 2,
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                // Gradient wave
-                Positioned(
-                  top: 0, left: 0, right: 0,
-                  child: ClipPath(
-                    clipper: AppWaveClipper(),
-                    child: Container(
-                      height: _kWaveH,
-                      decoration:
-                          const BoxDecoration(gradient: kHeaderGradient),
-                    ),
-                  ),
-                ),
-                // Back + title inside the wave
-                Positioned(
-                  top: 0, left: 0, right: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        const Text(
-                          'Edit Profile',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Avatar circle overlapping wave bottom
-                Container(
-                  width: _kAvatarD,
-                  height: _kAvatarD,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD4EEF8),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(30),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.person,
-                      color: AppColors.accent, size: 36),
-                ),
-              ],
-            ),
-          ),
-
+          // ── Wave header with avatar ──────────────────────────────────────
+          _ProfileHeader(onBack: () => Navigator.of(context).pop()),
           // ── Form ────────────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
-                    _fieldLabel('Full Name'),
-                    const SizedBox(height: 8),
-                    _field(
-                      controller: _namCtrl,
-                      hint: 'e.g. Sarah Tan',
-                      icon: Icons.person_outline,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty)
-                              ? 'Name is required'
-                              : null,
-                    ),
+                    _card([
+                      _fieldRow(
+                        label: 'Full Name',
+                        icon: Icons.person_outline,
+                        controller: _nameCtrl,
+                        hint: 'e.g. Sarah Tan',
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Name is required'
+                            : null,
+                      ),
+                      _divider(),
+                      _fieldRow(
+                        label: 'Phone Number',
+                        icon: Icons.phone_outlined,
+                        controller: _phoneCtrl,
+                        hint: 'e.g. +60 12 345 6789',
+                        keyboard: TextInputType.phone,
+                      ),
+                    ]),
                     const SizedBox(height: 16),
-                    _fieldLabel('Relationship to Child'),
-                    const SizedBox(height: 8),
-                    _field(
-                      controller: _relCtrl,
-                      hint: 'e.g. Mother, Father, Guardian',
-                      icon: Icons.favorite_border,
-                    ),
-                    const SizedBox(height: 16),
-                    _fieldLabel('Country'),
-                    const SizedBox(height: 8),
-                    _field(
-                      controller: _cntryCtrl,
-                      hint: 'e.g. Malaysia',
-                      icon: Icons.public_outlined,
-                    ),
+                    _card([
+                      _fieldRow(
+                        label: 'Relationship to Child',
+                        icon: Icons.favorite_border,
+                        controller: _relCtrl,
+                        hint: 'e.g. Mother, Father, Guardian',
+                      ),
+                      _divider(),
+                      _fieldRow(
+                        label: 'Country',
+                        icon: Icons.public_outlined,
+                        controller: _countryCtrl,
+                        hint: 'e.g. Malaysia',
+                      ),
+                    ]),
                     const SizedBox(height: 32),
-
-                    // Save button
                     SizedBox(
                       width: double.infinity,
-                      height: 52,
+                      height: 56,
                       child: ElevatedButton(
                         onPressed: _saving ? null : _save,
                         style: ElevatedButton.styleFrom(
@@ -170,20 +107,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         child: _saving
                             ? const SizedBox(
-                                height: 20, width: 20,
+                                height: 22, width: 22,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: Colors.white))
                             : const Text('Save Changes',
                                 style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w700)),
                       ),
                     ),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -194,34 +130,145 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _fieldLabel(String text) => Text(
-        text,
-        style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.navy),
-      );
+  Widget _card(List<Widget> children) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
 
-  Widget _field({
+  Widget _divider() =>
+      const Divider(color: Colors.black12, height: 1, thickness: 1,
+          indent: 20, endIndent: 20);
+
+  Widget _fieldRow({
+    required String label,
+    required IconData icon,
     required TextEditingController controller,
     required String hint,
-    required IconData icon,
+    TextInputType? keyboard,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: AppColors.field,
-        prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 36, height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFFD4EEF8),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.accent, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              controller: controller,
+              keyboardType: keyboard,
+              validator: validator,
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: hint,
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                labelStyle: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Profile header (wave + overlapping avatar) ────────────────────────────────
+
+class _ProfileHeader extends StatelessWidget {
+  final VoidCallback onBack;
+  const _ProfileHeader({required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 180,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Wave gradient
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: ClipPath(
+              clipper: AppWaveClipper(),
+              child: Container(
+                height: 150,
+                decoration: const BoxDecoration(gradient: kHeaderGradient),
+              ),
+            ),
+          ),
+          // Back + title
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: onBack,
+                    ),
+                    const Text('Edit Profile',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Avatar overlapping wave bottom
+          Positioned(
+            bottom: 0,
+            left: 0, right: 0,
+            child: Center(
+              child: Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4EEF8),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.person, color: AppColors.accent,
+                    size: 36),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

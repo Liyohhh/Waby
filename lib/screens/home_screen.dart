@@ -2,7 +2,9 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme.dart';
+import '../services/auth_service.dart';
 import '../widgets/status_pill.dart';
+import 'login_screen.dart';
 import 'profile_screen.dart';
 
 /// Waby home dashboard. Uses static/mock values for now — temperature and the
@@ -61,16 +63,56 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Builder(
-                builder: (ctx) => ElevatedButton(
-                  onPressed: () => _showAddDeviceSheet(ctx),
-                  child: const Text('Add Device'),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: Builder(
+                  builder: (ctx) => ElevatedButton(
+                    onPressed: () => _showAddDeviceSheet(ctx),
+                    child: const Text('Add Device'),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 110),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Sign Out',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.of(dialogCtx).pop();
+              await AuthService().signOut();
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (r) => false,
+              );
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }
@@ -144,7 +186,10 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                GestureDetector(
+                  onTap: () => _confirmSignOut(context),
+                  child: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                ),
               ],
             ),
           ),

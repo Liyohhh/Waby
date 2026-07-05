@@ -441,9 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _FamilyManagementSheet(
-        onDeleted: () => setState(() {}),
-      ),
+      builder: (_) => const _FamilyManagementSheet(),
     );
   }
 
@@ -600,8 +598,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 // ── Family Management bottom sheet ───────────────────────────────────────────
 
 class _FamilyManagementSheet extends StatefulWidget {
-  final VoidCallback onDeleted;
-  const _FamilyManagementSheet({required this.onDeleted});
+  const _FamilyManagementSheet();
 
   @override
   State<_FamilyManagementSheet> createState() =>
@@ -722,7 +719,6 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
     );
     if (confirmed == true) {
       await _service.deleteContact(c.id);
-      widget.onDeleted();
       if (mounted) setState(() {});
     }
   }
@@ -838,10 +834,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
           ),
           const SizedBox(height: 20),
           StreamBuilder<List<Contact>>(
-            stream: _service.contactsStream().timeout(
-              const Duration(seconds: 6),
-              onTimeout: (s) => s.add([]),
-            ),
+            stream: _service.contactsStream(),
             builder: (_, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
                 return const SizedBox(
