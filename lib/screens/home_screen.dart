@@ -2,6 +2,8 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme.dart';
+import '../widgets/status_pill.dart';
+import 'profile_screen.dart';
 
 /// Waby home dashboard. Uses static/mock values for now — temperature and the
 /// children will be wired to live Firebase data (seatcare/live) in the next step.
@@ -16,7 +18,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _header(),
+            _header(context),
             const SizedBox(height: 16),
             _sounds(),
             const SizedBox(height: 16),
@@ -26,7 +28,8 @@ class HomeScreen extends StatelessWidget {
                 children: const [
                   _ChildCard(
                     name: 'Jason Tan',
-                    info: 'DOB: 15 Jan 2026\nWeight: 8.5 kg · Height: 73 cm',
+                    dob: 'DOB: 15 Jan 2026',
+                    details: '8.5 kg · 73 cm',
                     status: _CardStatus.safe,
                     buckled: true,
                     near: true,
@@ -35,7 +38,8 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(height: 16),
                   _ChildCard(
                     name: 'Baby Ali',
-                    info: 'DOB: 10 Jun 2025\nWeight: 6.8 kg · Height: 65 cm',
+                    dob: 'DOB: 10 Jun 2025',
+                    details: '6.8 kg · 65 cm',
                     status: _CardStatus.caution,
                     buckled: true,
                     near: true,
@@ -44,7 +48,8 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(height: 16),
                   _ChildCard(
                     name: 'Nur Alysha',
-                    info: 'DOB: 20 Mar 2025\nWeight: 7.2 kg · Height: 68 cm',
+                    dob: 'DOB: 20 Mar 2025',
+                    details: '7.2 kg · 68 cm',
                     status: _CardStatus.warning,
                     buckled: false,
                     near: false,
@@ -70,7 +75,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _header() {
+  Widget _header(BuildContext context) {
     // Outer Stack: bg → wave → car (on top of wave) → text
     return Stack(
       children: [
@@ -113,14 +118,19 @@ class HomeScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(
-              children: const [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, color: AppColors.accent, size: 24),
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
+                  child: const CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person, color: AppColors.accent, size: 24),
+                  ),
                 ),
-                SizedBox(width: 12),
-                Expanded(
+                const SizedBox(width: 12),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -134,7 +144,7 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.home_filled, color: Colors.white, size: 28),
+                const Icon(Icons.home_filled, color: Colors.white, size: 28),
               ],
             ),
           ),
@@ -416,7 +426,8 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
 
 class _ChildCard extends StatelessWidget {
   final String name;
-  final String info;
+  final String dob;
+  final String details; // single line: "8.5 kg · 73 cm"
   final _CardStatus status;
   final bool buckled;
   final bool near;
@@ -424,7 +435,8 @@ class _ChildCard extends StatelessWidget {
 
   const _ChildCard({
     required this.name,
-    required this.info,
+    required this.dob,
+    required this.details,
     required this.status,
     required this.buckled,
     required this.near,
@@ -446,16 +458,10 @@ class _ChildCard extends StatelessWidget {
         _CardStatus.warning => 'WARNING',
       };
 
-  // Per-indicator severity: each pill reflects its own danger level.
-  // • Far = critical (🔴)   • Unlatched = caution (🟡)   • Low battery = caution (🟡)
-  Color get _buckleColor =>
-      buckled ? AppColors.safe : AppColors.caution;
-
-  Color get _nearColor =>
-      near ? AppColors.safe : AppColors.warning;
-
-  Color get _batteryColor =>
-      battery > 20 ? AppColors.safe : AppColors.caution;
+  // Per-indicator tones — each pill colours itself independently.
+  StatusTone get _buckleTone  => buckled      ? StatusTone.good : StatusTone.bad;
+  StatusTone get _nearTone    => near         ? StatusTone.good : StatusTone.bad;
+  StatusTone get _batteryTone => battery > 20 ? StatusTone.neutral : StatusTone.bad;
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +474,7 @@ class _ChildCard extends StatelessWidget {
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
                 radius: 26,
@@ -478,22 +485,35 @@ class _ChildCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         fontSize: 20)),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700)),
-                    Text(info,
+                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(dob,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
-                            height: 1.5)),
+                            height: 1.4)),
+                    Text(details,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            height: 1.4)),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
@@ -511,51 +531,26 @@ class _ChildCard extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _pill(
-                buckled ? Icons.link : Icons.link_off,
-                buckled ? 'Latched' : 'Unlatched',
-                _buckleColor,
-              ),
+              Expanded(child: StatusPill(
+                icon: buckled ? Icons.link : Icons.link_off,
+                label: buckled ? 'Latched' : 'Unlatched',
+                tone: _buckleTone,
+              )),
               const SizedBox(width: 8),
-              _pill(
-                near ? Icons.location_on : Icons.location_off,
-                near ? 'Near' : 'Far',
-                _nearColor,
-              ),
+              Expanded(child: StatusPill(
+                icon: near ? Icons.location_on : Icons.location_off,
+                label: near ? 'Near' : 'Far',
+                tone: _nearTone,
+              )),
               const SizedBox(width: 8),
-              _pill(
-                battery <= 20 ? Icons.battery_alert : Icons.battery_full,
-                '$battery%',
-                _batteryColor,
-              ),
+              Expanded(child: StatusPill(
+                icon: battery <= 20 ? Icons.battery_alert : Icons.battery_full,
+                label: '$battery%',
+                tone: _batteryTone,
+              )),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _pill(IconData icon, String label, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 16),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(label,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      const TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-          ],
-        ),
       ),
     );
   }

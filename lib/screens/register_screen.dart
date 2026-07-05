@@ -13,16 +13,16 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
+  final _formKey     = GlobalKey<FormState>();
+  final _nameCtrl    = TextEditingController();
+  final _emailCtrl   = TextEditingController();
+  final _passCtrl    = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _auth = AuthService();
+  final _auth        = AuthService();
 
-  bool _loading = false;
-  bool _obscurePass = true;
-  bool _obscureConfirm = true;
+  bool   _loading        = false;
+  bool   _obscurePass    = true;
+  bool   _obscureConfirm = true;
   String? _error;
 
   @override
@@ -33,6 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _confirmCtrl.dispose();
     super.dispose();
   }
+
+  // ── Auth logic (unchanged) ────────────────────────────────────────────────
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -47,13 +49,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (isActive) {
-        // Email confirmation disabled — go straight to device pairing.
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ConnectDeviceScreen()),
           (r) => false,
         );
       } else {
-        // Supabase sent a confirmation email — let the user know.
         setState(() { _loading = false; });
         _showConfirmationDialog();
       }
@@ -89,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Navigator.of(context).pop(); // back to login
+              Navigator.of(context).pop();
             },
             child: const Text('Go to Sign In',
                 style: TextStyle(
@@ -100,60 +100,152 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  // ── Design constants ──────────────────────────────────────────────────────
+
+  static const _kWaveH = 140.0;
+  static const _kLogoD = 96.0;
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // ── Wave header ────────────────────────────────────────────────
-          _RegisterHeader(),
-          // ── Form ──────────────────────────────────────────────────────
+          // ── Wave + overlapping logo circle (identical to Login) ──────────
+          SizedBox(
+            height: _kWaveH + _kLogoD / 2,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                // Gradient wave
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: ClipPath(
+                    clipper: AppWaveClipper(),
+                    child: Container(
+                      height: _kWaveH,
+                      decoration: const BoxDecoration(gradient: kHeaderGradient),
+                    ),
+                  ),
+                ),
+
+                // Back arrow + "Waby" wordmark inside the wave
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 12, 24, 0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white, size: 22),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          const Text(
+                            'Waby',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Logo circle — overlaps the wave bottom edge
+                Positioned(
+                  bottom: 0,
+                  child: Container(
+                    width: _kLogoD,
+                    height: _kLogoD,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(30),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(14),
+                    child: Image.asset(
+                      'assets/images/Waby_Logo_clean.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                          Icons.child_care,
+                          size: 40,
+                          color: AppColors.accent),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Scrollable form ──────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Create Account',
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.navy)),
+                    const SizedBox(height: 20),
+
+                    // Heading
+                    const Center(
+                      child: Text('Create Account',
+                          style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy)),
+                    ),
                     const SizedBox(height: 4),
-                    const Text('Fill in your details to get started',
-                        style: TextStyle(
-                            fontSize: 14, color: AppColors.textSecondary)),
+                    const Center(
+                      child: Text('Join Waby today',
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary)),
+                    ),
                     const SizedBox(height: 24),
 
-                    // Full name
-                    _label('Full Name'),
+                    // Full Name
+                    _fieldLabel('Full Name'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameCtrl,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        hintText: 'e.g. Ahmad Rahman',
-                        prefixIcon: Icon(Icons.person_outline,
-                            color: AppColors.textSecondary),
+                      decoration: _fieldDecoration(
+                        hint: 'e.g. Ahmad Rahman',
+                        prefix: Icons.person_outline,
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Enter your name'
+                          : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Email
-                    _label('Email'),
+                    _fieldLabel('Email Address'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        hintText: 'you@email.com',
-                        prefixIcon: Icon(Icons.email_outlined,
-                            color: AppColors.textSecondary),
+                      decoration: _fieldDecoration(
+                        hint: 'you@email.com',
+                        prefix: Icons.email_outlined,
                       ),
                       validator: (v) => (v == null || !v.contains('@'))
                           ? 'Enter a valid email'
@@ -162,21 +254,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
 
                     // Password
-                    _label('Password'),
+                    _fieldLabel('Password'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _passCtrl,
                       obscureText: _obscurePass,
-                      decoration: InputDecoration(
-                        hintText: '••••••••',
-                        prefixIcon: const Icon(Icons.lock_outline,
-                            color: AppColors.textSecondary),
-                        suffixIcon: IconButton(
+                      decoration: _fieldDecoration(
+                        hint: '••••••••',
+                        prefix: Icons.lock_outline,
+                        suffix: IconButton(
                           icon: Icon(
                             _obscurePass
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                             color: AppColors.textSecondary,
+                            size: 20,
                           ),
                           onPressed: () =>
                               setState(() => _obscurePass = !_obscurePass),
@@ -188,22 +280,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Confirm password
-                    _label('Confirm Password'),
+                    // Confirm Password
+                    _fieldLabel('Confirm Password'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _confirmCtrl,
                       obscureText: _obscureConfirm,
-                      decoration: InputDecoration(
-                        hintText: '••••••••',
-                        prefixIcon: const Icon(Icons.lock_outline,
-                            color: AppColors.textSecondary),
-                        suffixIcon: IconButton(
+                      decoration: _fieldDecoration(
+                        hint: '••••••••',
+                        prefix: Icons.lock_outline,
+                        suffix: IconButton(
                           icon: Icon(
                             _obscureConfirm
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                             color: AppColors.textSecondary,
+                            size: 20,
                           ),
                           onPressed: () => setState(
                               () => _obscureConfirm = !_obscureConfirm),
@@ -216,27 +308,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     // Error banner
                     if (_error != null) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       AuthErrorBanner(_error!),
                     ],
 
                     const SizedBox(height: 28),
 
-                    // Register button
-                    ElevatedButton(
-                      onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Text('Create Account'),
+                    // Primary Register button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.navy,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('Register',
+                                      style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700)),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.arrow_forward_rounded, size: 18),
+                                ],
+                              ),
+                      ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-                    // Sign in link
+                    // Already have an account? Login
                     Center(
                       child: GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
@@ -246,9 +359,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 fontSize: 14,
                                 color: AppColors.textSecondary),
                             children: [
-                              TextSpan(text: 'Already have an account? '),
+                              TextSpan(text: 'Already have an account?  '),
                               TextSpan(
-                                text: 'Sign In',
+                                text: 'Login',
                                 style: TextStyle(
                                   color: AppColors.accent,
                                   fontWeight: FontWeight.w600,
@@ -260,7 +373,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -271,64 +384,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _label(String text) => Text(text,
-      style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: AppColors.textPrimary));
-}
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-// ── Register wave header ──────────────────────────────────────────────────────
+  Widget _fieldLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: AppColors.textPrimary),
+      );
 
-class _RegisterHeader extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: AuthWaveClipper(),
-      child: Container(
-        height: 180,
-        decoration: const BoxDecoration(gradient: kHeaderGradient),
-        child: SafeArea(
-          bottom: false,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 28, top: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back_ios,
-                        color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/Waby_Logo_clean.png',
-                        height: 32,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Waby',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  const Text('Create your account',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 13)),
-                ],
-              ),
-            ),
-          ),
-        ),
+  InputDecoration _fieldDecoration({
+    required String hint,
+    required IconData prefix,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: AppColors.field,
+      prefixIcon: Icon(prefix, color: AppColors.textSecondary, size: 20),
+      suffixIcon: suffix,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 }

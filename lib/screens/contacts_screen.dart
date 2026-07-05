@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../core/theme.dart';
 import '../models/contact.dart';
 import '../services/contact_service.dart';
-import '../widgets/invite_family_sheet.dart';
 
 class ContactsScreen extends StatelessWidget {
   ContactsScreen({super.key, this.showBack = true});
@@ -20,7 +19,6 @@ class ContactsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            _buildMomCard(),
             _buildChildrenSection(context),
             const SizedBox(height: 20),
             _buildFamilyMembersSection(context),
@@ -69,63 +67,11 @@ class ContactsScreen extends StatelessWidget {
     );
   }
 
-  // ── Mom profile card ──────────────────────────────────────────────────────
-
-  Widget _buildMomCard() {
-    return Transform.translate(
-      offset: const Offset(0, -24),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Builder(
-          builder: (context) => GestureDetector(
-            onTap: () => _showMomEditSheet(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD2F7FF),
-                border: Border.all(color: const Color(0xFF008FB4)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: AppColors.accent,
-                    child: const Icon(Icons.person, color: Colors.white, size: 22),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Text('Mom',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600,
-                            color: Color(0xFF031E2A))),
-                  ),
-                  const Icon(Icons.chevron_right, color: Color(0xFF008FB4), size: 28),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showMomEditSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      useSafeArea: true,
-      builder: (_) => const _MomEditSheet(),
-    );
-  }
-
   Widget _buildChildrenSection(BuildContext context) {
     return const _ChildrenSection();
   }
 
-  // ── Family Members section ────────────────────────────────────────────────
+  // ── Family Members section — read-only, managed in Settings ───────────────
 
   Widget _buildFamilyMembersSection(BuildContext context) {
     return Padding(
@@ -135,26 +81,18 @@ class ContactsScreen extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Family Members',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF031E2A))),
-              OutlinedButton(
-                onPressed: () => _openAddForm(context),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF6391C9)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('+ Invite',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1F61B2))),
-              ),
+            children: const [
+              Text('Family Members',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF031E2A))),
             ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'To add or remove members, go to Settings → Family Management.',
+            style: TextStyle(fontSize: 11, color: Color(0x8C031E2A)),
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<Contact>>(
@@ -169,7 +107,8 @@ class ContactsScreen extends StatelessWidget {
                   child: Center(
                     child: Text('Could not load contacts.\n${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red, fontSize: 12)),
+                        style: const TextStyle(
+                            color: Colors.red, fontSize: 12)),
                   ),
                 );
               }
@@ -181,7 +120,8 @@ class ContactsScreen extends StatelessWidget {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: Text('No family members yet. Tap + Invite to add.',
+                    child: Text(
+                        'No family members yet. Add them in Settings → Family Management.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             color: AppColors.textSecondary, fontSize: 13)),
@@ -193,7 +133,7 @@ class ContactsScreen extends StatelessWidget {
                   final c = contacts[i];
                   return Column(
                     children: [
-                      _memberRow(context, c, verified: i == 0),
+                      _memberRow(c, verified: i == 0),
                       if (i < contacts.length - 1)
                         const Divider(
                             color: Colors.black12, height: 1, thickness: 1),
@@ -208,7 +148,7 @@ class ContactsScreen extends StatelessWidget {
     );
   }
 
-  Widget _memberRow(BuildContext context, Contact c, {bool verified = false}) {
+  Widget _memberRow(Contact c, {bool verified = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -216,11 +156,13 @@ class ContactsScreen extends StatelessWidget {
           CircleAvatar(
             radius: 20,
             backgroundColor: AppColors.accent,
-            child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14)),
+            child: Text(
+              c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -247,7 +189,6 @@ class ContactsScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Three-dot menu moved to Settings → Family Management
         ],
       ),
     );
@@ -279,7 +220,8 @@ class ContactsScreen extends StatelessWidget {
                 color: const Color(0xFFBDD6F3),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.bolt, color: Color(0xFF1F61B2), size: 20),
+              child: const Icon(Icons.bolt,
+                  color: Color(0xFF1F61B2), size: 20),
             ),
             const SizedBox(height: 8),
             const Text('Family Join Code',
@@ -291,13 +233,12 @@ class ContactsScreen extends StatelessWidget {
             const Text('Share this code to add new family members',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0x8C031E2A))),
+                    fontSize: 11, color: Color(0x8C031E2A))),
             const SizedBox(height: 10),
             Center(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -332,162 +273,9 @@ class ContactsScreen extends StatelessWidget {
       ),
     );
   }
-
-  // ── Dialogs ───────────────────────────────────────────────────────────────
-
-  void _showMemberOptions(BuildContext context, Contact c) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: AppColors.accent),
-              title: const Text('Edit'),
-              onTap: () {
-                Navigator.pop(context);
-                _openEditForm(context, c);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: AppColors.warning),
-              title: const Text('Remove'),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDelete(context, c);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openAddForm(BuildContext context) => _showInviteSheet(context);
-
-  void _showInviteSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      useSafeArea: true,
-      builder: (sheetContext) => InviteFamilySheet(
-        joinCode: 'BT - 8942',
-        onInvite: (name, email, phone, relation) async {
-          await _service.addContact(
-            name: name,
-            phone: phone,
-            relation: relation,
-          );
-          if (sheetContext.mounted) {
-            Navigator.pop(sheetContext);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Invite sent to $name')),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  void _openEditForm(BuildContext context, Contact c) =>
-      _openForm(context, existing: c);
-
-  void _openForm(BuildContext context, {Contact? existing}) {
-    final isEdit = existing != null;
-    final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
-    final relCtrl = TextEditingController(text: existing?.relation ?? '');
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(isEdit ? 'Edit Member' : 'Add Family Member'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(hintText: 'Name')),
-            const SizedBox(height: 12),
-            TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration:
-                    const InputDecoration(hintText: 'Phone number')),
-            const SizedBox(height: 12),
-            TextField(
-                controller: relCtrl,
-                decoration: const InputDecoration(
-                    hintText: 'Relation (e.g. Dad, Aunt)')),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(minimumSize: const Size(88, 44)),
-            onPressed: () async {
-              final name = nameCtrl.text.trim();
-              final phone = phoneCtrl.text.trim();
-              final rel = relCtrl.text.trim();
-              if (name.isEmpty || phone.isEmpty) return;
-              if (isEdit) {
-                await _service.updateContact(Contact(
-                    id: existing!.id,
-                    name: name,
-                    phone: phone,
-                    relation: rel));
-              } else {
-                await _service.addContact(
-                    name: name, phone: phone, relation: rel);
-              }
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: Text(isEdit ? 'Save' : 'Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context, Contact c) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Remove member?'),
-        content: Text('Remove ${c.name} from your family?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.warning,
-                minimumSize: const Size(88, 44)),
-            onPressed: () async {
-              await _service.deleteContact(c.id);
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+// ── Children section (unchanged) ──────────────────────────────────────────────
 
 class _ChildProfile {
   _ChildProfile({
@@ -549,8 +337,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                 onPressed: () {},
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFF6391C9)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(
@@ -568,7 +356,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
           ...List.generate(_children.length, (i) {
             final child = _children[i];
             return Padding(
-              padding: EdgeInsets.only(bottom: i < _children.length - 1 ? 8 : 0),
+              padding: EdgeInsets.only(
+                  bottom: i < _children.length - 1 ? 8 : 0),
               child: _childCard(context, child),
             );
           }),
@@ -578,10 +367,12 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 
   Widget _childCard(BuildContext context, _ChildProfile child) {
-    final bgColor =
-        child.isWarning ? const Color(0xFFFFE5E5) : const Color(0xFFDEE8F3);
-    final batteryColor =
-        child.isWarning ? const Color(0xFFFF0E0E) : const Color(0xFF031E2A);
+    final bgColor = child.isWarning
+        ? const Color(0xFFFFE5E5)
+        : const Color(0xFFDEE8F3);
+    final batteryColor = child.isWarning
+        ? const Color(0xFFFF0E0E)
+        : const Color(0xFF031E2A);
 
     return GestureDetector(
       onTap: () => _showChildDetail(context, child),
@@ -596,7 +387,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
             CircleAvatar(
               radius: 22,
               backgroundColor: AppColors.accent.withAlpha(180),
-              child: const Icon(Icons.child_care, color: Colors.white, size: 22),
+              child: const Icon(Icons.child_care,
+                  color: Colors.white, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -611,8 +403,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   const SizedBox(height: 2),
                   RichText(
                     text: TextSpan(
-                      style:
-                          const TextStyle(fontSize: 12, color: Color(0xFF031E2A)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF031E2A)),
                       children: [
                         TextSpan(text: '${child.ageLabel} | '),
                         TextSpan(
@@ -645,7 +437,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
 
   Widget _childOptionsButton(BuildContext context, _ChildProfile child) {
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Color(0xFF031E2A), size: 20),
+      icon: const Icon(Icons.more_vert,
+          color: Color(0xFF031E2A), size: 20),
       padding: EdgeInsets.zero,
       offset: const Offset(0, 32),
       color: Colors.white,
@@ -680,7 +473,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
           height: 44,
           child: Row(
             children: const [
-              Icon(Icons.delete_outline, color: AppColors.warning, size: 20),
+              Icon(Icons.delete_outline,
+                  color: AppColors.warning, size: 20),
               SizedBox(width: 12),
               Text('Delete profile',
                   style: TextStyle(
@@ -697,13 +491,15 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   void _openEditChild(BuildContext context, _ChildProfile child) {
     final nameCtrl = TextEditingController(text: child.name);
     final ageCtrl = TextEditingController(text: child.ageLabel);
-    final batteryCtrl = TextEditingController(text: child.battery.toString());
+    final batteryCtrl =
+        TextEditingController(text: child.battery.toString());
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: const Text('Edit profile'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -715,7 +511,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
             const SizedBox(height: 12),
             TextField(
               controller: ageCtrl,
-              decoration: const InputDecoration(hintText: 'Age (e.g. 2 year)'),
+              decoration:
+                  const InputDecoration(hintText: 'Age (e.g. 2 year)'),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -731,7 +528,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(minimumSize: const Size(88, 44)),
+            style: ElevatedButton.styleFrom(
+                minimumSize: const Size(88, 44)),
             onPressed: () {
               final name = nameCtrl.text.trim();
               final age = ageCtrl.text.trim();
@@ -756,7 +554,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete profile?'),
         content: Text('Remove ${child.name} from your children list?'),
         actions: [
@@ -770,7 +569,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
               minimumSize: const Size(88, 44),
             ),
             onPressed: () {
-              setState(() => _children.removeWhere((c) => c.id == child.id));
+              setState(
+                  () => _children.removeWhere((c) => c.id == child.id));
               Navigator.pop(dialogContext);
             },
             child: const Text('Delete'),
@@ -781,7 +581,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 }
 
-// ── Child detail bottom sheet ─────────────────────────────────────────────────
+// ── Child detail bottom sheet (unchanged) ─────────────────────────────────────
 
 class _ChildDetailSheet extends StatelessWidget {
   const _ChildDetailSheet({required this.child});
@@ -790,9 +590,12 @@ class _ChildDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safe = !child.isWarning;
-    final statusColor = safe ? const Color(0xFF56B337) : const Color(0xFFC2291D);
-    final headerTop = safe ? const Color(0xFF008FB4) : const Color(0xFFC2291D);
-    final headerBot = safe ? const Color(0xFF7AD0E4) : const Color(0xFFE05555);
+    final statusColor =
+        safe ? const Color(0xFF56B337) : const Color(0xFFC2291D);
+    final headerTop =
+        safe ? const Color(0xFF008FB4) : const Color(0xFFC2291D);
+    final headerBot =
+        safe ? const Color(0xFF7AD0E4) : const Color(0xFFE05555);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
@@ -805,11 +608,11 @@ class _ChildDetailSheet extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // drag handle
             const SizedBox(height: 12),
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   borderRadius: BorderRadius.circular(2),
@@ -817,7 +620,6 @@ class _ChildDetailSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            // gradient header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -833,7 +635,8 @@ class _ChildDetailSheet extends StatelessWidget {
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: Colors.white.withAlpha(60),
-                    child: const Icon(Icons.child_care, color: Colors.white, size: 32),
+                    child: const Icon(Icons.child_care,
+                        color: Colors.white, size: 32),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -853,7 +656,8 @@ class _ChildDetailSheet extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -869,7 +673,6 @@ class _ChildDetailSheet extends StatelessWidget {
                 ],
               ),
             ),
-            // scrollable body
             Expanded(
               child: ListView(
                 controller: scrollCtrl,
@@ -883,7 +686,8 @@ class _ChildDetailSheet extends StatelessWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(child: _statCard(
+                      Expanded(
+                          child: _statCard(
                         icon: Icons.thermostat,
                         label: 'Temperature',
                         value: '23°C',
@@ -891,7 +695,8 @@ class _ChildDetailSheet extends StatelessWidget {
                         safe: true,
                       )),
                       const SizedBox(width: 12),
-                      Expanded(child: _statCard(
+                      Expanded(
+                          child: _statCard(
                         icon: Icons.link,
                         label: 'Buckle',
                         value: safe ? 'Latched' : 'Unlatched',
@@ -903,7 +708,8 @@ class _ChildDetailSheet extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _statCard(
+                      Expanded(
+                          child: _statCard(
                         icon: Icons.location_on,
                         label: 'Distance',
                         value: safe ? 'Near' : 'Far',
@@ -911,7 +717,8 @@ class _ChildDetailSheet extends StatelessWidget {
                         safe: safe,
                       )),
                       const SizedBox(width: 12),
-                      Expanded(child: _statCard(
+                      Expanded(
+                          child: _statCard(
                         icon: Icons.battery_full,
                         label: 'Battery',
                         value: '${child.battery}%',
@@ -927,9 +734,12 @@ class _ChildDetailSheet extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF031E2A))),
                   const SizedBox(height: 12),
-                  _infoRow(Icons.bluetooth, 'Connection', 'Connected via WiFi'),
-                  _infoRow(Icons.gps_fixed, 'GPS', '3.1478° N, 101.6953° E'),
-                  _infoRow(Icons.sensors, 'Seat sensor', 'Weight detected'),
+                  _infoRow(Icons.bluetooth, 'Connection',
+                      'Connected via WiFi'),
+                  _infoRow(Icons.gps_fixed, 'GPS',
+                      '3.1478° N, 101.6953° E'),
+                  _infoRow(
+                      Icons.sensors, 'Seat sensor', 'Weight detected'),
                   const SizedBox(height: 24),
                   if (!safe)
                     SizedBox(
@@ -959,9 +769,12 @@ class _ChildDetailSheet extends StatelessWidget {
     required String sub,
     required bool safe,
   }) {
-    final bg = safe ? const Color(0xFFE0EEF9) : const Color(0xFFFFE8E8);
-    final iconColor = safe ? const Color(0xFF1F61B2) : const Color(0xFFC2291D);
-    final valueColor = safe ? const Color(0xFF031E2A) : const Color(0xFFC2291D);
+    final bg =
+        safe ? const Color(0xFFE0EEF9) : const Color(0xFFFFE8E8);
+    final iconColor =
+        safe ? const Color(0xFF1F61B2) : const Color(0xFFC2291D);
+    final valueColor =
+        safe ? const Color(0xFF031E2A) : const Color(0xFFC2291D);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -975,12 +788,16 @@ class _ChildDetailSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Text(value,
               style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: valueColor)),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor)),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(fontSize: 11, color: Color(0x8C031E2A))),
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0x8C031E2A))),
           Text(sub,
-              style: const TextStyle(fontSize: 11, color: Color(0x8C031E2A))),
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0x8C031E2A))),
         ],
       ),
     );
@@ -992,17 +809,20 @@ class _ChildDetailSheet extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: const Color(0xFFE9F5FE),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFF1F61B2), size: 18),
+            child:
+                Icon(icon, color: const Color(0xFF1F61B2), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(label,
-                style: const TextStyle(fontSize: 13, color: Color(0x8C031E2A))),
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0x8C031E2A))),
           ),
           Text(value,
               style: const TextStyle(
@@ -1010,184 +830,6 @@ class _ChildDetailSheet extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF031E2A))),
         ],
-      ),
-    );
-  }
-}
-
-// ── Mom edit profile bottom sheet ─────────────────────────────────────────────
-
-class _MomEditSheet extends StatefulWidget {
-  const _MomEditSheet();
-
-  @override
-  State<_MomEditSheet> createState() => _MomEditSheetState();
-}
-
-class _MomEditSheetState extends State<_MomEditSheet> {
-  final _nameCtrl = TextEditingController(text: 'Mom');
-  final _emailCtrl = TextEditingController(text: 'mom@email.com');
-  final _phoneCtrl = TextEditingController(text: '+60 12 345 6789');
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.black26,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text('Edit Profile',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF031E2A))),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Color(0xFF031E2A)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // avatar
-                Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 44,
-                        backgroundColor: AppColors.accent,
-                        child: const Icon(Icons.person, color: Colors.white, size: 48),
-                      ),
-                      Positioned(
-                        bottom: 0, right: 0,
-                        child: Container(
-                          width: 28, height: 28,
-                          decoration: BoxDecoration(
-                            color: AppColors.navy,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(Icons.edit, color: Colors.white, size: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _label('Full name'),
-                const SizedBox(height: 8),
-                _field(_nameCtrl, hint: 'Your name'),
-                const SizedBox(height: 16),
-                _label('Email'),
-                const SizedBox(height: 8),
-                _field(_emailCtrl,
-                    hint: 'your@email.com',
-                    keyboard: TextInputType.emailAddress),
-                const SizedBox(height: 16),
-                _label('Phone number'),
-                const SizedBox(height: 8),
-                _field(_phoneCtrl,
-                    hint: '+60 12 345 6789',
-                    keyboard: TextInputType.phone),
-                const SizedBox(height: 28),
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _saving
-                        ? null
-                        : () async {
-                            final nav = Navigator.of(context);
-                            final messenger = ScaffoldMessenger.of(context);
-                            setState(() => _saving = true);
-                            await Future.delayed(const Duration(milliseconds: 400));
-                            if (!mounted) return;
-                            nav.pop();
-                            messenger.showSnackBar(
-                              const SnackBar(content: Text('Profile updated')),
-                            );
-                          },
-                    child: _saving
-                        ? const SizedBox(
-                            width: 22, height: 22,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('Save Changes'),
-                              SizedBox(width: 8),
-                              Icon(Icons.check, size: 20),
-                            ],
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String text) => Text(text,
-      style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF031E2A)));
-
-  Widget _field(TextEditingController ctrl,
-      {required String hint, TextInputType keyboard = TextInputType.text}) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: keyboard,
-      textInputAction: TextInputAction.next,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: AppColors.field,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
       ),
     );
   }

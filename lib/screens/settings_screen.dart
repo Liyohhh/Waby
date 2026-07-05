@@ -3,7 +3,11 @@ import '../core/theme.dart';
 import '../models/contact.dart';
 import '../services/auth_service.dart';
 import '../services/contact_service.dart';
+import '../widgets/invite_family_sheet.dart';
+import 'help_support_screen.dart';
 import 'login_screen.dart';
+import 'privacy_data_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -42,7 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: _kSectionGap),
-            _buildProfileCard(),
+            _buildProfileCard(context),
             const SizedBox(height: _kSectionGap),
 
             // ── Notifications ────────────────────────────────────────────
@@ -97,9 +101,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _sectionLabel('Support & Safety'),
             const SizedBox(height: _kLabelCardGap),
             _card([
-              _navRow(Icons.shield_outlined, 'Privacy & Data'),
+              _navRow(Icons.shield_outlined, 'Privacy & Data',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const PrivacyDataScreen()),
+                  )),
               _divider(),
-              _navRow(Icons.help_outline,    'Help & Support'),
+              _navRow(Icons.help_outline, 'Help & Support',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const HelpSupportScreen()),
+                  )),
             ]),
             const SizedBox(height: 32),
 
@@ -144,45 +156,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Profile card ──────────────────────────────────────────────────────────
 
-  Widget _buildProfileCard() {
+  Widget _buildProfileCard(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-      child: _cardContainer(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: _kGutter, vertical: _kRowV),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: _kIconBg,
-                  shape: BoxShape.circle,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x12000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
                 ),
-                child: const Icon(Icons.person, color: AppColors.accent, size: 26),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: _kGutter, vertical: _kRowV),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: _kIconBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person,
+                        color: AppColors.accent, size: 26),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Mom',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navy)),
+                        SizedBox(height: 2),
+                        Text('Account owner',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.textSecondary, size: 22),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text('Mom',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary)),
-                    SizedBox(height: 2),
-                    Text('Account owner',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right,
-                  color: AppColors.textSecondary, size: 22),
-            ],
+            ),
           ),
         ),
       ),
@@ -343,19 +377,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: onChanged,
             ),
           ),
-          // ── Range labels ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('${min.round()}',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textSecondary)),
-              Text('${max.round()}',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textSecondary)),
-            ],
-          ),
-          const SizedBox(height: 4),
         ],
       ),
     );
@@ -583,23 +604,106 @@ class _FamilyManagementSheet extends StatefulWidget {
   const _FamilyManagementSheet({required this.onDeleted});
 
   @override
-  State<_FamilyManagementSheet> createState() => _FamilyManagementSheetState();
+  State<_FamilyManagementSheet> createState() =>
+      _FamilyManagementSheetState();
 }
 
 class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
   final _service = ContactService();
 
-  Future<void> _delete(BuildContext ctx, Contact c) async {
-    final confirmed = await showDialog<bool>(
-      context: ctx,
+  void _openInvite() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      useSafeArea: true,
+      builder: (sheetCtx) => InviteFamilySheet(
+        joinCode: 'BT - 8942',
+        onInvite: (name, email, phone, relation) async {
+          await _service.addContact(
+              name: name, phone: phone, relation: relation);
+          if (sheetCtx.mounted) {
+            Navigator.pop(sheetCtx);
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$name added to family')),
+            );
+            setState(() {});
+          }
+        },
+      ),
+    );
+  }
+
+  void _openEdit(Contact c) {
+    final nameCtrl = TextEditingController(text: c.name);
+    final phoneCtrl = TextEditingController(text: c.phone);
+    final relCtrl = TextEditingController(text: c.relation);
+
+    showDialog<void>(
+      context: context,
       builder: (d) => AlertDialog(
         backgroundColor: Colors.white,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('Edit Member',
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.navy)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(hintText: 'Name')),
+            const SizedBox(height: 12),
+            TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration:
+                    const InputDecoration(hintText: 'Phone number')),
+            const SizedBox(height: 12),
+            TextField(
+                controller: relCtrl,
+                decoration: const InputDecoration(
+                    hintText: 'Relation (e.g. Dad, Aunt)')),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(d),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                minimumSize: const Size(88, 44)),
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              final phone = phoneCtrl.text.trim();
+              final rel = relCtrl.text.trim();
+              if (name.isEmpty || phone.isEmpty) return;
+              await _service.updateContact(Contact(
+                  id: c.id, name: name, phone: phone, relation: rel));
+              if (d.mounted) Navigator.pop(d);
+              if (mounted) setState(() {});
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(Contact c) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: const Text('Remove member?',
             style: TextStyle(fontWeight: FontWeight.w700)),
-        content: Text(
-            'Remove ${c.name} from your family group?',
+        content: Text('Remove ${c.name} from your family group?',
             style: const TextStyle(fontSize: 14)),
         actions: [
           TextButton(
@@ -609,7 +713,8 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
           TextButton(
             onPressed: () => Navigator.of(d).pop(true),
             child: const Text('Remove',
-                style: TextStyle(color: AppColors.warning,
+                style: TextStyle(
+                    color: AppColors.warning,
                     fontWeight: FontWeight.w600)),
           ),
         ],
@@ -618,12 +723,60 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
     if (confirmed == true) {
       await _service.deleteContact(c.id);
       widget.onDeleted();
+      if (mounted) setState(() {});
     }
+  }
+
+  void _showMemberOptions(Contact c) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined,
+                  color: AppColors.accent),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _openEdit(c);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline,
+                  color: AppColors.warning),
+              title: const Text('Remove',
+                  style: TextStyle(color: AppColors.warning)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _confirmDelete(c);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -633,6 +786,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // drag handle
           Center(
             child: Container(
               width: 40, height: 4,
@@ -643,34 +797,67 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Family Management',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.navy)),
-          const SizedBox(height: 4),
-          const Text('Tap ··· to remove a member from your family group.',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          // title + add button
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Family Management',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.navy)),
+                    SizedBox(height: 2),
+                    Text('Add, edit, or remove family members.',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _openInvite,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.person_add_outlined, size: 16),
+                label: const Text('Add',
+                    style: TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+
+            ],
+          ),
           const SizedBox(height: 20),
           StreamBuilder<List<Contact>>(
             stream: _service.contactsStream().timeout(
               const Duration(seconds: 6),
               onTimeout: (s) => s.add([]),
             ),
-            builder: (ctx, snap) {
+            builder: (_, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(
-                    child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(),
-                ));
+                return const SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                );
               }
               final contacts = snap.data ?? [];
               if (contacts.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
-                    child: Text('No family members yet.',
+                    child: Text('No family members yet. Tap Add to invite.',
                         style: TextStyle(
                             color: AppColors.textSecondary, fontSize: 13)),
                   ),
@@ -715,13 +902,16 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                           IconButton(
                             icon: const Icon(Icons.more_vert,
                                 color: AppColors.textSecondary),
-                            onPressed: () => _delete(ctx, c),
+                            onPressed: () =>
+                                _showMemberOptions(c),
                           ),
                         ],
                       ),
                       if (i < contacts.length - 1)
                         const Divider(
-                            color: Colors.black12, height: 1, thickness: 1),
+                            color: Colors.black12,
+                            height: 1,
+                            thickness: 1),
                     ],
                   );
                 }),
