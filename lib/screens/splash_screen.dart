@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/auth_gate.dart';
 import '../core/theme.dart';
-import '../services/auth_service.dart';
-import 'admin_main_screen.dart';
 import 'login_screen.dart';
-import 'main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,29 +19,19 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   /// Shows the splash for a minimum duration, then routes: active session ->
-  /// role-appropriate screen, otherwise -> login. Uses pushReplacement so the
-  /// splash can't be returned to via the back button.
+  /// family gate, otherwise -> login.
   Future<void> _bootstrap() async {
-    // Run the minimum-display timer and the session/role lookup together.
-    final results = await Future.wait([
-      Future.delayed(const Duration(milliseconds: 1800)),
-      _resolveDestination(),
-    ]);
-
+    await Future.delayed(const Duration(milliseconds: 1800));
     if (!mounted) return;
-    final dest = results[1] as Widget;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => dest),
-    );
-  }
 
-  /// Determines where to send the user based on the current Supabase session.
-  Future<Widget> _resolveDestination() async {
     final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) return const LoginScreen();
-
-    final role = await AuthService().getUserRole();
-    return role == 'admin' ? const AdminMainScreen() : const MainScreen();
+    if (session == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    } else {
+      await routeAfterAuth(context);
+    }
   }
 
   @override

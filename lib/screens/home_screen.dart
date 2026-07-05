@@ -1,82 +1,132 @@
 import 'dart:math' show pi;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../core/theme.dart';
+import '../models/child.dart';
+import '../models/seat_status.dart';
 import '../services/auth_service.dart';
+import '../services/child_service.dart';
+import '../services/device_service.dart';
+import '../services/live_service.dart';
 import '../widgets/status_pill.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 
-/// Waby home dashboard. Uses static/mock values for now — temperature and the
-/// children will be wired to live Firebase data (seatcare/live) in the next step.
-class HomeScreen extends StatelessWidget {
+/// Waby home dashboard, wired to live Supabase data from the `live` table.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final LiveService _liveService = LiveService();
+  late final Stream<SeatStatus> _liveStream = _liveService.liveStream();
+
+  final ChildService _childService = ChildService();
+  late final Stream<List<Child>> _childrenStream =
+      _childService.myChildrenStream();
+
+  _CardStatus _mapSeverity(SeatSeverity s) => switch (s) {
+        SeatSeverity.safe => _CardStatus.safe,
+        SeatSeverity.caution => _CardStatus.caution,
+        SeatSeverity.warning => _CardStatus.warning,
+      };
+
+  String _formatDob(DateTime? d) {
+    if (d == null) return '';
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return 'DOB: ${d.day} ${m[d.month - 1]} ${d.year}';
+  }
+
+  String _formatDetails(double? w, double? h) {
+    final parts = <String>[];
+    if (w != null) parts.add('${w.toStringAsFixed(1)} kg');
+    if (h != null) parts.add('${h.toStringAsFixed(0)} cm');
+    return parts.join(' · ');
+  }
+
+  Widget _emptyState() => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+        child: Column(
+          children: [
+            Icon(Icons.event_seat, size: 72, color: AppColors.accent.withAlpha(120)),
+            const SizedBox(height: 16),
+            const Text('No device yet',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            const Text('Add your Waby seat to start monitoring your baby.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _header(context),
-            const SizedBox(height: 16),
-            _sounds(),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: const [
-                  _ChildCard(
-                    name: 'Jason Tan',
-                    dob: 'DOB: 15 Jan 2026',
-                    details: '8.5 kg · 73 cm',
-                    status: _CardStatus.safe,
-                    buckled: true,
-                    near: true,
-                    battery: 88,
-                  ),
-                  SizedBox(height: 16),
-                  _ChildCard(
-                    name: 'Baby Ali',
-                    dob: 'DOB: 10 Jun 2025',
-                    details: '6.8 kg · 65 cm',
-                    status: _CardStatus.caution,
-                    buckled: true,
-                    near: true,
-                    battery: 11,
-                  ),
-                  SizedBox(height: 16),
-                  _ChildCard(
-                    name: 'Nur Alysha',
-                    dob: 'DOB: 20 Mar 2025',
-                    details: '7.2 kg · 68 cm',
-                    status: _CardStatus.warning,
-                    buckled: false,
-                    near: false,
-                    battery: 15,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: Builder(
-                  builder: (ctx) => ElevatedButton(
-                    onPressed: () => _showAddDeviceSheet(ctx),
-                    child: const Text('Add Device'),
-                  ),
+      body: StreamBuilder<List<Child>>(
+        stream: _childrenStream,
+        builder: (context, childSnap) {
+          final children = childSnap.data ?? const <Child>[];
+          return StreamBuilder<SeatStatus>(
+            stream: _liveStream,
+            builder: (context, liveSnap) {
+              final status = liveSnap.data ?? SeatStatus.empty();
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _header(context, status),
+                    const SizedBox(height: 16),
+                    _sounds(),
+                    const SizedBox(height: 16),
+                    if (children.isEmpty)
+                      _emptyState()
+                    else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: [
+                            for (final c in children) ...[
+                              _ChildCard(
+                                name: c.name,
+                                dob: _formatDob(c.dob),
+                                details:
+                                    _formatDetails(c.weightKg, c.heightCm),
+                                status: _mapSeverity(status.severity),
+                                present: status.present,
+                                buckled: status.buckled,
+                                near: status.distanceNear,
+                                battery: status.battery,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: Builder(
+                          builder: (ctx) => ElevatedButton(
+                            onPressed: () => _showAddDeviceSheet(ctx),
+                            child: const Text('Add Device'),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 110),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 110),
-          ],
-        ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -117,7 +167,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _header(BuildContext context, SeatStatus status) {
     // Outer Stack: bg → wave → car (on top of wave) → text
     return Stack(
       children: [
@@ -209,19 +259,21 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Icon(Icons.thermostat, color: Color(0xFF0063BA), size: 64),
-                        SizedBox(width: 4),
+                      children: [
+                        const Icon(Icons.thermostat,
+                            color: Color(0xFF0063BA), size: 64),
+                        const SizedBox(width: 4),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text('23°C',
-                                style: TextStyle(
+                            Text('${status.temperature.toStringAsFixed(0)}°C',
+                                style: const TextStyle(
                                     color: Color(0xFF0063BA),
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800)),
-                            Text("Mom's car",
-                                style: TextStyle(color: Color(0xFF031E2A), fontSize: 14)),
+                            const Text("Mom's car",
+                                style: TextStyle(
+                                    color: Color(0xFF031E2A), fontSize: 14)),
                           ],
                         ),
                       ],
@@ -231,11 +283,12 @@ class HomeScreen extends StatelessWidget {
                       width: leftWidth,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: const LinearProgressIndicator(
-                          value: 0.35,
+                        child: LinearProgressIndicator(
+                          value: ((status.temperature - 20) / (32 - 20))
+                              .clamp(0.0, 1.0),
                           minHeight: 6,
                           backgroundColor: Colors.black12,
-                          color: Color(0xFF088BEA),
+                          color: const Color(0xFF088BEA),
                         ),
                       ),
                     ),
@@ -325,7 +378,7 @@ class HomeScreen extends StatelessWidget {
 
 enum _CardStatus { safe, caution, warning }
 
-// ── BLE Add-Device sheet ──────────────────────────────────────────────────────
+// ── Add Device sheet ──────────────────────────────────────────────────────────
 
 Future<void> _showAddDeviceSheet(BuildContext context) async {
   await showModalBottomSheet<void>(
@@ -344,124 +397,309 @@ class _AddDeviceSheet extends StatefulWidget {
 }
 
 class _AddDeviceSheetState extends State<_AddDeviceSheet> {
-  static const _channel = MethodChannel('waby/bluetooth');
-  bool _scanning = false;
-  String? _connectedName;
+  int _step = 0;
+  bool _connecting = false;
+  bool _saving = false;
   String? _error;
 
-  Future<void> _scan() async {
-    setState(() { _scanning = true; _error = null; _connectedName = null; });
+  final _name = TextEditingController();
+  final _weight = TextEditingController();
+  final _height = TextEditingController();
+  DateTime? _dob;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _weight.dispose();
+    _height.dispose();
+    super.dispose();
+  }
+
+  Future<void> _connect() async {
+    setState(() { _connecting = true; _error = null; });
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+    setState(() { _connecting = false; _step = 1; });
+  }
+
+  Future<void> _pickDob() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dob ?? now,
+      firstDate: DateTime(now.year - 6),
+      lastDate: now,
+    );
+    if (picked != null) setState(() => _dob = picked);
+  }
+
+  String _formatDob(DateTime? d) {
+    if (d == null) return 'Select date';
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
+  }
+
+  Future<void> _save() async {
+    if (_name.text.trim().isEmpty) {
+      setState(() => _error = "Please enter the child's name.");
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
     try {
-      final name = await _channel.invokeMethod<String>('showDevicePicker');
+      await DeviceService().addDeviceWithChild(
+        deviceName: 'Waby Seat',
+        childName: _name.text.trim(),
+        dob: _dob,
+        weightKg: double.tryParse(_weight.text),
+        heightCm: double.tryParse(_height.text),
+      );
       if (!mounted) return;
-      setState(() { _scanning = false; _connectedName = name; });
-    } on PlatformException catch (e) {
+      Navigator.of(context).pop();
+    } catch (e) {
       if (!mounted) return;
       setState(() {
-        _scanning = false;
-        if (e.code != 'CANCELLED') _error = e.message ?? 'Scan failed.';
+        _saving = false;
+        _error = 'Could not add device. Please try again.';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: Colors.black12,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 20),
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-          const Text('Add Device',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
-                  color: AppColors.navy)),
-          const SizedBox(height: 6),
-          const Text('Tap Scan to find nearby Waby seat devices.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          const SizedBox(height: 28),
-
-          // Status icon
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _connectedName != null
-                ? const Icon(Icons.check_circle, size: 64,
-                    color: Color(0xFF56B337), key: ValueKey('ok'))
-                : Icon(
-                    _scanning ? Icons.bluetooth_searching : Icons.bluetooth,
-                    size: 64, color: AppColors.accent,
-                    key: ValueKey(_scanning.toString())),
-          ),
-          const SizedBox(height: 16),
-
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Text(
-              _connectedName != null
-                  ? 'Paired with $_connectedName'
-                  : _scanning ? 'Opening device picker…' : 'No device paired yet',
-              key: ValueKey(_connectedName ?? _scanning.toString()),
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: _connectedName != null
-                      ? const Color(0xFF56B337)
-                      : AppColors.textSecondary),
-            ),
-          ),
-
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFE8E8),
-                borderRadius: BorderRadius.circular(10),
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              child: Row(children: [
-                const Icon(Icons.error_outline,
-                    color: AppColors.warning, size: 16),
-                const SizedBox(width: 8),
-                Expanded(child: Text(_error!,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.warning))),
-              ]),
             ),
+            const SizedBox(height: 20),
+
+            if (_step == 0) ...[
+              const Text(
+                'Add Device',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Tap Connect to link your Waby seat.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Center(
+                child: _connecting
+                    ? const SizedBox(
+                        height: 64,
+                        width: 64,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: AppColors.accent,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.wifi_tethering,
+                        size: 64,
+                        color: AppColors.accent,
+                      ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _connecting ? null : _connect,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Connect',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              const Text(
+                'Add your child',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _name,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Child name',
+                  filled: true,
+                  fillColor: AppColors.field,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _saving ? null : _pickDob,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.field,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          color: AppColors.textSecondary, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Date of birth',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatDob(_dob),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: _dob == null
+                                    ? AppColors.textSecondary
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right,
+                          color: AppColors.textSecondary, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _weight,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Weight (kg)',
+                  filled: true,
+                  fillColor: AppColors.field,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _height,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Height (cm)',
+                  filled: true,
+                  fillColor: AppColors.field,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Save',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.warning,
+                ),
+              ),
+            ],
           ],
-
-          const SizedBox(height: 28),
-
-          if (!_scanning && _connectedName == null)
-            ElevatedButton.icon(
-              onPressed: _scan,
-              icon: const Icon(Icons.bluetooth_searching),
-              label: const Text('Scan for Devices'),
-            )
-          else if (_scanning)
-            const SizedBox(
-              height: 36, width: 36,
-              child: CircularProgressIndicator(
-                  strokeWidth: 3, color: AppColors.accent),
-            )
-          else
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Done'),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -474,6 +712,7 @@ class _ChildCard extends StatelessWidget {
   final String dob;
   final String details; // single line: "8.5 kg · 73 cm"
   final _CardStatus status;
+  final bool present;
   final bool buckled;
   final bool near;
   final int battery;
@@ -483,17 +722,22 @@ class _ChildCard extends StatelessWidget {
     required this.dob,
     required this.details,
     required this.status,
+    this.present = true,
     required this.buckled,
     required this.near,
     required this.battery,
   });
 
   // Safe & caution share the calm blue background; warning gets red.
-  Color get _cardBg => switch (status) {
-        _CardStatus.safe    => AppColors.safeCard,
-        _CardStatus.caution => AppColors.safeCard,
-        _CardStatus.warning => AppColors.warningCard,
-      };
+  // An empty seat is always calm — never show the warning red.
+  Color get _cardBg {
+    if (!present) return AppColors.safeCard;
+    return switch (status) {
+      _CardStatus.safe    => AppColors.safeCard,
+      _CardStatus.caution => AppColors.safeCard,
+      _CardStatus.warning => AppColors.warningCard,
+    };
+  }
 
   Color get _badgeColor => switch (status) {
         _CardStatus.safe    => AppColors.safe,               // green
@@ -566,10 +810,12 @@ class _ChildCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _badgeColor,
+                  color: present
+                      ? _badgeColor
+                      : AppColors.textSecondary,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(_badgeLabel,
+                child: Text(present ? _badgeLabel : 'SEAT EMPTY',
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -578,27 +824,40 @@ class _ChildCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: StatusPill(
-                icon: buckled ? Icons.link : Icons.link_off,
-                label: buckled ? 'Latched' : 'Unlatched',
-                tone: _buckleTone,
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: StatusPill(
-                icon: near ? Icons.location_on : Icons.location_off,
-                label: near ? 'Near' : 'Far',
-                tone: _nearTone,
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: StatusPill(
-                icon: battery <= 20 ? Icons.battery_alert : Icons.battery_full,
-                label: '$battery%',
-                tone: _batteryTone,
-              )),
-            ],
-          ),
+          if (!present)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.child_care_outlined,
+                    size: 18, color: AppColors.textSecondary),
+                SizedBox(width: 6),
+                Text('No baby detected',
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13)),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(child: StatusPill(
+                  icon: buckled ? Icons.link : Icons.link_off,
+                  label: buckled ? 'Latched' : 'Unlatched',
+                  tone: _buckleTone,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: StatusPill(
+                  icon: near ? Icons.location_on : Icons.location_off,
+                  label: near ? 'Near' : 'Far',
+                  tone: _nearTone,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: StatusPill(
+                  icon: battery <= 20 ? Icons.battery_alert : Icons.battery_full,
+                  label: '$battery%',
+                  tone: _batteryTone,
+                )),
+              ],
+            ),
         ],
       ),
     );

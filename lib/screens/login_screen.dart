@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/auth_gate.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
-import 'admin_main_screen.dart';
 import 'main_screen.dart';
 import 'register_screen.dart';
 
@@ -44,17 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passCtrl.text,
       );
       if (!mounted) return;
-
-      // Route based on role: admins go to AdminMainScreen.
-      final role = await _auth.getUserRole();
-      if (!mounted) return;
-      final dest = role == 'admin'
-          ? const AdminMainScreen()
-          : const MainScreen();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => dest),
-        (r) => false,
-      );
+      await routeAfterAuth(context);
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() { _error = e.message; _loading = false; });
@@ -74,10 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _auth.signInDemo();
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-        (r) => false,
-      );
+      await routeAfterAuth(context);
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() { _error = e.message; _demoLoading = false; });
