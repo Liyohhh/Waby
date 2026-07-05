@@ -701,18 +701,6 @@ class _ChildDetailSheet extends StatelessWidget {
                   _infoRow(
                       Icons.sensors, 'Seat sensor', 'Weight detected'),
                   const SizedBox(height: 24),
-                  if (!safe)
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFC2291D),
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Acknowledge Alert'),
-                      ),
-                    ),
                 ],
               ),
             ),
