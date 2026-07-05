@@ -1,37 +1,7 @@
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
-
-  // ── Google Sign-In ────────────────────────────────────────────────────────
-  // serverClientId is the WEB client ID (not the Android one).
-  // The Android OAuth client exists only to authorise the on-device request
-  // using SHA-1 + package name; the token it returns is stamped with the Web
-  // client as its audience — which is exactly what Supabase validates.
-  static const _webClientId =
-      '230534811936-e8lf1nemi5svesfp4c9raabm8tg5dpph.apps.googleusercontent.com';
-
-  /// Sign in via Google and pass the ID token to Supabase.
-  /// Throws a [String] message if the user cancels or no token is returned.
-  Future<AuthResponse> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn(serverClientId: _webClientId);
-    final googleUser = await googleSignIn.signIn();
-
-    if (googleUser == null) throw 'Sign-in cancelled';
-
-    final googleAuth = await googleUser.authentication;
-    final idToken = googleAuth.idToken;
-    final accessToken = googleAuth.accessToken;
-
-    if (idToken == null) throw 'No ID token returned from Google';
-
-    return _client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: accessToken,
-    );
-  }
 
   /// Sign in with email + password. Throws [AuthException] on failure.
   Future<void> signIn({

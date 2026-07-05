@@ -21,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
 
   bool _loading = false;
-  bool _googleLoading = false;
   bool _obscure = true;
   String? _error;
 
@@ -63,31 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _loading = false;
-      });
-    }
-  }
-
-  // ── Google Sign-In ────────────────────────────────────────────────────────
-
-  Future<void> _googleSignIn() async {
-    setState(() { _googleLoading = true; _error = null; });
-    try {
-      await _auth.signInWithGoogle();
-      if (!mounted) return;
-      final role = await _auth.getUserRole();
-      if (!mounted) return;
-      final dest = role == 'admin'
-          ? const AdminMainScreen()
-          : const MainScreen();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => dest),
-        (r) => false,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _googleLoading = false;
-        _error = e is String ? e : 'Google Sign-In failed. Please try again.';
       });
     }
   }
@@ -280,55 +254,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
-
-                    // ── or divider ───────────────────────────────────────
-                    Row(children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('or',
-                            style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary)),
-                      ),
-                      const Expanded(child: Divider()),
-                    ]),
-
-                    const SizedBox(height: 16),
-
-                    // Google sign-in
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton(
-                        onPressed: _googleLoading ? null : _googleSignIn,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFFDADCE0)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppColors.textPrimary,
-                        ),
-                        child: _googleLoading
-                            ? const SizedBox(
-                                height: 20, width: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: AppColors.accent))
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _GoogleLogo(),
-                                  SizedBox(width: 10),
-                                  Text('Continue with Google',
-                                      style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                      ),
-                    ),
-
                     const SizedBox(height: 12),
 
                     // Demo mode
@@ -422,63 +347,5 @@ class _LoginScreenState extends State<LoginScreen> {
           const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
-}
-
-// ── Google "G" logo ───────────────────────────────────────────────────────────
-
-class _GoogleLogo extends StatelessWidget {
-  const _GoogleLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
-    );
-  }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  const _GoogleLogoPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final r = size.width / 2;
-    final cx = r, cy = r;
-
-    void arc(double start, double sweep, Color color) {
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = size.width * 0.22
-        ..strokeCap = StrokeCap.butt;
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.72),
-        start,
-        sweep,
-        false,
-        paint,
-      );
-    }
-
-    const pi = 3.14159265;
-    arc(-0.52, 1.57, const Color(0xFF4285F4)); // blue (top right → bottom)
-    arc(1.05, 1.57, const Color(0xFF34A853)); // green
-    arc(2.62, 1.05, const Color(0xFFFBBC05)); // yellow
-    arc(3.67, 0.95, const Color(0xFFEA4335)); // red
-
-    // Horizontal bar for the "G" cutout
-    final bar = Paint()
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromLTWH(cx, cy - size.height * 0.10, r * 0.72, size.height * 0.20),
-      bar,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
 

@@ -36,7 +36,7 @@ class StatusPill extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(12),
@@ -44,7 +44,7 @@ class StatusPill extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 14),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 4),
           Flexible(
             child: Text(

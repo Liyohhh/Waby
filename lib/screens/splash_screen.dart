@@ -17,26 +17,33 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkSession();
+    _bootstrap();
   }
 
-  /// If the user already has an active Supabase session, skip the login
-  /// screen and route them directly to their role-appropriate screen.
-  Future<void> _checkSession() async {
+  /// Shows the splash for a minimum duration, then routes: active session ->
+  /// role-appropriate screen, otherwise -> login. Uses pushReplacement so the
+  /// splash can't be returned to via the back button.
+  Future<void> _bootstrap() async {
+    // Run the minimum-display timer and the session/role lookup together.
+    final results = await Future.wait([
+      Future.delayed(const Duration(milliseconds: 1800)),
+      _resolveDestination(),
+    ]);
+
+    if (!mounted) return;
+    final dest = results[1] as Widget;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => dest),
+    );
+  }
+
+  /// Determines where to send the user based on the current Supabase session.
+  Future<Widget> _resolveDestination() async {
     final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) return; // no session — stay on splash
+    if (session == null) return const LoginScreen();
 
     final role = await AuthService().getUserRole();
-    if (!mounted) return;
-
-    final dest = role == 'admin'
-        ? const AdminMainScreen()
-        : const MainScreen();
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => dest),
-      (r) => false,
-    );
+    return role == 'admin' ? const AdminMainScreen() : const MainScreen();
   }
 
   @override
@@ -86,23 +93,14 @@ class _SplashScreenState extends State<SplashScreen> {
 
                 const Spacer(flex: 2),
 
-                // Get Started button
-                ElevatedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                // Loading indicator — splash advances on its own.
+                const SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.navy,
-                    minimumSize: const Size.fromHeight(56),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    textStyle: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                  child: const Text('Get Started'),
                 ),
 
                 const SizedBox(height: 36),

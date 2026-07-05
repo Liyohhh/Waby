@@ -30,8 +30,15 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
         decoration: BoxDecoration(
-          color: AppColors.softBlue,
+          color: AppColors.navy,
           borderRadius: BorderRadius.circular(28),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: BottomNavigationBar(
@@ -40,10 +47,13 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
+          iconSize: 28,
           selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white70,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
+          unselectedItemColor: Colors.white.withOpacity(0.70),
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
           items: const [
             BottomNavigationBarItem(
                 icon: Icon(Icons.home_outlined),

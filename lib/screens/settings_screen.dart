@@ -30,7 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const _kSectionGap    = 24.0;
   static const _kLabelCardGap  =  8.0;
   static const _kRowV          = 14.0;  // vertical padding per row
-  static const _kIconSize      = 36.0;
+  static const _kIconSize      = 44.0;
   // Light-blue chip tint derived from theme
   static const _kIconBg = Color(0xFFD4EEF8);
 
@@ -192,7 +192,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.person,
-                        color: AppColors.accent, size: 26),
+                        color: AppColors.accent, size: 30),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -498,7 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: _kIconBg,
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: AppColors.accent, size: 20),
+      child: Icon(icon, color: AppColors.accent, size: 26),
     );
   }
 
