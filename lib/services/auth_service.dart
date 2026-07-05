@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/constants.dart';
 
 class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -9,6 +10,11 @@ class AuthService {
     required String password,
   }) async {
     await _client.auth.signInWithPassword(email: email, password: password);
+  }
+
+  /// Sign in using the fixed demo account. Throws [AuthException] on failure.
+  Future<void> signInDemo() async {
+    await signIn(email: DemoAccount.email, password: DemoAccount.password);
   }
 
   /// Register a new account, then insert a profile row with [name].
@@ -51,6 +57,37 @@ class AuthService {
 
   /// Currently authenticated user, null if not signed in.
   User? get currentUser => _client.auth.currentUser;
+
+  /// Fetches the current user's row from the `profiles` table.
+  /// Returns null if no user is signed in.
+  Future<Map<String, dynamic>?> getProfile() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    return _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+  }
+
+  /// Upserts the editable profile fields for the current user, keyed by their
+  /// auth id. No-op if not signed in. Throws on failure.
+  Future<void> updateProfile({
+    required String fullName,
+    String? phone,
+    String? relation,
+    String? country,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    await _client.from('profiles').upsert({
+      'id': userId,
+      'full_name': fullName,
+      'phone': phone,
+      'relation': relation,
+      'country': country,
+    });
+  }
 
   /// Fetches the role for the currently signed-in user from the `profiles`
   /// table. Returns `'user'` as the default if the row or column is missing.

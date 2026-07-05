@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
 
   bool _loading = false;
+  bool _demoLoading = false;
   bool _obscure = true;
   String? _error;
 
@@ -62,6 +63,29 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _loading = false;
+      });
+    }
+  }
+
+  // ── Demo account sign-in ──────────────────────────────────────────────────
+
+  Future<void> _viewDemo() async {
+    setState(() { _demoLoading = true; _error = null; });
+    try {
+      await _auth.signInDemo();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (r) => false,
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() { _error = e.message; _demoLoading = false; });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Something went wrong. Please try again.';
+        _demoLoading = false;
       });
     }
   }
@@ -251,6 +275,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text('Sign In',
                                 style: TextStyle(
                                     fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // View demo — signs in with the fixed demo account
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: TextButton(
+                        onPressed: _demoLoading ? null : _viewDemo,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.accent,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: _demoLoading
+                            ? const SizedBox(
+                                height: 20, width: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppColors.accent))
+                            : const Text('View Demo',
+                                style: TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.w600)),
                       ),
                     ),
 

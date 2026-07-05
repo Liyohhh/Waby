@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
+import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
 
 /// Edit profile screen for the account owner (Mom / primary caregiver).
@@ -50,13 +51,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'Other',
   ];
 
+  final _auth     = AuthService();
   final _formKey  = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController(text: 'Mom');
-  final _phoneCtrl = TextEditingController(text: '+60 12 345 6789');
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
 
   String _relation = 'Parent';
   String _country  = 'Malaysia';
   bool   _saving   = false;
+  bool   _loading  = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   @override
   void dispose() {
@@ -65,19 +74,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _loadProfile() async {
+    try {
+      final data = await _auth.getProfile();
+      if (!mounted) return;
+      if (data != null) {
+        _nameCtrl.text = (data['full_name'] as String?) ?? '';
+        _phoneCtrl.text = (data['phone'] as String?) ?? '';
+
+        final relation = data['relation'] as String?;
+        if (relation != null && _relations.contains(relation)) {
+          _relation = relation;
+        }
+        final country = data['country'] as String?;
+        if (country != null && _countries.contains(country)) {
+          _country = country;
+        }
+      }
+    } catch (_) {
+      // Leave fields blank on failure; user can still edit and save.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile saved'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    try {
+      await _auth.updateProfile(
+        fullName: _nameCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        relation: _relation,
+        country: _country,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile saved'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save profile. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   // ── Generic bottom-sheet picker ─────────────────────────────────────────────
@@ -113,6 +163,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: Column(
         children: [
           _ProfileHeader(onBack: () => Navigator.of(context).pop()),
+          if (_loading)
+            const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.accent),
+              ),
+            )
+          else
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
