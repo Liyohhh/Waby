@@ -4,7 +4,14 @@ import '../screens/main_screen.dart';
 import '../screens/existing_or_new_family_screen.dart';
 
 Future<void> routeAfterAuth(BuildContext context) async {
-  final familyId = await FamilyService().myFamilyId();
+  String? familyId;
+  try {
+    familyId = await FamilyService()
+        .myFamilyId()
+        .timeout(const Duration(seconds: 8));
+  } catch (_) {
+    familyId = null;
+  }
   if (!context.mounted) return;
   final next = familyId == null
       ? const ExistingOrNewFamilyScreen()
