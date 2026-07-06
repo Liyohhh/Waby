@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
+import '../models/contact.dart';
 import '../models/seat_status.dart';
 import '../services/auth_service.dart';
 import '../services/child_service.dart';
+import '../services/contact_service.dart';
 import '../services/family_service.dart';
+import '../widgets/contact_status_badge.dart';
 
 class ContactsScreen extends StatelessWidget {
   ContactsScreen({super.key, this.showBack = true});
@@ -28,6 +31,8 @@ class ContactsScreen extends StatelessWidget {
             _buildChildrenSection(context),
             const SizedBox(height: 20),
             _buildFamilyMembersSection(context),
+            const SizedBox(height: 20),
+            _buildEmergencyContactsSection(context),
             const SizedBox(height: 20),
             _buildJoinCodeCard(),
             const SizedBox(height: 100),
@@ -155,6 +160,125 @@ class ContactsScreen extends StatelessWidget {
               );
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Emergency Contacts — read-only; add/remove in Settings ────────────────
+
+  Widget _buildEmergencyContactsSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Emergency Contacts',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF031E2A),
+            ),
+          ),
+          const SizedBox(height: 12),
+          StreamBuilder<List<Contact>>(
+            stream: ContactService().contactsStream(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Text(
+                      'Could not load emergency contacts.\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+                );
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final contacts = snapshot.data ?? [];
+              if (contacts.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Text(
+                      'No emergency contacts yet.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return Column(
+                children: List.generate(contacts.length, (i) {
+                  final c = contacts[i];
+                  return Column(
+                    children: [
+                      _emergencyContactRow(c),
+                      if (i < contacts.length - 1)
+                        const Divider(
+                          color: Colors.black12,
+                          height: 1,
+                          thickness: 1,
+                        ),
+                    ],
+                  );
+                }),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emergencyContactRow(Contact c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColors.accent,
+            child: const Icon(
+              Icons.person_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  c.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF031E2A),
+                  ),
+                ),
+                if (c.relation.isNotEmpty)
+                  Text(
+                    c.relation,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0x80031E2A),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ContactStatusBadge(linked: c.isLinked),
         ],
       ),
     );

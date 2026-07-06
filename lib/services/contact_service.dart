@@ -27,6 +27,11 @@ class ContactService {
             rows.map((r) => Contact.fromMap(r['id'].toString(), r)).toList());
   }
 
+  Future<int> contactsCount() async {
+    final rows = await _db.from('contacts').select('id');
+    return (rows as List).length;
+  }
+
   // UPDATE
   Future<void> updateContact(Contact c) async {
     await _db.from('contacts').update({

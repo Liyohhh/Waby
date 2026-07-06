@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
+import '../models/contact.dart';
 import '../services/auth_service.dart';
 import '../services/contact_service.dart';
 import '../services/family_service.dart';
+import '../widgets/contact_status_badge.dart';
 import '../widgets/invite_family_sheet.dart';
 import 'existing_or_new_family_screen.dart';
 import 'help_support_screen.dart';
@@ -26,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _alertTimer  = 1;   // minutes
   String _displayName = 'Account owner';
   int? _memberCount;
+  int? _contactCount;
 
   final _auth = AuthService();
   final _familyService = FamilyService();
@@ -44,13 +47,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadMemberCount() async {
     final members = await _familyService.fetchFamilyMembers();
-    if (mounted) setState(() => _memberCount = members.length);
+    final contacts = await ContactService().contactsCount();
+    if (mounted) {
+      setState(() {
+        _memberCount = members.length;
+        _contactCount = contacts;
+      });
+    }
   }
 
   String get _memberSubtitle {
-    final n = _memberCount;
-    if (n == null) return 'Loading…';
-    return '$n member${n == 1 ? '' : 's'}';
+    final m = _memberCount;
+    final c = _contactCount;
+    if (m == null) return 'Loading…';
+    final parts = <String>['$m member${m == 1 ? '' : 's'}'];
+    if ((c ?? 0) > 0) parts.add('$c contact${c == 1 ? '' : 's'}');
+    return parts.join(' · ');
   }
 
   // ── Design constants ──────────────────────────────────────────────────────
@@ -622,6 +634,48 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
     }
   }
 
+  Future<void> _confirmRemoveContact(Contact c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove contact'),
+        content: Text(
+          'Remove ${c.name} from emergency contacts? '
+          'They will stop receiving Telegram alerts.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Remove',
+              style: TextStyle(color: AppColors.warning),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _service.deleteContact(c.id);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${c.name} removed')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not remove: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _confirmLeaveFamily() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -727,20 +781,39 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
           // title + add button
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Family Management',
+                    const Text('Family Management',
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: AppColors.navy)),
-                    SizedBox(height: 2),
-                    Text('Add, edit, or remove family members.',
-                        style: TextStyle(
+                    const SizedBox(height: 2),
+                    FutureBuilder<Map<String, dynamic>>(
+                      future: _familyDataFuture,
+                      builder: (context, snap) {
+                        String msg = 'Manage your family members.';
+                        if (snap.hasData) {
+                          final ownerId =
+                              snap.data!['ownerId']?.toString();
+                          final myId = snap.data!['myId']?.toString();
+                          final isOwner =
+                              myId != null && myId == ownerId;
+                          msg = isOwner
+                              ? 'Invite or remove family members.'
+                              : 'Invite members. Only the owner can remove.';
+                        }
+                        return Text(
+                          msg,
+                          style: const TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary)),
+                            color: AppColors.textSecondary,
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -899,6 +972,138 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                     ),
                   ],
                 ],
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Emergency Contacts',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _familyDataFuture,
+            builder: (context, familySnap) {
+              var isOwner = false;
+              if (familySnap.hasData) {
+                final ownerId = familySnap.data!['ownerId']?.toString();
+                final myId = familySnap.data!['myId']?.toString();
+                isOwner = myId != null && myId == ownerId;
+              }
+              return StreamBuilder<List<Contact>>(
+                stream: _service.contactsStream(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snap.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Could not load emergency contacts.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    );
+                  }
+                  final contacts = snap.data ?? [];
+                  if (contacts.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No emergency contacts yet. Tap Add to invite.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: contacts.map((c) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: const Color(0xFFE5EAF0)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0A000000),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: AppColors.accent
+                                  .withValues(alpha: 0.15),
+                              child: const Icon(
+                                Icons.person_outline,
+                                size: 20,
+                                color: AppColors.accent,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    c.name,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (c.relation.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      c.relation,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ContactStatusBadge(linked: c.isLinked),
+                            if (isOwner)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.remove_circle_outline,
+                                  color: AppColors.warning,
+                                ),
+                                tooltip: 'Remove contact',
+                                onPressed: () =>
+                                    _confirmRemoveContact(c),
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               );
             },
           ),
