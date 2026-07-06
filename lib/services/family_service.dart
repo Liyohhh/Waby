@@ -61,6 +61,15 @@ class FamilyService {
     return List<Map<String, dynamic>>.from(rows);
   }
 
+  /// Live stream of family profiles (RLS-scoped; includes relation).
+  Stream<List<Map<String, dynamic>>> familyMembersStream() {
+    return _db
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .order('created_at')
+        .map((rows) => List<Map<String, dynamic>>.from(rows));
+  }
+
   /// Family owner, current user id, and member rows for management UI.
   Future<Map<String, dynamic>> fetchFamilyData() async {
     final uid = _uid;

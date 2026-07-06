@@ -97,7 +97,7 @@ class _FamilyOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       elevation: 0,
       child: InkWell(
@@ -107,12 +107,14 @@ class _FamilyOptionCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 16),
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
+            border: Border.all(color: AppColors.navy.withValues(alpha: 0.06)),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x40000000),
-                blurRadius: 4,
-                offset: Offset(0, 4),
+                color: AppColors.navy.withValues(alpha: 0.12),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -291,7 +293,7 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
         ],
         decoration: InputDecoration(
           labelText: 'Invite code',
-          hintText: 'e.g. BT-8942',
+          hintText: 'e.g. WABY-8942',
           filled: true,
           fillColor: AppColors.field,
           border: OutlineInputBorder(

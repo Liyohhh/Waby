@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../core/relations.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/picker_sheet.dart';
 
 /// Edit profile screen for the account owner (Mom / primary caregiver).
 class ProfileScreen extends StatefulWidget {
@@ -12,14 +14,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const _relations = [
-    'Parent',
-    'Sibling',
-    'Guardian',
-    'Relative',
-    'Other',
-  ];
-
   static const _countries = [
     'Malaysia',
     'Singapore',
@@ -86,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _phoneCtrl.text = (data['phone'] as String?) ?? '';
 
         final relation = data['relation'] as String?;
-        if (relation != null && _relations.contains(relation)) {
+        if (relation != null && kRelationOptions.contains(relation)) {
           _relation = relation;
         }
         final country = data['country'] as String?;
@@ -150,20 +144,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required List<String> options,
     required String current,
     required ValueChanged<String> onSelected,
-  }) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _PickerSheet(
-        title: title,
-        options: options,
-        current: current,
-        onSelected: (v) {
-          onSelected(v);
-          Navigator.of(context).pop();
-        },
-      ),
+  }) {
+    return showPickerSheet(
+      context,
+      title: title,
+      options: options,
+      current: current,
+      onSelected: onSelected,
     );
   }
 
@@ -227,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: _relation,
                         onTap: () => _pickOption(
                           title: 'Relationship to Child',
-                          options: _relations,
+                          options: kRelationOptions,
                           current: _relation,
                           onSelected: (v) => setState(() => _relation = v),
                         ),
@@ -387,89 +374,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Icon(icon, color: AppColors.accent, size: 18),
       );
-}
-
-// ── Bottom-sheet picker ───────────────────────────────────────────────────────
-
-class _PickerSheet extends StatelessWidget {
-  final String title;
-  final List<String> options;
-  final String current;
-  final ValueChanged<String> onSelected;
-
-  const _PickerSheet({
-    required this.title,
-    required this.options,
-    required this.current,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(title,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navy)),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.5,
-            ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: options.length,
-              itemBuilder: (_, i) {
-                final opt = options[i];
-                final selected = opt == current;
-                return ListTile(
-                  title: Text(opt,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          color: selected
-                              ? AppColors.navy
-                              : AppColors.textPrimary)),
-                  trailing: selected
-                      ? const Icon(Icons.check_circle,
-                          color: AppColors.accent, size: 20)
-                      : null,
-                  onTap: () => onSelected(opt),
-                );
-              },
-            ),
-          ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Profile header (wave + overlapping avatar) ────────────────────────────────

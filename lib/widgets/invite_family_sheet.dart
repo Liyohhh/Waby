@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/relations.dart';
 import '../core/theme.dart';
+import '../widgets/picker_sheet.dart';
 
 /// Slide-up sheet for inviting a family member (Figma: Invite Family Member).
 class InviteFamilySheet extends StatefulWidget {
@@ -21,7 +23,7 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _relationCtrl = TextEditingController();
+  String _relation = kRelationOptions.first;
   bool _submitting = false;
 
   @override
@@ -29,7 +31,6 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
-    _relationCtrl.dispose();
     super.dispose();
   }
 
@@ -37,7 +38,7 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
-    final relation = _relationCtrl.text.trim();
+    final relation = _relation;
     if (name.isEmpty || email.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in name, email and phone number')),
@@ -139,7 +140,16 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
                 const SizedBox(height: 16),
                 _fieldLabel('Relation'),
                 const SizedBox(height: 8),
-                _field(_relationCtrl, hint: 'e.g. Dad, Aunt, Grandpa'),
+                _selectField(
+                  value: _relation,
+                  onTap: () => showPickerSheet(
+                    context,
+                    title: 'Relation',
+                    options: kRelationOptions,
+                    current: _relation,
+                    onSelected: (v) => setState(() => _relation = v),
+                  ),
+                ),
                 const SizedBox(height: 28),
                 SizedBox(
                   height: 52,
@@ -277,6 +287,37 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _selectField({
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.field,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF031E2A),
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Color(0x8C031E2A), size: 20),
+          ],
         ),
       ),
     );

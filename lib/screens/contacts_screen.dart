@@ -16,8 +16,6 @@ class ContactsScreen extends StatelessWidget {
 
   final bool showBack;
   final Future<String?> _inviteCode = FamilyService().getInviteCode();
-  final Future<List<Map<String, dynamic>>> _familyMembersFuture =
-      FamilyService().fetchFamilyMembers();
 
   @override
   Widget build(BuildContext context) {
@@ -106,8 +104,8 @@ class ContactsScreen extends StatelessWidget {
             style: TextStyle(fontSize: 11, color: Color(0x8C031E2A)),
           ),
           const SizedBox(height: 12),
-          FutureBuilder<List<Map<String, dynamic>>>(
-            future: _familyMembersFuture,
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: FamilyService().familyMembersStream(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Padding(
@@ -121,11 +119,12 @@ class ContactsScreen extends StatelessWidget {
                   ),
                 );
               }
-              if (!snapshot.hasData) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final members = snapshot.data!;
-              if (members.isEmpty) {
+              final members = snapshot.data ?? [];
+              if (snapshot.hasData && members.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
@@ -144,11 +143,12 @@ class ContactsScreen extends StatelessWidget {
                   final display = name.isNotEmpty
                       ? name
                       : (m['email'] ?? 'Member').toString();
+                  final rel = (m['relation'] ?? '').toString().trim();
                   return Column(
                     children: [
                       _memberRow(
                         display,
-                        subtitle: (m['role'] ?? 'user').toString(),
+                        subtitle: rel.isNotEmpty ? rel : 'Member',
                         verified: i == 0,
                       ),
                       if (i < members.length - 1)
@@ -531,14 +531,17 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
           StreamBuilder<List<Child>>(
             stream: _childrenStream,
             builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
+              if (snap.connectionState == ConnectionState.waiting &&
+                  !snap.hasData) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  ),
                 );
               }
               final children = snap.data ?? [];
-              if (children.isEmpty) {
+              if (snap.hasData && children.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Text(

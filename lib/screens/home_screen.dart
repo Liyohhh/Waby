@@ -114,7 +114,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     _sounds(),
                     const SizedBox(height: 16),
-                    if (children.isEmpty)
+                    if (childSnap.connectionState == ConnectionState.waiting &&
+                        !childSnap.hasData)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.accent,
+                          ),
+                        ),
+                      )
+                    else if (childSnap.hasData && children.isEmpty)
                       _emptyState()
                     else
                       Padding(
