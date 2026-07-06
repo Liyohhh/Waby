@@ -1,21 +1,33 @@
 import 'package:flutter/material.dart';
 import '../services/family_service.dart';
+import '../services/auth_service.dart';
 import '../screens/main_screen.dart';
+import '../screens/login_screen.dart';
 import '../screens/existing_or_new_family_screen.dart';
 
+/// Routes a signed-in user to their correct home screen.
+///
+/// A clean `null` from [myFamilyId] means "valid session, no family yet" and
+/// sends the user to the family picker. An *error* (expired/invalid session,
+/// RLS denial, network failure) is NOT the same thing — we clear the unusable
+/// session and send the user back to login rather than dropping them on the
+/// family picker.
 Future<void> routeAfterAuth(BuildContext context) async {
-  String? familyId;
+  Widget next;
   try {
-    familyId = await FamilyService()
+    final familyId = await FamilyService()
         .myFamilyId()
         .timeout(const Duration(seconds: 8));
+    next = familyId == null
+        ? const ExistingOrNewFamilyScreen()
+        : const MainScreen();
   } catch (_) {
-    familyId = null;
+    await AuthService().signOut();
+    next = const LoginScreen();
   }
   if (!context.mounted) return;
-  final next = familyId == null
-      ? const ExistingOrNewFamilyScreen()
-      : const MainScreen();
   Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute(builder: (_) => next), (_) => false);
+    MaterialPageRoute(builder: (_) => next),
+    (_) => false,
+  );
 }

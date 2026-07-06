@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme.dart';
+import 'existing_or_new_family_screen.dart';
 import 'home_screen.dart';
 import 'contacts_screen.dart';
 import 'settings_screen.dart';
@@ -14,12 +16,74 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
+  RealtimeChannel? _profileChannel;
 
   final List<Widget> _pages = [
     const HomeScreen(),
     ContactsScreen(showBack: false),
     const SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _watchMyProfile();
+  }
+
+  @override
+  void dispose() {
+    _profileChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _watchMyProfile() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+
+    _profileChannel = Supabase.instance.client
+        .channel('profile-$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'profiles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: uid,
+          ),
+          callback: (payload) {
+            final newFamily = payload.newRecord['family_id'];
+            if (newFamily == null && mounted) {
+              showDialog<void>(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Removed from family'),
+                  content: const Text(
+                    'You are no longer part of this family.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const ExistingOrNewFamilyScreen(),
+                          ),
+                          (_) => false,
+                        );
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
+        )
+        .subscribe();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -46,6 +46,18 @@ class AuthService {
     return 'User';
   }
 
+  /// Nickname for greetings — profiles nickname, then full_name, then "there".
+  Future<String> getGreetingName() async {
+    try {
+      final data = await getProfile();
+      final nickname = (data?['nickname'] as String?)?.trim();
+      if (nickname != null && nickname.isNotEmpty) return nickname;
+      final fullName = (data?['full_name'] as String?)?.trim();
+      if (fullName != null && fullName.isNotEmpty) return fullName;
+    } catch (_) {}
+    return 'there';
+  }
+
   /// First word of the display name — used in greetings.
   Future<String> getFirstName() async {
     final full = await getDisplayName();
@@ -98,6 +110,8 @@ class AuthService {
     required String name,
     required String email,
     required String password,
+    String? nickname,
+    String? phone,
   }) async {
     final response = await _client.auth.signUp(
       email: email,
@@ -113,6 +127,8 @@ class AuthService {
         await _client.from('profiles').upsert({
           'id': userId,
           'full_name': name,
+          'nickname': nickname?.trim() ?? '',
+          'phone': phone?.trim() ?? '',
           'email': email,
           'created_at': DateTime.now().toIso8601String(),
         });
@@ -147,6 +163,7 @@ class AuthService {
   /// auth id. No-op if not signed in. Throws on failure.
   Future<void> updateProfile({
     required String fullName,
+    String? nickname,
     String? phone,
     String? relation,
     String? country,
@@ -156,6 +173,7 @@ class AuthService {
     await _client.from('profiles').upsert({
       'id': userId,
       'full_name': fullName,
+      'nickname': nickname?.trim() ?? '',
       'phone': phone,
       'relation': relation,
       'country': country,

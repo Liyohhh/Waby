@@ -51,4 +51,51 @@ class FamilyService {
     final normalized = normalizeInviteCode(code);
     await _db.rpc('join_family', params: {'p_code': normalized});
   }
+
+  /// Profiles in the caller's family (RLS-scoped).
+  Future<List<Map<String, dynamic>>> fetchFamilyMembers() async {
+    final rows = await _db
+        .from('profiles')
+        .select('id, full_name, nickname, role, email')
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  /// Family owner, current user id, and member rows for management UI.
+  Future<Map<String, dynamic>> fetchFamilyData() async {
+    final uid = _uid;
+    if (uid == null) throw Exception('Not signed in');
+
+    final me = await _db
+        .from('profiles')
+        .select('family_id')
+        .eq('id', uid)
+        .single();
+    final familyId = me['family_id'];
+    if (familyId == null) throw Exception('No family');
+
+    final family = await _db
+        .from('families')
+        .select('created_by')
+        .eq('id', familyId)
+        .single();
+    final members = await _db
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .order('created_at');
+
+    return {
+      'ownerId': family['created_by'],
+      'myId': uid,
+      'members': List<Map<String, dynamic>>.from(members),
+    };
+  }
+
+  Future<void> removeFamilyMember(String targetId) async {
+    await _db.rpc('remove_family_member', params: {'p_target': targetId});
+  }
+
+  Future<void> leaveFamily() async {
+    await _db.rpc('leave_family');
+  }
 }

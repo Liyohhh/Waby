@@ -15,6 +15,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey     = GlobalKey<FormState>();
   final _nameCtrl    = TextEditingController();
+  final _nicknameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _emailCtrl   = TextEditingController();
   final _passCtrl    = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -28,6 +30,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _nicknameController.dispose();
+    _phoneController.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
@@ -45,6 +49,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         name: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
+        nickname: _nicknameController.text.trim(),
+        phone: _phoneController.text.trim(),
       );
       if (!mounted) return;
 
@@ -234,6 +240,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Nickname (optional)
+                    _fieldLabel('Nickname'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _nicknameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: _fieldDecoration(
+                        hint: 'What should we call you?',
+                        prefix: Icons.badge_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Phone Number
+                    _fieldLabel('Phone Number'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: _fieldDecoration(
+                        hint: 'e.g. +60 12 345 6789',
+                        prefix: Icons.phone_outlined,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Please enter a phone number';
+                        }
+                        if (!RegExp(r'^[0-9+\s]{7,15}$').hasMatch(v.trim())) {
+                          return 'Enter a valid phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
                     // Email
                     _fieldLabel('Email Address'),
                     const SizedBox(height: 8),
@@ -400,6 +441,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hintText: hint,
       filled: true,
       fillColor: AppColors.field,
+      isDense: true,
       prefixIcon: Icon(prefix, color: AppColors.textSecondary, size: 20),
       suffixIcon: suffix,
       border: OutlineInputBorder(
@@ -407,7 +449,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderSide: BorderSide.none,
       ),
       contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     );
   }
 }

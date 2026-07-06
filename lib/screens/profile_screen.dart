@@ -54,6 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _auth     = AuthService();
   final _formKey  = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _nicknameController = TextEditingController();
   final _phoneCtrl = TextEditingController();
 
   String _relation = 'Parent';
@@ -70,6 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _nicknameController.dispose();
     _phoneCtrl.dispose();
     super.dispose();
   }
@@ -80,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       if (data != null) {
         _nameCtrl.text = (data['full_name'] as String?) ?? '';
+        _nicknameController.text = (data['nickname'] as String?) ?? '';
         _phoneCtrl.text = (data['phone'] as String?) ?? '';
 
         final relation = data['relation'] as String?;
@@ -113,6 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await _auth.updateProfile(
         fullName: _nameCtrl.text.trim(),
+        nickname: _nicknameController.text.trim(),
         phone: _phoneCtrl.text.trim(),
         relation: _relation,
         country: _country,
@@ -197,6 +201,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         validator: (v) => (v == null || v.trim().isEmpty)
                             ? 'Name is required'
                             : null,
+                      ),
+                      _divider(),
+                      _fieldRow(
+                        label: 'Nickname',
+                        icon: Icons.badge_outlined,
+                        controller: _nicknameController,
+                        hint: 'What should we call you?',
                       ),
                       _divider(),
                       _fieldRow(

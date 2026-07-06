@@ -1,5 +1,7 @@
 import 'dart:math' show pi;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
@@ -30,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Stream<List<Child>> _childrenStream =
       _childService.myChildrenStream();
 
-  String _firstName = 'there';
+  String _greetingName = 'there';
   bool _demoFamily = false;
 
   @override
@@ -46,8 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUserName() async {
-    final name = await _auth.getFirstName();
-    if (mounted) setState(() => _firstName = name);
+    final name = await _auth.getGreetingName();
+    if (mounted) setState(() => _greetingName = name);
   }
 
   _CardStatus _mapSeverity(SeatSeverity s) => switch (s) {
@@ -108,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _header(context, headerStatus, _firstName),
+                    _header(context, headerStatus, _greetingName),
                     const SizedBox(height: 16),
                     _sounds(),
                     const SizedBox(height: 16),
@@ -425,7 +427,12 @@ Future<void> _showAddDeviceSheet(BuildContext context) async {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => const _AddDeviceSheet(),
+    builder: (context) => Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: const _AddDeviceSheet(),
+    ),
   );
 }
 
@@ -445,6 +452,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   final _name = TextEditingController();
   final _weight = TextEditingController();
   final _height = TextEditingController();
+  final _dobController = TextEditingController();
   DateTime? _dob;
 
   @override
@@ -452,6 +460,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     _name.dispose();
     _weight.dispose();
     _height.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -462,21 +471,35 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     setState(() { _connecting = false; _step = 1; });
   }
 
+  DateTime? _parseDob(String input) {
+    final parts = input.split('/');
+    if (parts.length != 3) return null;
+    final d = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final y = int.tryParse(parts[2]);
+    if (d == null || m == null || y == null) return null;
+    if (parts[2].length != 4) return null;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    final dt = DateTime(y, m, d);
+    if (dt.day != d || dt.month != m || dt.year != y) return null;
+    return dt;
+  }
+
   Future<void> _pickDob() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
       initialDate: _dob ?? now,
-      firstDate: DateTime(now.year - 6),
+      firstDate: DateTime(now.year - 12, now.month, now.day),
       lastDate: now,
     );
-    if (picked != null) setState(() => _dob = picked);
-  }
-
-  String _formatDob(DateTime? d) {
-    if (d == null) return 'Select date';
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${d.day} ${m[d.month - 1]} ${d.year}';
+    if (picked != null) {
+      setState(() {
+        _dob = picked;
+        _dobController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -484,6 +507,22 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
       setState(() => _error = "Please enter the child's name.");
       return;
     }
+    final parsed = _parseDob(_dobController.text);
+    if (parsed == null) {
+      setState(() => _error = 'Invalid date (use DD/MM/YYYY)');
+      return;
+    }
+    final now = DateTime.now();
+    if (parsed.isAfter(now)) {
+      setState(() => _error = 'Date cannot be in the future');
+      return;
+    }
+    final minDate = DateTime(now.year - 12, now.month, now.day);
+    if (parsed.isBefore(minDate)) {
+      setState(() => _error = 'Child must be 12 years or younger');
+      return;
+    }
+    _dob = parsed;
     setState(() { _saving = true; _error = null; });
     try {
       await DeviceService().addDeviceWithChild(
@@ -504,22 +543,238 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     }
   }
 
+  Widget _saveButton() {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton(
+        onPressed: _saving ? null : _save,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.navy,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: _saving
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text(
+                'Save',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
+    if (_step == 1) {
+      return Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.black12,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Add your child',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _name,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Child name',
+                          filled: true,
+                          fillColor: AppColors.field,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _dobController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [_DateInputFormatter()],
+                        decoration: InputDecoration(
+                          labelText: 'Date of Birth',
+                          hintText: 'DD/MM/YYYY',
+                          filled: true,
+                          fillColor: AppColors.field,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: const Icon(
+                              Icons.calendar_today,
+                              size: 20,
+                              color: AppColors.textSecondary,
+                            ),
+                            onPressed: _saving ? null : _pickDob,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a date of birth';
+                          }
+                          final parsed = _parseDob(value);
+                          if (parsed == null) {
+                            return 'Invalid date (use DD/MM/YYYY)';
+                          }
+                          final now = DateTime.now();
+                          if (parsed.isAfter(now)) {
+                            return 'Date cannot be in the future';
+                          }
+                          final minDate =
+                              DateTime(now.year - 12, now.month, now.day);
+                          if (parsed.isBefore(minDate)) {
+                            return 'Child must be 12 years or younger';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          final parsed = _parseDob(value);
+                          if (parsed != null) _dob = parsed;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _weight,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Weight (kg)',
+                          filled: true,
+                          fillColor: AppColors.field,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _height,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Height (cm)',
+                          filled: true,
+                          fillColor: AppColors.field,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.warning,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: _saveButton(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             // Drag handle
             Center(
               child: Container(
@@ -533,199 +788,63 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
             ),
             const SizedBox(height: 20),
 
-            if (_step == 0) ...[
-              const Text(
-                'Add Device',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.navy,
-                ),
+            const Text(
+              'Add Device',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.navy,
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Tap Connect to link your Waby seat.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Tap Connect to link your Waby seat.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
               ),
-              const SizedBox(height: 28),
-              Center(
-                child: _connecting
-                    ? const SizedBox(
-                        height: 64,
-                        width: 64,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          color: AppColors.accent,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.wifi_tethering,
-                        size: 64,
+            ),
+            const SizedBox(height: 28),
+            Center(
+              child: _connecting
+                  ? const SizedBox(
+                      height: 64,
+                      width: 64,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
                         color: AppColors.accent,
                       ),
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _connecting ? null : _connect,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navy,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : const Icon(
+                      Icons.wifi_tethering,
+                      size: 64,
+                      color: AppColors.accent,
                     ),
-                  ),
-                  child: const Text(
-                    'Connect',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ] else ...[
-              const Text(
-                'Add your child',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.navy,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _name,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: 'Child name',
-                  filled: true,
-                  fillColor: AppColors.field,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _saving ? null : _pickDob,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.field,
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _connecting ? null : _connect,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined,
-                          color: AppColors.textSecondary, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Date of birth',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatDob(_dob),
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: _dob == null
-                                    ? AppColors.textSecondary
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right,
-                          color: AppColors.textSecondary, size: 20),
-                    ],
+                ),
+                child: const Text(
+                  'Connect',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _weight,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Weight (kg)',
-                  filled: true,
-                  fillColor: AppColors.field,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _height,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Height (cm)',
-                  filled: true,
-                  fillColor: AppColors.field,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navy,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Save',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                ),
-              ),
-            ],
+            ),
 
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -740,7 +859,6 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
             ],
           ],
         ),
-      ),
     );
   }
 }
@@ -881,7 +999,7 @@ class _ChildCard extends StatelessWidget {
               children: [
                 Expanded(child: StatusPill(
                   icon: buckled ? Icons.link : Icons.link_off,
-                  label: buckled ? 'Latched' : 'Unlatched',
+                  label: buckled ? 'Buckled' : 'Unbuckled',
                   tone: _buckleTone,
                 )),
                 const SizedBox(width: 8),
@@ -947,4 +1065,23 @@ class _WaveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => true;
+}
+
+class _DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final capped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final buf = StringBuffer();
+    for (int i = 0; i < capped.length; i++) {
+      if (i == 2 || i == 4) buf.write('/');
+      buf.write(capped[i]);
+    }
+    final text = buf.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
 }

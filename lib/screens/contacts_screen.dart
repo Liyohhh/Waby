@@ -3,18 +3,18 @@ import 'package:flutter/services.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
-import '../models/contact.dart';
 import '../models/seat_status.dart';
 import '../services/auth_service.dart';
 import '../services/child_service.dart';
-import '../services/contact_service.dart';
 import '../services/family_service.dart';
 
 class ContactsScreen extends StatelessWidget {
   ContactsScreen({super.key, this.showBack = true});
 
   final bool showBack;
-  final ContactService _service = ContactService();
+  final Future<String?> _inviteCode = FamilyService().getInviteCode();
+  final Future<List<Map<String, dynamic>>> _familyMembersFuture =
+      FamilyService().fetchFamilyMembers();
 
   @override
   Widget build(BuildContext context) {
@@ -101,25 +101,26 @@ class ContactsScreen extends StatelessWidget {
             style: TextStyle(fontSize: 11, color: Color(0x8C031E2A)),
           ),
           const SizedBox(height: 12),
-          StreamBuilder<List<Contact>>(
-            stream: _service.contactsStream(),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _familyMembersFuture,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: Text('Could not load contacts.\n${snapshot.error}',
+                    child: Text(
+                        'Could not load family members.\n${snapshot.error}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                             color: Colors.red, fontSize: 12)),
                   ),
                 );
               }
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final contacts = snapshot.data ?? [];
-              if (contacts.isEmpty) {
+              final members = snapshot.data!;
+              if (members.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
@@ -132,12 +133,20 @@ class ContactsScreen extends StatelessWidget {
                 );
               }
               return Column(
-                children: List.generate(contacts.length, (i) {
-                  final c = contacts[i];
+                children: List.generate(members.length, (i) {
+                  final m = members[i];
+                  final name = (m['full_name'] ?? '').toString().trim();
+                  final display = name.isNotEmpty
+                      ? name
+                      : (m['email'] ?? 'Member').toString();
                   return Column(
                     children: [
-                      _memberRow(c, verified: i == 0),
-                      if (i < contacts.length - 1)
+                      _memberRow(
+                        display,
+                        subtitle: (m['role'] ?? 'user').toString(),
+                        verified: i == 0,
+                      ),
+                      if (i < members.length - 1)
                         const Divider(
                             color: Colors.black12, height: 1, thickness: 1),
                     ],
@@ -151,7 +160,7 @@ class ContactsScreen extends StatelessWidget {
     );
   }
 
-  Widget _memberRow(Contact c, {bool verified = false}) {
+  Widget _memberRow(String display, {String? subtitle, bool verified = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -160,7 +169,7 @@ class ContactsScreen extends StatelessWidget {
             radius: 20,
             backgroundColor: AppColors.accent,
             child: Text(
-              c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+              display.isNotEmpty ? display[0].toUpperCase() : '?',
               style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -174,7 +183,7 @@ class ContactsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(c.name,
+                    Text(display,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -186,9 +195,10 @@ class ContactsScreen extends StatelessWidget {
                     ],
                   ],
                 ),
-                Text(c.relation,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0x80031E2A))),
+                if (subtitle != null)
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0x80031E2A))),
               ],
             ),
           ),
@@ -200,7 +210,19 @@ class ContactsScreen extends StatelessWidget {
   // ── Family Join Code card ─────────────────────────────────────────────────
 
   Widget _buildJoinCodeCard() {
-    const code = 'BT - 8942';
+    return FutureBuilder<String?>(
+      future: _inviteCode,
+      builder: (context, snapshot) {
+        final loading =
+            snapshot.connectionState == ConnectionState.waiting;
+        return _joinCodeCard(code: snapshot.data, loading: loading);
+      },
+    );
+  }
+
+  Widget _joinCodeCard({required String? code, required bool loading}) {
+    final display = loading ? '••••••' : (code ?? '—');
+    final canCopy = !loading && code != null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -255,17 +277,22 @@ class ContactsScreen extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(code,
-                        style: TextStyle(
+                    Text(display,
+                        style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF3D7FB0))),
                     const SizedBox(width: 12),
                     GestureDetector(
-                      onTap: () => Clipboard.setData(
-                          const ClipboardData(text: code)),
-                      child: const Icon(Icons.copy,
-                          size: 18, color: Color(0xFF3D7FB0)),
+                      onTap: canCopy
+                          ? () => Clipboard.setData(
+                              ClipboardData(text: code!))
+                          : null,
+                      child: Icon(Icons.copy,
+                          size: 18,
+                          color: canCopy
+                              ? const Color(0xFF3D7FB0)
+                              : const Color(0x4D3D7FB0)),
                     ),
                   ],
                 ),
@@ -299,6 +326,8 @@ class _ChildProfile {
     required this.dob,
     required this.battery,
     required this.isWarning,
+    this.weightKg,
+    this.heightCm,
   });
 
   final String id;
@@ -306,6 +335,8 @@ class _ChildProfile {
   DateTime dob;
   int battery;
   bool isWarning;
+  double? weightKg;
+  double? heightCm;
 
   String get ageLabel => _ageFromDob(dob);
 }
@@ -326,7 +357,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
 
   bool _demoFamily = false;
 
-  // Local overrides for edit/delete UI until child CRUD is wired to Supabase.
+  // Local overrides until stream reflects edits (name/dob/weight/height).
   final Map<String, _ChildProfile> _localOverrides = {};
 
   @override
@@ -355,6 +386,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
       battery: seed?.battery ?? 88,
       isWarning: seed?.status == SeatSeverity.warning,
+      weightKg: c.weightKg,
+      heightCm: c.heightCm,
     );
   }
 
@@ -539,10 +572,22 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       useSafeArea: true,
       builder: (_) => _ChildEditSheet(
         child: child,
-        onSave: (name, dob, weight, height) {
+        onSave: (name, dob, weight, height) async {
+          final w = double.tryParse(weight);
+          final h = double.tryParse(height);
+          await ChildService().updateChild(
+            id: child.id,
+            name: name,
+            dob: dob,
+            weightKg: w,
+            heightCm: h,
+          );
+          if (!mounted) return;
           setState(() {
             child.name = name;
             child.dob = dob;
+            child.weightKg = w;
+            child.heightCm = h;
             _localOverrides[child.id] = child;
           });
         },
@@ -651,6 +696,20 @@ class _ChildDetailSheet extends StatelessWidget {
                         Text(child.ageLabel,
                             style: const TextStyle(
                                 color: Colors.white70, fontSize: 13)),
+                        if (child.weightKg != null ||
+                            child.heightCm != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            [
+                              if (child.weightKg != null)
+                                '${child.weightKg!.toStringAsFixed(1)} kg',
+                              if (child.heightCm != null)
+                                '${child.heightCm!.toStringAsFixed(0)} cm',
+                            ].join(' · '),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -698,7 +757,7 @@ class _ChildDetailSheet extends StatelessWidget {
                           child: _statCard(
                         icon: Icons.link,
                         label: 'Buckle',
-                        value: safe ? 'Latched' : 'Unlatched',
+                        value: safe ? 'Buckled' : 'Unbuckled',
                         sub: safe ? 'Secured' : 'Not secured',
                         safe: safe,
                       )),
@@ -1037,7 +1096,12 @@ class _TempLinePainter extends CustomPainter {
 
 class _ChildEditSheet extends StatefulWidget {
   final _ChildProfile child;
-  final void Function(String name, DateTime dob, String weight, String height) onSave;
+  final Future<void> Function(
+    String name,
+    DateTime dob,
+    String weight,
+    String height,
+  ) onSave;
 
   const _ChildEditSheet({required this.child, required this.onSave});
 
@@ -1056,9 +1120,13 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl   = TextEditingController(text: widget.child.name);
-    _weightCtrl = TextEditingController(text: '8.5');
-    _heightCtrl = TextEditingController(text: '73');
+    _nameCtrl = TextEditingController(text: widget.child.name);
+    _weightCtrl = TextEditingController(
+      text: widget.child.weightKg?.toStringAsFixed(1) ?? '',
+    );
+    _heightCtrl = TextEditingController(
+      text: widget.child.heightCm?.toStringAsFixed(0) ?? '',
+    );
     _selectedDob = widget.child.dob;
   }
 
@@ -1094,15 +1162,20 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    widget.onSave(
-      _nameCtrl.text.trim(),
-      _selectedDob,
-      _weightCtrl.text.trim(),
-      _heightCtrl.text.trim(),
-    );
-    Navigator.of(context).pop();
+    try {
+      await widget.onSave(
+        _nameCtrl.text.trim(),
+        _selectedDob,
+        _weightCtrl.text.trim(),
+        _heightCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      // Parent shows error snackbar.
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
