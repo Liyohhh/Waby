@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
@@ -134,6 +135,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               final members = snapshot.data ?? [];
+              final currentUid = Supabase.instance.client.auth.currentUser?.id;
               if (snapshot.hasData && members.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
@@ -160,6 +162,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         display,
                         subtitle: rel.isNotEmpty ? rel : 'Member',
                         verified: i == 0,
+                        isMe: m['id']?.toString() == currentUid,
                       ),
                       if (i < members.length - 1)
                         const Divider(
@@ -294,7 +297,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
-  Widget _memberRow(String display, {String? subtitle, bool verified = false}) {
+  Widget _memberRow(String display,
+      {String? subtitle, bool verified = false, bool isMe = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -322,6 +326,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF031E2A))),
+                    if (isMe) ...[
+                      const SizedBox(width: 6),
+                      const Text('(me)',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary)),
+                    ],
                     if (verified) ...[
                       const SizedBox(width: 6),
                       const Icon(Icons.verified,

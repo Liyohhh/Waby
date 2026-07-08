@@ -139,6 +139,19 @@ class AuthService {
     return response.session != null;
   }
 
+  /// Permanently deletes the current user's account. Signs out locally
+  /// afterward regardless of the call's outcome, since the session is no
+  /// longer valid either way once the account is gone.
+  Future<void> deleteAccount() async {
+    final response = await _client.functions.invoke('delete-account');
+    if (response.status != 200) {
+      final err =
+          (response.data is Map) ? response.data['error'] : response.data;
+      throw Exception(err?.toString() ?? 'Failed to delete account');
+    }
+    await _client.auth.signOut();
+  }
+
   /// Sign out the current user.
   Future<void> signOut() async {
     await _client.auth.signOut();

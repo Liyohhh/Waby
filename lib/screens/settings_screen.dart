@@ -156,6 +156,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // ── Sign Out ──────────────────────────────────────────────────
             _buildSignOut(),
+            const SizedBox(height: 12),
+            _buildDeleteAccount(),
             const SizedBox(height: 100),
           ],
         ),
@@ -530,6 +532,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _confirmDeleteAccount(BuildContext context) {
+    final confirmCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete account?',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This permanently deletes your account and cannot be undone. '
+              'If you own a family, ownership will transfer to another '
+              'member, or the family will be dissolved if you\'re the only '
+              'one in it.\n\nType DELETE to confirm.',
+              style: TextStyle(fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              decoration: const InputDecoration(
+                hintText: 'DELETE',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () async {
+                if (confirmCtrl.text.trim() != 'DELETE') return;
+                Navigator.of(dialogContext).pop();
+                try {
+                  await AuthService().deleteAccount();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Could not delete account: $e')),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Delete permanently',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSignOut() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kGutter),
@@ -555,6 +627,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccount() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: OutlinedButton(
+          onPressed: () => _confirmDeleteAccount(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.warning,
+            side: const BorderSide(color: AppColors.warning),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(_kCardRadius)),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.delete_forever, size: 20, color: AppColors.warning),
+              SizedBox(width: 10),
+              Text('Delete Account',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.warning)),
             ],
           ),
         ),
@@ -677,14 +780,19 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
     }
   }
 
-  Future<void> _confirmLeaveFamily() async {
+  Future<void> _confirmLeaveFamily({required bool isOwner}) async {
+    final content = isOwner
+        ? 'As the owner, leaving will transfer ownership to another family '
+          'member if one exists. If you\'re the only member, the family and '
+          'all its shared data (children, devices, contacts) will be '
+          'permanently deleted.'
+        : 'You will lose access to all shared devices and children.';
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Leave family'),
-        content: const Text(
-          'You will lose access to all shared devices and children.',
-        ),
+        content: Text(content),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -923,14 +1031,31 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
-                                  child: Text(
-                                    display,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          display,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (m['id']?.toString() == myId) ...[
+                                        const SizedBox(width: 6),
+                                        const Text(
+                                          '(me)',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                                 if (isOwner &&
@@ -958,7 +1083,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   memberContent,
-                  if (myId != null && myId != ownerId) ...[
+                  if (myId != null) ...[
                     const SizedBox(height: 8),
                     TextButton.icon(
                       icon: const Icon(
@@ -969,7 +1094,8 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                         'Leave family',
                         style: TextStyle(color: AppColors.warning),
                       ),
-                      onPressed: _confirmLeaveFamily,
+                      onPressed: () =>
+                          _confirmLeaveFamily(isOwner: myId == ownerId),
                     ),
                   ],
                 ],

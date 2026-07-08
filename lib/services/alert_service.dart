@@ -44,6 +44,10 @@ class AlertService {
     await _notifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
     );
+    await _notifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
     _notificationsInitialized = true;
   }
 
