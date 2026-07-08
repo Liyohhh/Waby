@@ -575,6 +575,7 @@ class _FamilyManagementSheet extends StatefulWidget {
 
 class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
   final _service = ContactService();
+  late final Stream<List<Contact>> _contactsStream = _service.contactsStream();
   final _familyService = FamilyService();
   String? _joinCode;
   bool _loadingCode = true;
@@ -995,7 +996,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                 isOwner = myId != null && myId == ownerId;
               }
               return StreamBuilder<List<Contact>>(
-                stream: _service.contactsStream(),
+                stream: _contactsStream,
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
                     return const Padding(

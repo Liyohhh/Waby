@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_state.dart';
 import '../services/family_service.dart';
 import '../services/auth_service.dart';
 import '../screens/main_screen.dart';
@@ -15,6 +16,13 @@ import '../screens/existing_or_new_family_screen.dart';
 Future<void> routeAfterAuth(BuildContext context) async {
   Widget next;
   try {
+    try {
+      final name = await AuthService().getGreetingName();
+      AppState.greetingName.value = name;
+    } catch (_) {
+      // Non-fatal — HomeScreen falls back to its own fetch if this is null.
+    }
+
     final familyId = await FamilyService()
         .myFamilyId()
         .timeout(const Duration(seconds: 8));

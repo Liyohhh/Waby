@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 enum SeatSeverity { safe, caution, warning }
 
+enum AlertReason { none, leftBehind, heat, buckleReminder, lowBattery }
+
 @immutable
 class SeatStatus {
   final double temperature;
@@ -45,5 +47,15 @@ class SeatStatus {
     if (present && !buckled && distanceNear) return SeatSeverity.caution;    // buckle reminder
     if (battery < lowBattery) return SeatSeverity.caution;                   // low battery
     return SeatSeverity.safe;
+  }
+
+  AlertReason get reason {
+    const tempThreshold = 30.0;
+    const lowBatteryPct = 20;
+    if (present && !distanceNear) return AlertReason.leftBehind;
+    if (present && temperature > tempThreshold) return AlertReason.heat;
+    if (present && !buckled && distanceNear) return AlertReason.buckleReminder;
+    if (battery < lowBatteryPct) return AlertReason.lowBattery;
+    return AlertReason.none;
   }
 }

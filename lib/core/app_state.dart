@@ -8,4 +8,7 @@ class AppState {
   /// Whether the current user has admin privileges.
   /// Toggled in Settings for demo purposes.
   static final isAdminMode = ValueNotifier<bool>(false);
+
+  /// Prefetched greeting name so HomeScreen renders correctly on first frame.
+  static final greetingName = ValueNotifier<String?>(null);
 }

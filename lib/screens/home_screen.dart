@@ -2,6 +2,7 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../core/app_state.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Stream<List<Child>> _childrenStream =
       _childService.myChildrenStream();
 
-  String _greetingName = 'there';
+  String _greetingName = AppState.greetingName.value ?? 'there';
   bool _demoFamily = false;
 
   @override
@@ -48,7 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUserName() async {
+    if (AppState.greetingName.value != null) return;
     final name = await _auth.getGreetingName();
+    AppState.greetingName.value = name;
     if (mounted) setState(() => _greetingName = name);
   }
 

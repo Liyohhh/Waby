@@ -11,11 +11,21 @@ import '../services/contact_service.dart';
 import '../services/family_service.dart';
 import '../widgets/contact_status_badge.dart';
 
-class ContactsScreen extends StatelessWidget {
-  ContactsScreen({super.key, this.showBack = true});
+class ContactsScreen extends StatefulWidget {
+  const ContactsScreen({super.key, this.showBack = true});
 
   final bool showBack;
+
+  @override
+  State<ContactsScreen> createState() => _ContactsScreenState();
+}
+
+class _ContactsScreenState extends State<ContactsScreen> {
   final Future<String?> _inviteCode = FamilyService().getInviteCode();
+  late final Stream<List<Map<String, dynamic>>> _familyMembersStream =
+      FamilyService().familyMembersStream();
+  late final Stream<List<Contact>> _contactsStream =
+      ContactService().contactsStream();
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +68,7 @@ class ContactsScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(
               children: [
-                if (showBack)
+                if (widget.showBack)
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
@@ -105,7 +115,7 @@ class ContactsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<Map<String, dynamic>>>(
-            stream: FamilyService().familyMembersStream(),
+            stream: _familyMembersStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Padding(
@@ -183,7 +193,7 @@ class ContactsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<Contact>>(
-            stream: ContactService().contactsStream(),
+            stream: _contactsStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Padding(
