@@ -195,6 +195,19 @@ class AuthService {
     });
   }
 
+  /// Upserts just the avatar path for the current user — kept separate
+  /// from [updateProfile] so uploading a photo doesn't require the user
+  /// to also save the rest of the form. Safe against clobbering other
+  /// fields since only `avatar_path` is included in the upsert.
+  Future<void> updateAvatarPath(String avatarPath) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    await _client.from('profiles').upsert({
+      'id': userId,
+      'avatar_path': avatarPath,
+    });
+  }
+
   /// Fetches the role for the currently signed-in user from the `profiles`
   /// table. Returns `'user'` as the default if the row or column is missing.
   Future<String> getUserRole() async {

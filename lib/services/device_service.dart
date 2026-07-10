@@ -13,13 +13,20 @@ class DeviceService {
     double? heightCm,
     String? childId,
     String? photoPath,
+    String? deviceId,
+    String? devicePhotoPath,
   }) async {
     final uid = _uid;
     if (uid == null) throw Exception('Not signed in');
 
     final device = await _db
         .from('devices')
-        .insert({'user_id': uid, 'name': deviceName})
+        .insert({
+          if (deviceId != null) 'id': deviceId,
+          'user_id': uid,
+          'name': deviceName,
+          if (devicePhotoPath != null) 'photo_path': devicePhotoPath,
+        })
         .select('id')
         .single();
 

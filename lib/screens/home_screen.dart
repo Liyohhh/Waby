@@ -482,6 +482,11 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   File? _photoPreview;
   bool _uploadingPhoto = false;
 
+  String? _deviceId;
+  String? _devicePhotoPath;
+  File? _devicePhotoPreview;
+  bool _uploadingDevicePhoto = false;
+
   Future<void> _pickChildPhoto() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -523,6 +528,51 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
       if (result != null) {
         _photoPath = result.path;
         _photoPreview = result.localFile;
+      }
+    });
+  }
+
+  Future<void> _pickDevicePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final familyId = await FamilyService().myFamilyId();
+    if (familyId == null || !mounted) return;
+
+    _deviceId ??= const Uuid().v4();
+    setState(() => _uploadingDevicePhoto = true);
+
+    final result = await ImageUploadService().pickCropAndUpload(
+      source: source,
+      familyId: familyId,
+      entityType: 'devices',
+      entityId: _deviceId!,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _uploadingDevicePhoto = false;
+      if (result != null) {
+        _devicePhotoPath = result.path;
+        _devicePhotoPreview = result.localFile;
       }
     });
   }
@@ -605,6 +655,8 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
         heightCm: double.tryParse(_height.text),
         childId: _childId,
         photoPath: _photoPath,
+        deviceId: _deviceId,
+        devicePhotoPath: _devicePhotoPath,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -701,6 +753,64 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const Text(
+                        'Device Photo (optional)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: GestureDetector(
+                          onTap: _uploadingDevicePhoto
+                              ? null
+                              : _pickDevicePhoto,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundColor: AppColors.field,
+                                backgroundImage: _devicePhotoPreview != null
+                                    ? FileImage(_devicePhotoPreview!)
+                                    : null,
+                                child: _uploadingDevicePhoto
+                                    ? const CircularProgressIndicator(
+                                        strokeWidth: 2)
+                                    : (_devicePhotoPreview == null
+                                        ? const Icon(Icons.event_seat,
+                                            size: 36,
+                                            color: AppColors.textSecondary)
+                                        : null),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.navy,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt,
+                                      size: 14, color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Child Photo (optional)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Center(
                         child: GestureDetector(
                           onTap: _uploadingPhoto ? null : _pickChildPhoto,

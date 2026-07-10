@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../core/app_state.dart';
 import '../core/relations.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
+import '../services/family_service.dart';
+import '../services/image_upload_service.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/picker_sheet.dart';
 
@@ -56,6 +61,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool   _saving   = false;
   bool   _loading  = true;
 
+  String? _avatarPath;
+  String? _avatarSignedUrl;
+  File?   _avatarPreview;
+  bool    _uploadingAvatar = false;
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +97,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (country != null && _countries.contains(country)) {
           _country = country;
         }
+
+        _avatarPath = data['avatar_path'] as String?;
+        if (_avatarPath != null) {
+          _avatarSignedUrl =
+              await ImageUploadService().signedUrlFor(_avatarPath);
+        }
       }
 
       if (_nameCtrl.text.trim().isEmpty) {
@@ -115,6 +131,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         relation: _relation,
         country: _country,
       );
+
+      // Keep the Home screen greeting in sync with the new nickname.
+      final newNickname = _nicknameController.text.trim();
+      AppState.greetingName.value =
+          newNickname.isNotEmpty ? newNickname : null;
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -154,6 +176,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _pickAvatar() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final userId = _auth.currentUser?.id;
+    final familyId = await FamilyService().myFamilyId();
+    if (userId == null || familyId == null || !mounted) return;
+
+    setState(() => _uploadingAvatar = true);
+
+    final result = await ImageUploadService().pickCropAndUpload(
+      source: source,
+      familyId: familyId,
+      entityType: 'profiles',
+      entityId: userId,
+    );
+
+    if (result != null) {
+      await _auth.updateAvatarPath(result.path);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _uploadingAvatar = false;
+      if (result != null) {
+        _avatarPath = result.path;
+        _avatarPreview = result.localFile;
+      }
+    });
+  }
+
   // ── Build ───────────────────────────────────────────────────────────────────
 
   @override
@@ -162,7 +233,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: const Color(0xFFF4F6F9),
       body: Column(
         children: [
-          _ProfileHeader(onBack: () => Navigator.of(context).pop()),
+          _ProfileHeader(
+            onBack: () => Navigator.of(context).pop(),
+            onTapAvatar: _pickAvatar,
+            uploading: _uploadingAvatar,
+            localPreview: _avatarPreview,
+            signedUrl: _avatarSignedUrl,
+          ),
           if (_loading)
             const Expanded(
               child: Center(
@@ -380,7 +457,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 class _ProfileHeader extends StatelessWidget {
   final VoidCallback onBack;
-  const _ProfileHeader({required this.onBack});
+  final VoidCallback onTapAvatar;
+  final bool uploading;
+  final File? localPreview;
+  final String? signedUrl;
+  const _ProfileHeader({
+    required this.onBack,
+    required this.onTapAvatar,
+    required this.uploading,
+    this.localPreview,
+    this.signedUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -424,22 +511,55 @@ class _ProfileHeader extends StatelessWidget {
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Center(
-              child: Container(
-                width: 80, height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD4EEF8),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+              child: GestureDetector(
+                onTap: uploading ? null : onTapAvatar,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 80, height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4EEF8),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        image: localPreview != null
+                            ? DecorationImage(
+                                image: FileImage(localPreview!),
+                                fit: BoxFit.cover)
+                            : (signedUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(signedUrl!),
+                                    fit: BoxFit.cover)
+                                : null),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: uploading
+                          ? const CircularProgressIndicator(strokeWidth: 2)
+                          : (localPreview == null && signedUrl == null
+                              ? const Icon(Icons.person,
+                                  color: AppColors.accent, size: 36)
+                              : null),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.navy,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt,
+                            size: 12, color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.person, color: AppColors.accent,
-                    size: 36),
               ),
             ),
           ),
