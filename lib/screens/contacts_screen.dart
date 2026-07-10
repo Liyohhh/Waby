@@ -794,43 +794,43 @@ class _ChildDetailSheet extends StatelessWidget {
       initialChildSize: 0.72,
       minChildSize: 0.5,
       maxChildSize: 0.92,
-      builder: (_, scrollCtrl) => Container(
-        decoration: const BoxDecoration(
+      builder: (_, scrollCtrl) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: Container(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 decoration: BoxDecoration(
-                  color: Colors.black26,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [headerTop, headerBot],
-                ),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white.withAlpha(60),
-                    child: const Icon(Icons.child_care,
-                        color: Colors.white, size: 32),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [headerTop, headerBot],
                   ),
+                ),
+                child: Column(
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white54,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.white.withAlpha(60),
+                          child: const Icon(Icons.child_care,
+                              color: Colors.white, size: 32),
+                        ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -876,14 +876,16 @@ class _ChildDetailSheet extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           fontSize: 12),
                     ),
-                  ),
-                ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollCtrl,
-                padding: const EdgeInsets.all(24),
+              Expanded(
+                child: ListView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.all(24),
                 children: [
                   const Text('Live Status',
                       style: TextStyle(
@@ -959,11 +961,12 @@ class _ChildDetailSheet extends StatelessWidget {
                       '3.1478° N, 101.6953° E'),
                   _infoRow(
                       Icons.sensors, 'Seat sensor', 'Weight detected'),
-                  const SizedBox(height: 24),
-                ],
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1001,7 +1004,9 @@ class _ChildDetailSheet extends StatelessWidget {
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(
-                  fontSize: 11, color: Color(0x8C031E2A))),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF031E2A))),
           Text(sub,
               style: const TextStyle(
                   fontSize: 11, color: Color(0x8C031E2A))),

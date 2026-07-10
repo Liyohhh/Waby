@@ -28,6 +28,7 @@ class AppColors {
   // Text
   static const textPrimary   = Color(0xFF0F2D54);
   static const textSecondary = Color(0xFF6B7280);
+  static const hint          = Color(0xFFA0A6B1); // form field hints/placeholders — lighter than textSecondary
 }
 
 /// Reusable gradient for the curved "wave" header used across screens.
@@ -78,7 +79,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.field,
-        hintStyle: GoogleFonts.poppins(color: AppColors.textSecondary),
+        hintStyle: GoogleFonts.poppins(color: AppColors.hint),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         border: OutlineInputBorder(

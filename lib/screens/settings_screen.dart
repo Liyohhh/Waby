@@ -1079,27 +1079,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                       ],
                     );
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  memberContent,
-                  if (myId != null) ...[
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      icon: const Icon(
-                        Icons.exit_to_app,
-                        color: AppColors.warning,
-                      ),
-                      label: const Text(
-                        'Leave family',
-                        style: TextStyle(color: AppColors.warning),
-                      ),
-                      onPressed: () =>
-                          _confirmLeaveFamily(isOwner: myId == ownerId),
-                    ),
-                  ],
-                ],
-              );
+              return memberContent;
             },
           ),
           const SizedBox(height: 24),
@@ -1234,6 +1214,34 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
               );
             },
           ),
+          const SizedBox(height: 32),
+          const Divider(color: Color(0xFFE5EAF0), height: 1),
+          const SizedBox(height: 20),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _familyDataFuture,
+            builder: (context, snap) {
+              if (!snap.hasData) return const SizedBox.shrink();
+              final data = snap.data!;
+              final ownerId = data['ownerId']?.toString();
+              final myId = data['myId']?.toString();
+              if (myId == null) return const SizedBox.shrink();
+              return Center(
+                child: TextButton.icon(
+                  icon: const Icon(
+                    Icons.exit_to_app,
+                    color: AppColors.warning,
+                  ),
+                  label: const Text(
+                    'Leave family',
+                    style: TextStyle(color: AppColors.warning),
+                  ),
+                  onPressed: () =>
+                      _confirmLeaveFamily(isOwner: myId == ownerId),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

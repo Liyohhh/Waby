@@ -112,6 +112,7 @@ class AuthService {
     required String password,
     String? nickname,
     String? phone,
+    String? relation,
   }) async {
     final response = await _client.auth.signUp(
       email: email,
@@ -129,6 +130,7 @@ class AuthService {
           'full_name': name,
           'nickname': nickname?.trim() ?? '',
           'phone': phone?.trim() ?? '',
+          'relation': relation,
           'email': email,
           'created_at': DateTime.now().toIso8601String(),
         });

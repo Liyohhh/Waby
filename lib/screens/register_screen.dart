@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/auth_gate.dart';
+import '../core/relations.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/picker_sheet.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool   _loading        = false;
   bool   _obscurePass    = true;
   bool   _obscureConfirm = true;
+  String  _relation      = kRelationOptions.first;
   String? _error;
 
   @override
@@ -51,6 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passCtrl.text,
         nickname: _nicknameController.text.trim(),
         phone: _phoneController.text.trim(),
+        relation: _relation,
       );
       if (!mounted) return;
 
@@ -231,7 +235,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _nameCtrl,
                       textCapitalization: TextCapitalization.words,
                       decoration: _fieldDecoration(
-                        hint: 'e.g. Ahmad Rahman',
+                        hint: '',
                         prefix: Icons.person_outline,
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)
@@ -241,13 +245,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
 
                     // Nickname (optional)
-                    _fieldLabel('Nickname'),
+                    _fieldLabel('Nickname (optional)'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nicknameController,
                       textCapitalization: TextCapitalization.words,
                       decoration: _fieldDecoration(
-                        hint: 'What should we call you?',
+                        hint: '',
                         prefix: Icons.badge_outlined,
                       ),
                     ),
@@ -272,6 +276,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Relation
+                    _fieldLabel('Relationship to Child'),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => showPickerSheet(
+                        context,
+                        title: 'Relationship to Child',
+                        options: kRelationOptions,
+                        current: _relation,
+                        onSelected: (v) => setState(() => _relation = v),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: _fieldDecoration(
+                          hint: '',
+                          prefix: Icons.family_restroom_outlined,
+                        ),
+                        child: Text(_relation,
+                            style: const TextStyle(fontSize: 16)),
+                      ),
                     ),
                     const SizedBox(height: 16),
 
