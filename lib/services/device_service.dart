@@ -11,6 +11,8 @@ class DeviceService {
     DateTime? dob,
     double? weightKg,
     double? heightCm,
+    String? childId,
+    String? photoPath,
   }) async {
     final uid = _uid;
     if (uid == null) throw Exception('Not signed in');
@@ -22,12 +24,14 @@ class DeviceService {
         .single();
 
     await _db.from('children').insert({
+      if (childId != null) 'id': childId,
       'device_id': device['id'],
       'user_id': uid,
       'name': childName,
       if (dob != null) 'dob': dob.toIso8601String().split('T').first,
       if (weightKg != null) 'weight_kg': weightKg,
       if (heightCm != null) 'height_cm': heightCm,
+      if (photoPath != null) 'photo_path': photoPath,
     });
   }
 }

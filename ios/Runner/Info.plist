@@ -26,6 +26,10 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>Waby needs camera access to let you take a profile or device photo.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Waby needs photo library access to let you choose a profile or device photo.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

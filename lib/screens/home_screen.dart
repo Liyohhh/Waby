@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../core/app_state.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
@@ -11,6 +14,7 @@ import '../services/auth_service.dart';
 import '../services/child_service.dart';
 import '../services/device_service.dart';
 import '../services/family_service.dart';
+import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
 import '../widgets/status_pill.dart';
 import 'login_screen.dart';
@@ -52,7 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (AppState.greetingName.value != null) return;
     final name = await _auth.getGreetingName();
     AppState.greetingName.value = name;
-    if (mounted) setState(() => _greetingName = name);
   }
 
   _CardStatus _mapSeverity(SeatSeverity s) => switch (s) {
@@ -113,7 +116,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _header(context, headerStatus, _greetingName),
+                    ValueListenableBuilder<String?>(
+                      valueListenable: AppState.greetingName,
+                      builder: (context, name, _) {
+                        return _header(
+                            context, headerStatus, name ?? _greetingName);
+                      },
+                    ),
                     const SizedBox(height: 16),
                     _sounds(),
                     const SizedBox(height: 16),
@@ -468,6 +477,56 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   final _dobController = TextEditingController();
   DateTime? _dob;
 
+  String? _childId;
+  String? _photoPath;
+  File? _photoPreview;
+  bool _uploadingPhoto = false;
+
+  Future<void> _pickChildPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final familyId = await FamilyService().myFamilyId();
+    if (familyId == null || !mounted) return;
+
+    _childId ??= const Uuid().v4();
+    setState(() => _uploadingPhoto = true);
+
+    final result = await ImageUploadService().pickCropAndUpload(
+      source: source,
+      familyId: familyId,
+      entityType: 'children',
+      entityId: _childId!,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _uploadingPhoto = false;
+      if (result != null) {
+        _photoPath = result.path;
+        _photoPreview = result.localFile;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -544,6 +603,8 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
         dob: _dob,
         weightKg: double.tryParse(_weight.text),
         heightCm: double.tryParse(_height.text),
+        childId: _childId,
+        photoPath: _photoPath,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -640,6 +701,44 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Center(
+                        child: GestureDetector(
+                          onTap: _uploadingPhoto ? null : _pickChildPhoto,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundColor: AppColors.field,
+                                backgroundImage: _photoPreview != null
+                                    ? FileImage(_photoPreview!)
+                                    : null,
+                                child: _uploadingPhoto
+                                    ? const CircularProgressIndicator(
+                                        strokeWidth: 2)
+                                    : (_photoPreview == null
+                                        ? const Icon(Icons.child_care,
+                                            size: 36,
+                                            color: AppColors.textSecondary)
+                                        : null),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.navy,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt,
+                                      size: 14, color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                       TextField(
                         controller: _name,
                         textCapitalization: TextCapitalization.words,
