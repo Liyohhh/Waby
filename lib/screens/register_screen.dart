@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/auth_gate.dart';
+import '../core/constants.dart';
 import '../core/relations.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
@@ -28,6 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool   _obscurePass    = true;
   bool   _obscureConfirm = true;
   String  _relation      = kRelationOptions.first;
+  String  _country       = 'Malaysia';
   String? _error;
 
   @override
@@ -55,6 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         nickname: _nicknameController.text.trim(),
         phone: _phoneController.text.trim(),
         relation: _relation,
+        country: _country,
       );
       if (!mounted) return;
 
@@ -302,6 +305,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Country
+                    _fieldLabel('Country'),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => showPickerSheet(
+                        context,
+                        title: 'Country',
+                        options: kCountryOptions,
+                        current: _country,
+                        onSelected: (v) => setState(() => _country = v),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: _fieldDecoration(
+                          hint: '',
+                          prefix: Icons.public_outlined,
+                        ),
+                        child: Text(_country,
+                            style: const TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Email
                     _fieldLabel('Email Address'),
                     const SizedBox(height: 8),
@@ -320,6 +346,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     // Password
                     _fieldLabel('Password'),
+                    const SizedBox(height: 4),
+                    const Text('Minimum 6 characters',
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _passCtrl,

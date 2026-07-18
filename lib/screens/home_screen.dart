@@ -124,8 +124,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    _sounds(),
-                    const SizedBox(height: 16),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        'Your Children',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     if (childSnap.connectionState == ConnectionState.waiting &&
                         !childSnap.hasData)
                       const Padding(
@@ -386,57 +396,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-
-  Widget _sounds() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text('Favourite Sounds',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 44,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              _soundChip(Icons.play_arrow, 'Rainyday'),
-              const SizedBox(width: 10),
-              _soundChip(Icons.play_arrow, 'Dreamy'),
-              const SizedBox(width: 10),
-              _soundChip(Icons.play_arrow, 'Ocean'),
-              const SizedBox(width: 10),
-              _soundChip(Icons.play_arrow, 'Lullaby'),
-              const SizedBox(width: 10),
-              _soundChip(Icons.add, 'Add sound'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _soundChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF018FB4),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(width: 6),
-          Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 13)),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Card status enum ──────────────────────────────────────────────────────────
@@ -476,6 +435,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   final _weight = TextEditingController();
   final _height = TextEditingController();
   final _dobController = TextEditingController();
+  final _childFormKey = GlobalKey<FormState>();
   DateTime? _dob;
 
   String? _childId;
@@ -562,14 +522,29 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     return dt;
   }
 
-  Future<void> _pickDob() async {
+  DateTime _dobMinDate() {
     final now = DateTime.now();
+    return DateTime(now.year - 12, now.month, 1);
+  }
+
+  DateTime _dobMaxDate() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month - 1, now.day);
+  }
+
+  bool _isDobInRange(DateTime dt) {
+    final min = _dobMinDate();
+    final max = _dobMaxDate();
+    return !dt.isBefore(min) && !dt.isAfter(max);
+  }
+
+  Future<void> _pickDob() async {
     final picked = await showDatePicker(
       context: context,
       initialEntryMode: DatePickerEntryMode.calendarOnly,
-      initialDate: _dob ?? now,
-      firstDate: DateTime(now.year - 12, now.month, now.day),
-      lastDate: now,
+      initialDate: (_dob != null && _isDobInRange(_dob!)) ? _dob! : _dobMaxDate(),
+      firstDate: _dobMinDate(),
+      lastDate: _dobMaxDate(),
     );
     if (picked != null) {
       setState(() {
@@ -580,6 +555,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   }
 
   Future<void> _save() async {
+    if (!_childFormKey.currentState!.validate()) return;
     if (_name.text.trim().isEmpty) {
       setState(() => _error = "Please enter the child's name.");
       return;
@@ -589,14 +565,8 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
       setState(() => _error = 'Invalid date (use DD/MM/YYYY)');
       return;
     }
-    final now = DateTime.now();
-    if (parsed.isAfter(now)) {
-      setState(() => _error = 'Date cannot be in the future');
-      return;
-    }
-    final minDate = DateTime(now.year - 12, now.month, now.day);
-    if (parsed.isBefore(minDate)) {
-      setState(() => _error = 'Child must be 12 years or younger');
+    if (!_isDobInRange(parsed)) {
+      setState(() => _error = 'Child must be between 1 month and 12 years old');
       return;
     }
     _dob = parsed;
@@ -703,7 +673,9 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
+                  child: Form(
+                    key: _childFormKey,
+                    child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -808,24 +780,20 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                           if (parsed == null) {
                             return 'Invalid date (use DD/MM/YYYY)';
                           }
-                          final now = DateTime.now();
-                          if (parsed.isAfter(now)) {
-                            return 'Date cannot be in the future';
-                          }
-                          final minDate =
-                              DateTime(now.year - 12, now.month, now.day);
-                          if (parsed.isBefore(minDate)) {
-                            return 'Child must be 12 years or younger';
+                          if (!_isDobInRange(parsed)) {
+                            return 'Child must be between 1 month and 12 years old';
                           }
                           return null;
                         },
                         onChanged: (value) {
                           final parsed = _parseDob(value);
-                          if (parsed != null) _dob = parsed;
+                          _dob = (parsed != null && _isDobInRange(parsed))
+                              ? parsed
+                              : null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      TextFormField(
                         controller: _weight,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
@@ -843,9 +811,18 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                             borderSide: BorderSide.none,
                           ),
                         ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          final val = double.tryParse(v);
+                          if (val == null) return 'Enter a valid number';
+                          if (val <= 0 || val > 60) {
+                            return 'Enter a weight up to 60 kg';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      TextFormField(
                         controller: _height,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
@@ -863,6 +840,15 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                             borderSide: BorderSide.none,
                           ),
                         ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          final val = double.tryParse(v);
+                          if (val == null) return 'Enter a valid number';
+                          if (val <= 0 || val > 200) {
+                            return 'Enter a height up to 200 cm';
+                          }
+                          return null;
+                        },
                       ),
                       if (_error != null) ...[
                         const SizedBox(height: 12),
@@ -876,6 +862,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                         ),
                       ],
                     ],
+                  ),
                   ),
                 ),
               ),
@@ -1197,17 +1184,34 @@ class _DateInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final capped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final rawBeforeCursor =
+        newValue.text.substring(0, newValue.selection.end.clamp(0, newValue.text.length));
+    final digitsBeforeCursor =
+        rawBeforeCursor.replaceAll(RegExp(r'[^0-9]'), '').length;
+
+    var digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 8) digits = digits.substring(0, 8);
+
     final buf = StringBuffer();
-    for (int i = 0; i < capped.length; i++) {
+    for (int i = 0; i < digits.length; i++) {
       if (i == 2 || i == 4) buf.write('/');
-      buf.write(capped[i]);
+      buf.write(digits[i]);
     }
     final text = buf.toString();
+
+    var seenDigits = 0;
+    var cursor = text.length;
+    for (int i = 0; i < text.length; i++) {
+      if (seenDigits >= digitsBeforeCursor) {
+        cursor = i;
+        break;
+      }
+      if (text[i] != '/') seenDigits++;
+    }
+
     return TextEditingValue(
       text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      selection: TextSelection.collapsed(offset: cursor),
     );
   }
 }

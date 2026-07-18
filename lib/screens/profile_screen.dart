@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/app_state.dart';
+import '../core/constants.dart';
 import '../core/relations.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
@@ -20,37 +21,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const _countries = [
-    'Malaysia',
-    'Singapore',
-    'Indonesia',
-    'Thailand',
-    'Philippines',
-    'Vietnam',
-    'Brunei',
-    'Myanmar',
-    'Cambodia',
-    'Laos',
-    'Australia',
-    'United Kingdom',
-    'United States',
-    'Canada',
-    'Japan',
-    'South Korea',
-    'China',
-    'India',
-    'Saudi Arabia',
-    'United Arab Emirates',
-    'Qatar',
-    'Kuwait',
-    'Turkey',
-    'Germany',
-    'France',
-    'Netherlands',
-    'New Zealand',
-    'Other',
-  ];
-
   final _auth     = AuthService();
   final _formKey  = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
@@ -95,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _relation = relation;
         }
         final country = data['country'] as String?;
-        if (country != null && _countries.contains(country)) {
+        if (country != null && kCountryOptions.contains(country)) {
           _country = country;
         }
 
@@ -305,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: _country,
                         onTap: () => _pickOption(
                           title: 'Country',
-                          options: _countries,
+                          options: kCountryOptions,
                           current: _country,
                           onSelected: (v) => setState(() => _country = v),
                         ),

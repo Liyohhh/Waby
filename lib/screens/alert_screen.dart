@@ -191,15 +191,15 @@ class _AlertScreenState extends State<AlertScreen> {
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
-                      width: 220,
-                      height: 220,
+                      width: 260,
+                      height: 260,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
                           CircularProgressIndicator(
                             value: progress,
-                            strokeWidth: 8,
-                            backgroundColor: Colors.grey.shade300,
+                            strokeWidth: 12,
+                            backgroundColor: AppColors.warning.withAlpha(40),
                             valueColor: const AlwaysStoppedAnimation(
                                 AppColors.warning),
                           ),

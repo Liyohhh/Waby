@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth_gate.dart';
 import '../screens/login_screen.dart';
 
-/// Branded splash shown for a fixed short duration, then straight to login.
-///
-/// No session or family lookup happens here — that runs after the user signs
-/// in — so startup can never hang on a slow or stalled network call.
 class AppStart extends StatefulWidget {
   const AppStart({super.key});
 
@@ -13,18 +11,24 @@ class AppStart extends StatefulWidget {
 }
 
 class _AppStartState extends State<AppStart> {
-  // How long the logo stays visible before routing to login (keep <= 2s).
-  static const _splashDuration = Duration(milliseconds: 1800);
+  static const _splashDuration = Duration(milliseconds: 1400);
 
   @override
   void initState() {
     super.initState();
-    _goToLogin();
+    _route();
   }
 
-  Future<void> _goToLogin() async {
+  Future<void> _route() async {
     await Future.delayed(_splashDuration);
     if (!mounted) return;
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      await routeAfterAuth(context);
+      return;
+    }
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
@@ -32,7 +36,6 @@ class _AppStartState extends State<AppStart> {
 
   @override
   Widget build(BuildContext context) {
-    // White background + smaller centred logo — matches the native splash.
     return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
