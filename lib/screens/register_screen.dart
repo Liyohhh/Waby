@@ -189,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Image.asset(
                       'assets/images/Waby_Logo_clean.png',
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (_, _, _) => const Icon(
                           Icons.child_care,
                           size: 40,
                           color: AppColors.accent),

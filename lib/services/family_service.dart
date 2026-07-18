@@ -47,9 +47,14 @@ class FamilyService {
     await _db.rpc('create_family', params: {'p_name': name});
   }
 
-  Future<void> joinFamily(String code) async {
+  /// Joins a family by invite code and returns the family's name for a
+  /// confirmation message.
+  Future<String> joinFamily(String code) async {
     final normalized = normalizeInviteCode(code);
-    await _db.rpc('join_family', params: {'p_code': normalized});
+    final result = await _db
+        .rpc('join_family', params: {'p_code': normalized}) as List;
+    final row = result.first as Map<String, dynamic>;
+    return (row['family_name'] as String?) ?? 'your family';
   }
 
   /// Profiles in the caller's family (RLS-scoped).
@@ -90,7 +95,7 @@ class FamilyService {
         .single();
     final members = await _db
         .from('profiles')
-        .select('id, full_name, email, role')
+        .select('id, full_name, email, role, avatar_path')
         .order('created_at');
 
     return {

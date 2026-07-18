@@ -7,7 +7,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: 'https://pvafygrloelptlmnhfog.supabase.co',
-    anonKey:
+    publishableKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YWZ5Z3Jsb2VscHRsbW5oZm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTI1NjQsImV4cCI6MjA5ODA2ODU2NH0.Ak3Iu6i9F0OzSFRgTfyzX8UtEIQbIe3Bz6gT_b1sI60',
   );
   runApp(const WabyApp());

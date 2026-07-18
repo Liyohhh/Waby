@@ -5,6 +5,7 @@ class Child {
   final DateTime? dob;
   final double? weightKg;
   final double? heightCm;
+  final String? photoPath;
 
   const Child({
     required this.id,
@@ -13,6 +14,7 @@ class Child {
     this.dob,
     this.weightKg,
     this.heightCm,
+    this.photoPath,
   });
 
   factory Child.fromMap(Map<String, dynamic> m) => Child(
@@ -22,5 +24,6 @@ class Child {
         dob: m['dob'] != null ? DateTime.tryParse(m['dob'].toString()) : null,
         weightKg: (m['weight_kg'] as num?)?.toDouble(),
         heightCm: (m['height_cm'] as num?)?.toDouble(),
+        photoPath: m['photo_path'] as String?,
       );
 }

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../models/contact.dart';
+import '../models/seat_status.dart';
+import '../services/alert_service.dart';
 import '../services/auth_service.dart';
 import '../services/contact_service.dart';
 import '../services/family_service.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/invite_family_sheet.dart';
+import '../widgets/signed_avatar.dart';
 import 'existing_or_new_family_screen.dart';
 import 'help_support_screen.dart';
 import 'login_screen.dart';
@@ -25,8 +28,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _vibration     = true;
   bool _audibleWarn   = false;
   double _distance    = 2;   // meters
-  double _alertTimer  = 1;   // minutes
+  double _alertTimer  = 60;  // seconds
   String _displayName = 'Account owner';
+  String? _avatarPath;
   int? _memberCount;
   int? _contactCount;
 
@@ -37,12 +41,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadDisplayName();
+    _loadAvatarPath();
     _loadMemberCount();
+    _loadAlertTimer();
   }
 
   Future<void> _loadDisplayName() async {
     final name = await _auth.getDisplayName();
     if (mounted) setState(() => _displayName = name);
+  }
+
+  Future<void> _loadAvatarPath() async {
+    final data = await _auth.getProfile();
+    final path = data?['avatar_path'] as String?;
+    if (mounted) setState(() => _avatarPath = path);
+  }
+
+  Future<void> _loadAlertTimer() async {
+    final data = await _auth.getProfile();
+    final seconds = data?['alert_timer_seconds'] as int?;
+    if (mounted && seconds != null) {
+      setState(() => _alertTimer = seconds.toDouble());
+    }
   }
 
   Future<void> _loadMemberCount() async {
@@ -99,6 +119,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _toggleRow(Icons.vibration,              'Vibration',         _vibration,   (v) => setState(() => _vibration   = v)),
               _divider(),
               _toggleRow(Icons.volume_up_outlined,     'Audible Warning',   _audibleWarn, (v) => setState(() => _audibleWarn = v)),
+              _divider(),
+              _navRow(Icons.send_outlined, 'Send Test Notification',
+                  onTap: () async {
+                    await AlertService.instance.sendTestNotification();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Test notification sent'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }),
+              _divider(),
+              _navRow(Icons.crop_din_outlined, 'Test Alert Screens',
+                  onTap: () => showModalBottomSheet<void>(
+                        context: context,
+                        builder: (ctx) => SafeArea(
+                          child: Wrap(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.person_off_outlined),
+                                title: const Text('Left Behind'),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  AlertService.instance
+                                      .fireTestAlert(AlertReason.leftBehind);
+                                },
+                              ),
+                              ListTile(
+                                leading:
+                                    const Icon(Icons.thermostat_outlined),
+                                title: const Text('Heat'),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  AlertService.instance
+                                      .fireTestAlert(AlertReason.heat);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.link_outlined),
+                                title: const Text('Buckle Reminder'),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  AlertService.instance.fireTestAlert(
+                                      AlertReason.buckleReminder);
+                                },
+                              ),
+                              ListTile(
+                                leading:
+                                    const Icon(Icons.battery_alert_outlined),
+                                title: const Text('Low Battery'),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  AlertService.instance
+                                      .fireTestAlert(AlertReason.lowBattery);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      )),
             ]),
             const SizedBox(height: _kSectionGap),
 
@@ -119,9 +201,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.timer_outlined,
                 label: 'Auto-alert timer',
                 value: _alertTimer,
-                min: 1, max: 5, divisions: 4,
-                badgeText: '${_alertTimer.round()} min',
-                onChanged: (v) => setState(() => _alertTimer = v),
+                min: 30, max: 90, divisions: 12,
+                badgeText: '${_alertTimer.round()} sec',
+                onChanged: (v) async {
+                  setState(() => _alertTimer = v);
+                  await _auth.updateAlertTimerSeconds(v.round());
+                  await AlertService.instance.refreshAlertTimerSetting();
+                },
               ),
             ]),
             const SizedBox(height: _kSectionGap),
@@ -208,13 +294,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
             _loadDisplayName();
+            _loadAvatarPath();
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(
                 horizontal: _kGutter, vertical: _kRowV),
             child: Row(
               children: [
-                _iconBubble(Icons.person),
+                SignedAvatar(
+                  photoPath: _avatarPath,
+                  radius: 24,
+                  backgroundColor: AppColors.accent,
+                  fallbackIcon: Icons.person,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -320,7 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: AppColors.dot,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFD1D5DB),
@@ -681,7 +773,6 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
   late final Stream<List<Contact>> _contactsStream = _service.contactsStream();
   final _familyService = FamilyService();
   String? _joinCode;
-  bool _loadingCode = true;
   late Future<Map<String, dynamic>> _familyDataFuture;
 
   @override
@@ -831,7 +922,6 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
     if (mounted) {
       setState(() {
         _joinCode = code;
-        _loadingCode = false;
       });
     }
   }
@@ -1014,20 +1104,15 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                             ),
                             child: Row(
                               children: [
-                                CircleAvatar(
+                                SignedAvatar(
+                                  photoPath: m['avatar_path'] as String?,
                                   radius: 20,
                                   backgroundColor: AppColors.accent
                                       .withValues(alpha: 0.15),
-                                  child: Text(
-                                    display.isNotEmpty
-                                        ? display[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.accent,
-                                    ),
-                                  ),
+                                  fallbackText: display.isNotEmpty
+                                      ? display[0].toUpperCase()
+                                      : '?',
+                                  iconColor: AppColors.accent,
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(

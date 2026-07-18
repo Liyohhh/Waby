@@ -148,7 +148,7 @@ class _MainScreenState extends State<MainScreen> {
           type: BottomNavigationBarType.fixed,
           iconSize: 28,
           selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white.withOpacity(0.70),
+          unselectedItemColor: Colors.white.withValues(alpha: 0.70),
           selectedFontSize: 12,
           unselectedFontSize: 12,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),

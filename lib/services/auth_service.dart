@@ -208,6 +208,19 @@ class AuthService {
     });
   }
 
+  /// Upserts the base escalation delay (seconds) used by [AlertService].
+  /// Kept separate from [updateProfile] for the same reason as
+  /// [updateAvatarPath] — a settings slider shouldn't require saving the
+  /// whole profile form. Server-side check constrains this to 30-90s.
+  Future<void> updateAlertTimerSeconds(int seconds) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    await _client.from('profiles').upsert({
+      'id': userId,
+      'alert_timer_seconds': seconds,
+    });
+  }
+
   /// Fetches the role for the currently signed-in user from the `profiles`
   /// table. Returns `'user'` as the default if the row or column is missing.
   Future<String> getUserRole() async {

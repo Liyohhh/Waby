@@ -259,9 +259,29 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
 
     setState(() => _loading = true);
     try {
-      await FamilyService().joinFamily(code);
+      final familyName = await FamilyService().joinFamily(code);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      final navigator = Navigator.of(context);
+      navigator.pop();
+
+      await showDialog<void>(
+        context: navigator.context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Joined!',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, color: AppColors.navy)),
+          content: Text('You\'ve successfully joined "$familyName".'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
       await widget.onJoined();
     } catch (_) {
       if (!mounted) return;

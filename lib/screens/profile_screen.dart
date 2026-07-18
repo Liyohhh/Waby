@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
+import '../widgets/signed_avatar.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/picker_sheet.dart';
 
@@ -213,6 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (result != null) {
       await _auth.updateAvatarPath(result.path);
+      SignedAvatar.invalidate(result.path);
     }
 
     if (!mounted) return;

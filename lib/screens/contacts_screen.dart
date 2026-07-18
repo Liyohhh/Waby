@@ -11,6 +11,7 @@ import '../services/child_service.dart';
 import '../services/contact_service.dart';
 import '../services/family_service.dart';
 import '../widgets/contact_status_badge.dart';
+import '../widgets/signed_avatar.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key, this.showBack = true});
@@ -163,6 +164,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         subtitle: rel.isNotEmpty ? rel : 'Member',
                         verified: i == 0,
                         isMe: m['id']?.toString() == currentUid,
+                        avatarPath: m['avatar_path'] as String?,
                       ),
                       if (i < members.length - 1)
                         const Divider(
@@ -298,21 +300,19 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Widget _memberRow(String display,
-      {String? subtitle, bool verified = false, bool isMe = false}) {
+      {String? subtitle,
+      bool verified = false,
+      bool isMe = false,
+      String? avatarPath}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          CircleAvatar(
+          SignedAvatar(
+            photoPath: avatarPath,
             radius: 20,
             backgroundColor: AppColors.accent,
-            child: Text(
-              display.isNotEmpty ? display[0].toUpperCase() : '?',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14),
-            ),
+            fallbackText: display.isNotEmpty ? display[0].toUpperCase() : '?',
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -432,7 +432,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     GestureDetector(
                       onTap: canCopy
                           ? () => Clipboard.setData(
-                              ClipboardData(text: code!))
+                              ClipboardData(text: code))
                           : null,
                       child: Icon(Icons.copy,
                           size: 18,
@@ -474,6 +474,7 @@ class _ChildProfile {
     required this.isWarning,
     this.weightKg,
     this.heightCm,
+    this.photoPath,
   });
 
   final String id;
@@ -483,6 +484,7 @@ class _ChildProfile {
   bool isWarning;
   double? weightKg;
   double? heightCm;
+  String? photoPath;
 
   String get ageLabel => _ageFromDob(dob);
 }
@@ -534,6 +536,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       isWarning: seed?.status == SeatSeverity.warning,
       weightKg: c.weightKg,
       heightCm: c.heightCm,
+      photoPath: c.photoPath,
     );
   }
 
@@ -608,11 +611,11 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         ),
         child: Row(
           children: [
-            CircleAvatar(
+            SignedAvatar(
+              photoPath: child.photoPath,
               radius: 22,
               backgroundColor: AppColors.accent.withAlpha(180),
-              child: const Icon(Icons.child_care,
-                  color: Colors.white, size: 22),
+              fallbackIcon: Icons.child_care,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -825,11 +828,11 @@ class _ChildDetailSheet extends StatelessWidget {
                     ),
                     Row(
                       children: [
-                        CircleAvatar(
+                        SignedAvatar(
+                          photoPath: child.photoPath,
                           radius: 30,
                           backgroundColor: Colors.white.withAlpha(60),
-                          child: const Icon(Icons.child_care,
-                              color: Colors.white, size: 32),
+                          fallbackIcon: Icons.child_care,
                         ),
                   const SizedBox(width: 16),
                   Expanded(

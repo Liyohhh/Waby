@@ -38,8 +38,11 @@ class ImageUploadService {
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop Photo',
-          toolbarColor: AppColors.navy,
-          toolbarWidgetColor: Colors.white,
+          toolbarColor: Colors.white,
+          toolbarWidgetColor: AppColors.navy,
+          statusBarLight: true,
+          backgroundColor: Colors.white,
+          activeControlsWidgetColor: AppColors.accent,
           aspectRatioPresets: [CropAspectRatioPreset.square],
           lockAspectRatio: true,
         ),

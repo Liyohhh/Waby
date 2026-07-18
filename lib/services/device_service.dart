@@ -22,23 +22,23 @@ class DeviceService {
     final device = await _db
         .from('devices')
         .insert({
-          if (deviceId != null) 'id': deviceId,
+          'id': ?deviceId,
           'user_id': uid,
           'name': deviceName,
-          if (devicePhotoPath != null) 'photo_path': devicePhotoPath,
+          'photo_path': ?devicePhotoPath,
         })
         .select('id')
         .single();
 
     await _db.from('children').insert({
-      if (childId != null) 'id': childId,
+      'id': ?childId,
       'device_id': device['id'],
       'user_id': uid,
       'name': childName,
       if (dob != null) 'dob': dob.toIso8601String().split('T').first,
-      if (weightKg != null) 'weight_kg': weightKg,
-      if (heightCm != null) 'height_cm': heightCm,
-      if (photoPath != null) 'photo_path': photoPath,
+      'weight_kg': ?weightKg,
+      'height_cm': ?heightCm,
+      'photo_path': ?photoPath,
     });
   }
 }

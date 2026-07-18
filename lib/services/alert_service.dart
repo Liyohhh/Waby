@@ -14,6 +14,7 @@ class AlertEvent {
 class AlertService {
   AlertService._internal() {
     _sub = LiveService().liveStream().listen(_onStatus);
+    refreshAlertTimerSetting();
   }
   static final AlertService instance = AlertService._internal();
 
@@ -24,18 +25,93 @@ class AlertService {
   final _notifications = FlutterLocalNotificationsPlugin();
   bool _notificationsInitialized = false;
 
-  Timer? _escalationTimer;
-  DateTime? _escalationStartedAt;
-  AlertReason _lastReason = AlertReason.none;
-  static const Duration escalationDelay = Duration(seconds: 20);
+  // ── Configurable base escalation delay ────────────────────────────────
+  // Heat uses half of this, left-behind uses the full value. Synced from
+  // profiles.alert_timer_seconds (30-90s range, enforced server-side).
+  int _alertTimerSeconds = 60;
 
-  /// Time left before L3 Telegram escalation; zero if not armed.
-  Duration get escalationRemaining {
-    final started = _escalationStartedAt;
-    if (started == null) return Duration.zero;
-    final remaining = escalationDelay - DateTime.now().difference(started);
-    return remaining.isNegative ? Duration.zero : remaining;
+  /// Call after the user changes the "Auto-alert timer" setting so the
+  /// running app picks up the new value immediately.
+  Future<void> refreshAlertTimerSetting() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('alert_timer_seconds')
+          .eq('id', userId)
+          .maybeSingle();
+      final v = data?['alert_timer_seconds'] as int?;
+      if (v != null) _alertTimerSeconds = v;
+    } catch (_) {
+      // Keep previous/default value on failure.
+    }
   }
+
+  /// Total escalation window (seconds) for [reason] at the current
+  /// setting. Public so AlertScreen can render an accurate countdown.
+  int totalSecondsFor(AlertReason reason) {
+    if (reason == AlertReason.heat) {
+      return (_alertTimerSeconds / 2).ceil().clamp(15, 90);
+    }
+    return _alertTimerSeconds;
+  }
+
+  // Tier 1 ends at this fraction of the total; tier 2 always ends at the
+  // 50% mark, so tier 3 (the countdown) is always the back half of the
+  // window regardless of reason.
+  double _tier1Fraction(AlertReason reason) =>
+      reason == AlertReason.heat ? 0.2 : 0.25;
+
+  // ── Grace period (pre-alert debounce) ─────────────────────────────────
+  // Absorbs benign real-world scenarios (e.g. paying for gas) for
+  // left-behind, and sensor noise for heat, before an alert is even shown.
+  static const Duration heatDebounce = Duration(seconds: 15);
+  static const Duration leftBehindGrace = Duration(minutes: 2);
+
+  AlertReason _pendingReason = AlertReason.none;
+  Timer? _graceTimer;
+
+  // ── Active tiered alert state ──────────────────────────────────────────
+  AlertReason _activeReason = AlertReason.none;
+  DateTime? _activeSince;
+  Timer? _tickTimer;
+  int _lastFiredTier = 0;
+  bool _telegramSent = false;
+
+  // ── Non-critical (caution) one-shot state ─────────────────────────────
+  AlertReason _lastCautionReason = AlertReason.none;
+
+  /// Current tier of the active alert: 0 = none, 1 = reminder,
+  /// 2 = urgent, 3 = countdown-to-emergency-contact.
+  int get currentTier {
+    final since = _activeSince;
+    if (_activeReason == AlertReason.none || since == null) return 0;
+    final total = totalSecondsFor(_activeReason);
+    final elapsed = DateTime.now().difference(since).inSeconds;
+    final tier1End = (total * _tier1Fraction(_activeReason)).round();
+    final tier2End = (total * 0.5).round();
+    if (elapsed < tier1End) return 1;
+    if (elapsed < tier2End) return 2;
+    return 3;
+  }
+
+  /// Time left until the Telegram emergency-contact alert fires. Zero if
+  /// nothing is active.
+  Duration get escalationRemaining {
+    final since = _activeSince;
+    if (_activeReason == AlertReason.none || since == null) {
+      return Duration.zero;
+    }
+    final total = totalSecondsFor(_activeReason);
+    final elapsed = DateTime.now().difference(since).inSeconds;
+    final remaining = total - elapsed;
+    return remaining <= 0 ? Duration.zero : Duration(seconds: remaining);
+  }
+
+  /// True once the Telegram emergency-contact alert has actually been
+  /// sent for the currently-active alert.
+  bool get telegramSent => _telegramSent;
 
   Future<void> initNotifications() async {
     if (_notificationsInitialized) return;
@@ -56,38 +132,153 @@ class AlertService {
     final severity = status.severity;
     final message = _messageFor(reason);
 
-    _controller.add(AlertEvent(severity, reason, message));
-
     if (reason == AlertReason.none) {
-      _escalationTimer?.cancel();
-      _escalationStartedAt = null;
-      _lastReason = AlertReason.none;
+      _clearPending();
+      _clearActive();
+      _lastCautionReason = AlertReason.none;
+      _controller.add(AlertEvent(severity, reason, message));
       return;
     }
 
-    // Only re-notify and re-arm escalation on a NEW reason, not every stream tick.
-    if (reason != _lastReason) {
-      _lastReason = reason;
-      _showPushNotification(severity, message);
-      _writeLog(reason, message);
-
-      _escalationTimer?.cancel();
-      if (severity == SeatSeverity.warning) {
-        _escalationStartedAt = DateTime.now();
-        _escalationTimer = Timer(escalationDelay, () => _escalate(reason, message));
-      } else {
-        _escalationStartedAt = null;
+    // Non-critical: single one-shot notification, no grace period, no
+    // escalation ladder at all. Matches CAUTION severity (buckle reminder,
+    // low battery) — caregiver is confirmed nearby, or it's a maintenance
+    // notice, neither is a safety emergency.
+    if (severity != SeatSeverity.warning) {
+      _clearPending();
+      _clearActive();
+      if (reason != _lastCautionReason) {
+        _lastCautionReason = reason;
+        _showPushNotification(severity, message);
+        _writeLog(reason, message);
+        _controller.add(AlertEvent(severity, reason, message));
       }
+      return;
+    }
+
+    // From here: severity == warning (heat or left-behind).
+    _lastCautionReason = AlertReason.none;
+
+    if (_activeReason == reason) return; // already ticking
+    if (_pendingReason == reason) return; // already in its grace period
+
+    // New critical condition — start its grace period from scratch.
+    _clearPending();
+    _clearActive();
+    _pendingReason = reason;
+    final debounce =
+        reason == AlertReason.heat ? heatDebounce : leftBehindGrace;
+    _graceTimer = Timer(debounce, () => _promoteToActive(reason));
+  }
+
+  void _promoteToActive(AlertReason reason) {
+    _pendingReason = AlertReason.none;
+    _activeReason = reason;
+    _activeSince = DateTime.now();
+    _telegramSent = false;
+
+    final message = _messageFor(reason);
+    _showPushNotification(SeatSeverity.warning, message);
+    _writeLog(reason, message);
+    _controller.add(AlertEvent(SeatSeverity.warning, reason, message));
+    _lastFiredTier = 1;
+
+    _tickTimer?.cancel();
+    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  Future<void> _tick() async {
+    final reason = _activeReason;
+    final since = _activeSince;
+    if (reason == AlertReason.none || since == null) return;
+
+    final total = totalSecondsFor(reason);
+    final elapsed = DateTime.now().difference(since).inSeconds;
+    final tier1End = (total * _tier1Fraction(reason)).round();
+    final tier2End = (total * 0.5).round();
+
+    int tier;
+    if (elapsed < tier1End) {
+      tier = 1;
+    } else if (elapsed < tier2End) {
+      tier = 2;
+    } else if (elapsed < total) {
+      tier = 3;
+    } else {
+      tier = 4; // past the countdown — fire Telegram
+    }
+
+    if (tier == 2 && _lastFiredTier < 2) {
+      _lastFiredTier = 2;
+      await _showPushNotification(
+        SeatSeverity.warning,
+        'URGENT — still unresolved: ${_messageFor(reason)}',
+      );
+    } else if (tier == 3 && _lastFiredTier < 3) {
+      _lastFiredTier = 3;
+      // No separate push here — AlertScreen switches to the visible
+      // countdown ring at this point on its own polling.
+    }
+
+    if (tier >= 4 && !_telegramSent) {
+      _telegramSent = true;
+      await _escalate(reason, _messageFor(reason));
     }
   }
 
-  /// Call this from AlertScreen when the caregiver acknowledges the alert.
-  void acknowledge() {
-    _escalationTimer?.cancel();
-    _escalationStartedAt = null;
+  void _clearPending() {
+    _graceTimer?.cancel();
+    _graceTimer = null;
+    _pendingReason = AlertReason.none;
   }
 
-  Future<void> _showPushNotification(SeatSeverity severity, String message) async {
+  void _clearActive() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    _activeReason = AlertReason.none;
+    _activeSince = null;
+    _lastFiredTier = 0;
+    _telegramSent = false;
+  }
+
+  /// Call this from AlertScreen when the caregiver acknowledges the alert.
+  /// Resets state entirely — if the underlying condition is still true on
+  /// the next sensor reading, a fresh grace period starts before it can
+  /// alert again, avoiding an instant re-trigger loop right after ack.
+  void acknowledge() {
+    _clearActive();
+  }
+
+  /// Fires a synthetic sensor reading through the exact same detection
+  /// logic real alerts use — genuinely exercises the tier system, logging,
+  /// and push notifications, not just the AlertScreen UI. Skips the grace
+  /// period (the whole point is instant preview), but keeps the real
+  /// Tier 1→2→3→Telegram timing from that point on.
+  void fireTestAlert(AlertReason reason) {
+    if (reason == AlertReason.none) return;
+    final severity = (reason == AlertReason.buckleReminder ||
+            reason == AlertReason.lowBattery)
+        ? SeatSeverity.caution
+        : SeatSeverity.warning;
+    final message = _messageFor(reason);
+
+    if (severity != SeatSeverity.warning) {
+      _clearPending();
+      _clearActive();
+      _lastCautionReason = reason;
+      _showPushNotification(severity, message);
+      _writeLog(reason, message);
+      _controller.add(AlertEvent(severity, reason, message));
+      return;
+    }
+
+    _clearPending();
+    _clearActive();
+    _promoteToActive(reason);
+  }
+
+  Future<void> _showPushNotification(
+      SeatSeverity severity, String message) async {
     await initNotifications();
     const androidDetails = AndroidNotificationDetails(
       'waby_alerts',
@@ -105,6 +296,15 @@ class AlertService {
     );
   }
 
+  /// Fires a real push notification through the same channel and setup as
+  /// live alerts, without needing to trigger an actual sensor condition.
+  Future<void> sendTestNotification() async {
+    await _showPushNotification(
+      SeatSeverity.caution,
+      'This is a test notification from Waby.',
+    );
+  }
+
   Future<void> _writeLog(AlertReason reason, String message) async {
     try {
       await Supabase.instance.client.from('logs').insert({
@@ -117,12 +317,25 @@ class AlertService {
   }
 
   Future<void> _escalate(AlertReason reason, String message) async {
-    // Re-check current reason hasn't changed/cleared before escalating.
-    if (_lastReason != reason) return;
+    if (_activeReason != reason) return; // condition changed/cleared already
     try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('family_id')
+          .eq('id', userId)
+          .maybeSingle();
+      final familyId = profile?['family_id'] as String?;
+      if (familyId == null) return;
+
       await Supabase.instance.client.functions.invoke(
         'send-telegram-alert',
-        body: {'event': _eventNameFor(reason), 'message': message},
+        body: {
+          'event': _eventNameFor(reason),
+          'message': message,
+          'family_id': familyId,
+        },
       );
     } catch (_) {
       // Non-fatal — Telegram delivery failure shouldn't crash the app.
@@ -161,8 +374,8 @@ class AlertService {
 
   void dispose() {
     _sub.cancel();
-    _escalationTimer?.cancel();
-    _escalationStartedAt = null;
+    _graceTimer?.cancel();
+    _tickTimer?.cancel();
     _controller.close();
   }
 }
