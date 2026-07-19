@@ -184,6 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _avatarPath = null;
         _avatarPreview = null;
+        _avatarSignedUrl = null;
       });
       AppState.avatarPath.value = null;
       return;
