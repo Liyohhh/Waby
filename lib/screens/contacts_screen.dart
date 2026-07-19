@@ -64,14 +64,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
         ClipPath(
           clipper: _WaveClipper(),
           child: Container(
-            height: 150,
+            height: 140,
             width: double.infinity,
             decoration: const BoxDecoration(gradient: kHeaderGradient),
           ),
         ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(
               children: [
                 if (widget.showBack)
@@ -82,8 +82,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 const Text('Family',
                     style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700)),
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -1437,9 +1437,9 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.6,
-      maxChildSize: 0.95,
+      initialChildSize: 0.68,
+      minChildSize: 0.5,
+      maxChildSize: 0.85,
       builder: (_, scrollCtrl) => ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: Container(
@@ -1726,11 +1726,11 @@ class _ChildEditHeader extends StatelessWidget {
           Align(
             alignment: Alignment.topCenter,
             child: Padding(
-              padding: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.only(top: 10),
               child: Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.black26,
+                  color: Colors.white.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1738,18 +1738,18 @@ class _ChildEditHeader extends StatelessWidget {
           ),
           // Gradient wave
           Positioned(
-            top: 24, left: 0, right: 0,
+            top: 0, left: 0, right: 0,
             child: ClipPath(
               clipper: _WaveClipper(),
               child: Container(
-                height: 100,
+                height: 130,
                 decoration: const BoxDecoration(gradient: kHeaderGradient),
               ),
             ),
           ),
           // Close + title
           Positioned(
-            top: 28, left: 0, right: 0,
+            top: 22, left: 0, right: 0,
             child: Row(
               children: [
                 IconButton(
