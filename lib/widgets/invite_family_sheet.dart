@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../core/relations.dart';
 import '../core/theme.dart';
 import '../widgets/picker_sheet.dart';
 
-/// Slide-up sheet for inviting a family member (Figma: Invite Family Member).
+/// Slide-up sheet for adding an emergency contact. This does NOT create an
+/// app user or family member — it only adds a Telegram-alert recipient
+/// (see ContactService.addContact). Family members join the app itself
+/// using the separate Family Join Code shown on the Family page.
 class InviteFamilySheet extends StatefulWidget {
   const InviteFamilySheet({
     super.key,
     required this.onInvite,
-    this.joinCode = 'BT - 8942',
   });
 
-  final Future<void> Function(String name, String email, String phone, String relation) onInvite;
-  final String joinCode;
+  final Future<void> Function(String name, String phone, String relation) onInvite;
 
   @override
   State<InviteFamilySheet> createState() => _InviteFamilySheetState();
@@ -21,7 +21,6 @@ class InviteFamilySheet extends StatefulWidget {
 
 class _InviteFamilySheetState extends State<InviteFamilySheet> {
   final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   String _relation = kRelationOptions.first;
   bool _submitting = false;
@@ -29,32 +28,24 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
     _phoneCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
-    final email = _emailCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
     final relation = _relation;
-    if (name.isEmpty || email.isEmpty || phone.isEmpty) {
+    if (name.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in name, email and phone number')),
-      );
-      return;
-    }
-    if (!email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address')),
+        const SnackBar(content: Text('Please fill in name and phone number')),
       );
       return;
     }
 
     setState(() => _submitting = true);
     try {
-      await widget.onInvite(name, email, phone, relation);
+      await widget.onInvite(name, phone, relation);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -96,7 +87,7 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Invite Family Member',
+                        'Add Emergency Contact',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -114,7 +105,10 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Add a next-of-kin who will receive alerts if your child is in danger.',
+                  'Add a next-of-kin who will receive Telegram alerts if your '
+                  'child is in danger. This does not give them access to the '
+                  'app — to add a full family member instead, share the '
+                  'Family Join Code from the Family page.',
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.4,
@@ -125,12 +119,6 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
                 _fieldLabel('Full name'),
                 const SizedBox(height: 8),
                 _field(_nameCtrl, hint: 'e.g. Ahmad bin Ali'),
-                const SizedBox(height: 16),
-                _fieldLabel('Email'),
-                const SizedBox(height: 8),
-                _field(_emailCtrl,
-                    hint: 'e.g. dad@email.com',
-                    keyboard: TextInputType.emailAddress),
                 const SizedBox(height: 16),
                 _fieldLabel('Phone number'),
                 const SizedBox(height: 8),
@@ -167,88 +155,12 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
                         : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('Send Invite'),
+                              Text('Add Contact'),
                               SizedBox(width: 8),
-                              Icon(Icons.arrow_forward, size: 20),
+                              Icon(Icons.check, size: 20),
                             ],
                           ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.black.withAlpha(30))),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'or share code',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0x8C031E2A),
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.black.withAlpha(30))),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: widget.joinCode));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Join code copied')),
-                    );
-                  },
-                  child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE9F5FE),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF1F61B2).withAlpha(80),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFBDD6F3),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.bolt,
-                            color: Color(0xFF1F61B2), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Family Join Code',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF031E2A),
-                              ),
-                            ),
-                            Text(
-                              widget.joinCode,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF3D7FB0),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.copy, color: Color(0xFF3D7FB0), size: 20),
-                    ],
-                  ),
-                ),
                 ),
               ],
             ),

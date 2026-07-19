@@ -772,13 +772,11 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
   final _service = ContactService();
   late final Stream<List<Contact>> _contactsStream = _service.contactsStream();
   final _familyService = FamilyService();
-  String? _joinCode;
   late Future<Map<String, dynamic>> _familyDataFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadJoinCode();
     _familyDataFuture = _familyService.fetchFamilyData();
   }
 
@@ -917,17 +915,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
     }
   }
 
-  Future<void> _loadJoinCode() async {
-    final code = await _familyService.getInviteCode();
-    if (mounted) {
-      setState(() {
-        _joinCode = code;
-      });
-    }
-  }
-
   void _openInvite() {
-    if (_joinCode == null) return;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -935,8 +923,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
       barrierColor: Colors.black54,
       useSafeArea: true,
       builder: (sheetCtx) => InviteFamilySheet(
-        joinCode: _joinCode!,
-        onInvite: (name, email, phone, relation) async {
+        onInvite: (name, phone, relation) async {
           await _service.addContact(
               name: name, phone: phone, relation: relation);
           if (sheetCtx.mounted) {
@@ -944,7 +931,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
           }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$name added to family')),
+              SnackBar(content: Text('$name added as an emergency contact')),
             );
             setState(() {});
           }
@@ -977,7 +964,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          // title + add button
+          // title
           Row(
             children: [
               Expanded(
@@ -993,7 +980,8 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                     FutureBuilder<Map<String, dynamic>>(
                       future: _familyDataFuture,
                       builder: (context, snap) {
-                        String msg = 'Manage your family members.';
+                        String msg =
+                            'Family members who have joined using your Family Join Code.';
                         if (snap.hasData) {
                           final ownerId =
                               snap.data!['ownerId']?.toString();
@@ -1001,8 +989,8 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                           final isOwner =
                               myId != null && myId == ownerId;
                           msg = isOwner
-                              ? 'Invite or remove family members.'
-                              : 'Invite members. Only the owner can remove.';
+                              ? 'Members who joined using your Family Join Code. Only you can remove them.'
+                              : 'Members who joined using the Family Join Code.';
                         }
                         return Text(
                           msg,
@@ -1016,25 +1004,6 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                   ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _openInvite,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                icon: const Icon(Icons.person_add_outlined, size: 16),
-                label: const Text('Add',
-                    style: TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
-              ),
-
             ],
           ),
           const SizedBox(height: 20),
@@ -1061,7 +1030,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Center(
                         child: Text(
-                          'No family members yet. Tap Add to invite.',
+                          'No other family members yet. Share your Family Join Code from the Family page.',
                           style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 13),
@@ -1168,13 +1137,37 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Emergency Contacts',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.navy,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Emergency Contacts',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _openInvite,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.person_add_alt_1_outlined, size: 16),
+                label: const Text('Add',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           FutureBuilder<Map<String, dynamic>>(
@@ -1212,7 +1205,7 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
-                        'No emergency contacts yet. Tap Add to invite.',
+                        'No emergency contacts yet. Tap Add to add one.',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
