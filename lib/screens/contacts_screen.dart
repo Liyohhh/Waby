@@ -240,7 +240,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   final c = contacts[i];
                   return Column(
                     children: [
-                      _emergencyContactRow(c),
+                      _emergencyContactRow(context, c),
                       if (i < contacts.length - 1)
                         const Divider(
                           color: Colors.black12,
@@ -258,46 +258,109 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
-  Widget _emergencyContactRow(Contact c) {
+  Widget _emergencyContactRow(BuildContext context, Contact c) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.accent,
-            child: const Icon(
-              Icons.person_outline,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  c.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF031E2A),
-                  ),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.accent,
+                child: const Icon(
+                  Icons.person_outline,
+                  color: Colors.white,
+                  size: 20,
                 ),
-                if (c.relation.isNotEmpty)
-                  Text(
-                    c.relation,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0x80031E2A),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF031E2A),
+                      ),
+                    ),
+                    if (c.relation.isNotEmpty)
+                      Text(
+                        c.relation,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0x80031E2A),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              ContactStatusBadge(linked: c.isLinked),
+            ],
+          ),
+          if (!c.isLinked) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 52),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE9F5FE),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          c.linkCode,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                            color: Color(0xFF3D7FB0),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: c.linkCode));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Code copied'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: const Icon(Icons.copy,
+                              size: 14, color: Color(0xFF3D7FB0)),
+                        ),
+                      ],
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          ContactStatusBadge(linked: c.isLinked),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 52),
+              child: Text(
+                'Ask ${c.name} to send this code to @WabyBabyBot on Telegram',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0x8C031E2A),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
