@@ -148,7 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAvatar() async {
-    final source = await showModalBottomSheet<ImageSource>(
+    final source = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Wrap(
@@ -156,18 +156,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
               title: const Text('Take Photo'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              onTap: () => Navigator.pop(ctx, 'camera'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Choose from Gallery'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
             ),
+            if (_avatarPath != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppColors.warning),
+                title: const Text('Remove Photo',
+                    style: TextStyle(color: AppColors.warning)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
           ],
         ),
       ),
     );
     if (source == null) return;
+
+    if (source == 'remove') {
+      final oldPath = _avatarPath;
+      await _auth.updateAvatarPath(null);
+      if (oldPath != null) SignedAvatar.invalidate(oldPath);
+      if (!mounted) return;
+      setState(() {
+        _avatarPath = null;
+        _avatarPreview = null;
+      });
+      AppState.avatarPath.value = null;
+      return;
+    }
 
     final userId = _auth.currentUser?.id;
     final familyId = await FamilyService().myFamilyId();
@@ -176,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _uploadingAvatar = true);
 
     final result = await ImageUploadService().pickCropAndUpload(
-      source: source,
+      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
       familyId: familyId,
       entityType: 'profiles',
       entityId: userId,
@@ -185,6 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != null) {
       await _auth.updateAvatarPath(result.path);
       SignedAvatar.invalidate(result.path);
+      AppState.avatarPath.value = result.path;
     }
 
     if (!mounted) return;

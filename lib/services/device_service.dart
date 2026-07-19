@@ -41,4 +41,8 @@ class DeviceService {
       'photo_path': ?photoPath,
     });
   }
+
+  Future<void> deleteDevice(String deviceId) async {
+    await _db.from('devices').delete().eq('id', deviceId);
+  }
 }

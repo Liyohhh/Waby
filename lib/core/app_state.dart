@@ -11,4 +11,8 @@ class AppState {
 
   /// Prefetched greeting name so HomeScreen renders correctly on first frame.
   static final greetingName = ValueNotifier<String?>(null);
+
+  /// Prefetched avatar storage path so HomeScreen's header shows the
+  /// current photo immediately and updates live after Profile edits.
+  static final avatarPath = ValueNotifier<String?>(null);
 }

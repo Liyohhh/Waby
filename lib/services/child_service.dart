@@ -30,4 +30,8 @@ class ChildService {
     if (dob != null) data['dob'] = dob.toIso8601String().split('T').first;
     await _db.from('children').update(data).eq('id', id);
   }
+
+  Future<void> updateChildPhoto(String id, String? photoPath) async {
+    await _db.from('children').update({'photo_path': photoPath}).eq('id', id);
+  }
 }

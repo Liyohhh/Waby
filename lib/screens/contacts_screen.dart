@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
@@ -9,7 +11,9 @@ import '../models/seat_status.dart';
 import '../services/auth_service.dart';
 import '../services/child_service.dart';
 import '../services/contact_service.dart';
+import '../services/device_service.dart';
 import '../services/family_service.dart';
+import '../services/image_upload_service.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/signed_avatar.dart';
 
@@ -468,6 +472,7 @@ String _ageFromDob(DateTime dob) {
 class _ChildProfile {
   _ChildProfile({
     required this.id,
+    required this.deviceId,
     required this.name,
     required this.dob,
     required this.battery,
@@ -478,6 +483,7 @@ class _ChildProfile {
   });
 
   final String id;
+  final String deviceId;
   String name;
   DateTime dob;
   int battery;
@@ -521,7 +527,18 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
 
   _ChildProfile _toProfile(Child c) {
     if (_localOverrides.containsKey(c.id)) {
-      return _localOverrides[c.id]!;
+      final o = _localOverrides[c.id]!;
+      return _ChildProfile(
+        id: o.id,
+        deviceId: c.deviceId,
+        name: o.name,
+        dob: o.dob,
+        battery: o.battery,
+        isWarning: o.isWarning,
+        weightKg: o.weightKg,
+        heightCm: o.heightCm,
+        photoPath: o.photoPath ?? c.photoPath,
+      );
     }
     final useDemo = DemoAccount.useDemoDisplay(
       isDemoUser: _auth.isDemoUser,
@@ -530,6 +547,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     final seed = useDemo ? DemoAccount.childSeedFor(c.name) : null;
     return _ChildProfile(
       id: c.id,
+      deviceId: c.deviceId,
       name: c.name,
       dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
       battery: seed?.battery ?? 88,
@@ -765,9 +783,20 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
               backgroundColor: AppColors.warning,
               minimumSize: const Size(88, 44),
             ),
-            onPressed: () {
-              setState(() => _localOverrides.remove(child.id));
+            onPressed: () async {
               Navigator.pop(dialogContext);
+              try {
+                await DeviceService().deleteDevice(child.deviceId);
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Could not delete profile. Please try again.'),
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Delete'),
           ),
@@ -1273,6 +1302,9 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
   late final TextEditingController _heightCtrl;
   late DateTime _selectedDob;
   bool _saving = false;
+  String? _photoPath;
+  File? _photoPreview;
+  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -1285,6 +1317,7 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
       text: widget.child.heightCm?.toStringAsFixed(0) ?? '',
     );
     _selectedDob = widget.child.dob;
+    _photoPath = widget.child.photoPath;
   }
 
   @override
@@ -1295,13 +1328,79 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
     super.dispose();
   }
 
+  Future<void> _pickChildPhoto() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            if (_photoPath != null)
+              ListTile(
+                leading:
+                    const Icon(Icons.delete_outline, color: AppColors.warning),
+                title: const Text('Remove Photo',
+                    style: TextStyle(color: AppColors.warning)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+
+    if (action == 'remove') {
+      final oldPath = _photoPath;
+      await ChildService().updateChildPhoto(widget.child.id, null);
+      if (oldPath != null) SignedAvatar.invalidate(oldPath);
+      if (!mounted) return;
+      setState(() {
+        _photoPath = null;
+        _photoPreview = null;
+      });
+      return;
+    }
+
+    final familyId = await FamilyService().myFamilyId();
+    if (familyId == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    final result = await ImageUploadService().pickCropAndUpload(
+      source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      familyId: familyId,
+      entityType: 'children',
+      entityId: widget.child.id,
+    );
+    if (result != null) {
+      await ChildService().updateChildPhoto(widget.child.id, result.path);
+      SignedAvatar.invalidate(result.path);
+    }
+    if (!mounted) return;
+    setState(() {
+      _uploadingPhoto = false;
+      if (result != null) {
+        _photoPath = result.path;
+        _photoPreview = result.localFile;
+      }
+    });
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDob,
-      firstDate: DateTime(now.year - 18),
-      lastDate: now,
+      firstDate: DateTime(now.year - 12, now.month, 1),
+      lastDate: DateTime(now.year, now.month - 1, now.day),
       helpText: 'Select date of birth',
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
@@ -1350,6 +1449,10 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
               // ── Gradient header with drag handle + title + avatar ──────
               _ChildEditHeader(
                 name: widget.child.name,
+                photoPath: _photoPath,
+                photoPreview: _photoPreview,
+                uploading: _uploadingPhoto,
+                onTap: _uploadingPhoto ? null : _pickChildPhoto,
                 onClose: () => Navigator.of(context).pop(),
               ),
               // ── Scrollable form ────────────────────────────────────────
@@ -1448,6 +1551,15 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
                             controller: _weightCtrl,
                             hint: 'e.g. 8.5',
                             keyboard: TextInputType.number,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return null;
+                              final val = double.tryParse(v);
+                              if (val == null) return 'Enter a valid number';
+                              if (val <= 0 || val > 60) {
+                                return 'Enter a weight up to 60 kg';
+                              }
+                              return null;
+                            },
                           ),
                           _sep(),
                           _formRow(
@@ -1456,6 +1568,15 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
                             controller: _heightCtrl,
                             hint: 'e.g. 73',
                             keyboard: TextInputType.number,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return null;
+                              final val = double.tryParse(v);
+                              if (val == null) return 'Enter a valid number';
+                              if (val <= 0 || val > 200) {
+                                return 'Enter a height up to 200 cm';
+                              }
+                              return null;
+                            },
                           ),
                         ]),
                         const SizedBox(height: 28),
@@ -1579,8 +1700,20 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
 
 class _ChildEditHeader extends StatelessWidget {
   final String name;
+  final String? photoPath;
+  final File? photoPreview;
+  final bool uploading;
+  final VoidCallback? onTap;
   final VoidCallback onClose;
-  const _ChildEditHeader({required this.name, required this.onClose});
+
+  const _ChildEditHeader({
+    required this.name,
+    this.photoPath,
+    this.photoPreview,
+    this.uploading = false,
+    this.onTap,
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1635,24 +1768,70 @@ class _ChildEditHeader extends StatelessWidget {
           ),
           // Avatar overlapping wave bottom
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Center(
-              child: Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD4EEF8),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+              child: GestureDetector(
+                onTap: onTap,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4EEF8),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: uploading
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                ),
+                              )
+                            : photoPreview != null
+                                ? Image.file(
+                                    photoPreview!,
+                                    fit: BoxFit.cover,
+                                    width: 72,
+                                    height: 72,
+                                  )
+                                : SignedAvatar(
+                                    photoPath: photoPath,
+                                    radius: 36,
+                                    backgroundColor: const Color(0xFFD4EEF8),
+                                    fallbackIcon: Icons.child_care,
+                                    iconColor: AppColors.accent,
+                                  ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.navy,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt,
+                            size: 12, color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.child_care,
-                    color: AppColors.accent, size: 32),
               ),
             ),
           ),

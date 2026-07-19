@@ -53,9 +53,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUserName() async {
-    if (AppState.greetingName.value != null) return;
-    final name = await _auth.getGreetingName();
-    AppState.greetingName.value = name;
+    if (AppState.greetingName.value == null) {
+      final name = await _auth.getGreetingName();
+      AppState.greetingName.value = name;
+    }
+    if (AppState.avatarPath.value == null) {
+      final profile = await _auth.getProfile();
+      AppState.avatarPath.value = profile?['avatar_path'] as String?;
+    }
+  }
+
+  Future<void> _refreshProfileHeader() async {
+    final profile = await _auth.getProfile();
+    if (!mounted) return;
+    AppState.avatarPath.value = profile?['avatar_path'] as String?;
+    AppState.greetingName.value = await _auth.getGreetingName();
   }
 
   _CardStatus _mapSeverity(SeatSeverity s) => switch (s) {
@@ -287,12 +299,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     await Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     );
-                    _loadUserName();
+                    _refreshProfileHeader();
                   },
-                  child: const CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: AppColors.accent, size: 24),
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: AppState.avatarPath,
+                    builder: (context, path, _) => SignedAvatar(
+                      photoPath: path,
+                      radius: 22,
+                      backgroundColor: Colors.white,
+                      fallbackIcon: Icons.person,
+                      iconColor: AppColors.accent,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
