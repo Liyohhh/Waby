@@ -64,14 +64,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
         ClipPath(
           clipper: _WaveClipper(),
           child: Container(
-            height: 140,
+            height: 150,
             width: double.infinity,
             decoration: const BoxDecoration(gradient: kHeaderGradient),
           ),
         ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: const EdgeInsets.only(top: 4),
             child: Row(
               children: [
                 if (widget.showBack)
@@ -82,8 +82,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 const Text('Family',
                     style: TextStyle(
                         color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w600)),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700)),
               ],
             ),
           ),
