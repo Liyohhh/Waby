@@ -62,11 +62,13 @@ class _AlertScreenState extends State<AlertScreen> {
 
   ({IconData icon, String headline, String subtext}) get _content {
     if (_telegramSent && _isCritical) {
+      final count = AlertService.instance.lastNotifiedCount;
       return (
         icon: Icons.mark_email_read_outlined,
         headline: 'Contact Notified',
-        subtext:
-            'Your emergency contacts have been alerted. Please check on your child immediately.',
+        subtext: count > 0
+            ? 'Your emergency contacts have been alerted ($count notified). Please check on your child immediately.'
+            : 'No emergency contacts are linked yet, so no one else was notified. Please check on your child immediately, and add a contact from the Family page.',
       );
     }
 
@@ -190,42 +192,50 @@ class _AlertScreenState extends State<AlertScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: 260,
-                      height: 260,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            value: progress,
-                            strokeWidth: 12,
-                            backgroundColor: AppColors.warning.withAlpha(40),
-                            valueColor: const AlwaysStoppedAnimation(
-                                AppColors.warning),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
+                    Builder(
+                      builder: (context) {
+                        final circleSize =
+                            (MediaQuery.of(context).size.width * 0.78)
+                                .clamp(260.0, 320.0);
+                        return SizedBox(
+                          width: circleSize,
+                          height: circleSize,
+                          child: Stack(
+                            alignment: Alignment.center,
                             children: [
-                              Text(
-                                '${(_remaining.inSeconds ~/ 60).toString().padLeft(2, '0')}:'
-                                '${(_remaining.inSeconds % 60).toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                  fontSize: 44,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.navy,
-                                ),
+                              CircularProgressIndicator(
+                                value: progress,
+                                strokeWidth: 18,
+                                backgroundColor:
+                                    AppColors.warning.withAlpha(40),
+                                valueColor: const AlwaysStoppedAnimation(
+                                    AppColors.warning),
                               ),
-                              const Text(
-                                'remaining',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${(_remaining.inSeconds ~/ 60).toString().padLeft(2, '0')}:'
+                                    '${(_remaining.inSeconds % 60).toString().padLeft(2, '0')}',
+                                    style: const TextStyle(
+                                      fontSize: 56,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.navy,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'remaining',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
                   const Spacer(flex: 3),

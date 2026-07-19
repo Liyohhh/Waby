@@ -78,6 +78,7 @@ class AlertService {
   Timer? _tickTimer;
   int _lastFiredTier = 0;
   bool _telegramSent = false;
+  int _lastNotifiedCount = 0;
 
   // ── Non-critical (caution) one-shot state ─────────────────────────────
   AlertReason _lastCautionReason = AlertReason.none;
@@ -112,6 +113,7 @@ class AlertService {
   /// True once the Telegram emergency-contact alert has actually been
   /// sent for the currently-active alert.
   bool get telegramSent => _telegramSent;
+  int get lastNotifiedCount => _lastNotifiedCount;
 
   Future<void> initNotifications() async {
     if (_notificationsInitialized) return;
@@ -329,7 +331,7 @@ class AlertService {
       final familyId = profile?['family_id'] as String?;
       if (familyId == null) return;
 
-      await Supabase.instance.client.functions.invoke(
+      final response = await Supabase.instance.client.functions.invoke(
         'send-telegram-alert',
         body: {
           'event': _eventNameFor(reason),
@@ -337,6 +339,9 @@ class AlertService {
           'family_id': familyId,
         },
       );
+      final data = response.data;
+      _lastNotifiedCount =
+          (data is Map && data['sent'] is int) ? data['sent'] as int : 0;
     } catch (_) {
       // Non-fatal — Telegram delivery failure shouldn't crash the app.
     }
