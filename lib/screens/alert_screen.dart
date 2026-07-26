@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../models/seat_status.dart';
 import '../services/alert_service.dart';
+import '../widgets/draining_ack_button.dart';
 
 class AlertScreen extends StatefulWidget {
   const AlertScreen({super.key, required this.event, this.childName});
@@ -202,15 +203,27 @@ class _AlertScreenState extends State<AlertScreen> {
                     ),
                   ],
                   const Spacer(flex: 3),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _acknowledge,
-                      child: Text(
-                        _telegramSent ? 'I Understand' : 'Acknowledge',
+                  if (_isCritical && !_telegramSent)
+                    DrainingAckButton(
+                      label: 'Acknowledge',
+                      duration: Duration(seconds: total > 0 ? total : 1),
+                      initialFraction: progress,
+                      onAcknowledge: _acknowledge,
+                      // Escalation is already driven by AlertService — keep
+                      // this visual-only so we don't double-fire on empty.
+                      onExpired: null,
+                      baseColor: AppColors.safe,
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _acknowledge,
+                        child: Text(
+                          _telegramSent ? 'I Understand' : 'Acknowledge',
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
