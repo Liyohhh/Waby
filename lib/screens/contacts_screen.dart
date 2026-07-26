@@ -476,88 +476,121 @@ class _ContactsScreenState extends State<ContactsScreen> {
       );
     }
 
+    const navy = Color(0xFF0F2D54);   // AppColors.navy — code text
+    const accent = Color(0xFF3B74BC); // AppColors.accent — copy action
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: copy,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF5E93D8), Color(0xFF3B74BC)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF3B74BC).withAlpha(64),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF5E93D8), Color(0xFF3B74BC)],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Eyebrow label — quiet, uppercase, distinct from body
-              Text(
-                'FAMILY JOIN CODE',
-                style: TextStyle(
-                  color: Colors.white.withAlpha(180),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.4,
-                ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B74BC).withAlpha(64),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Role 1: eyebrow label (metadata) ──
+            Text(
+              'FAMILY JOIN CODE',
+              style: TextStyle(
+                color: Colors.white.withAlpha(200),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.4,
               ),
-              const SizedBox(height: 10),
-              // Hero code — largest, heaviest weight
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        display,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 36,
-                          height: 1.0,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2.0,
-                          fontFeatures: [FontFeature.tabularFigures()],
+            ),
+            const SizedBox(height: 14),
+            // ── Role 2 + 3: code (hero, navy on white) + copy control ──
+            GestureDetector(
+              onTap: copy,
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F8FF), // soft off-white, less stark than pure white
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withAlpha(150),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(20),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          display,
+                          style: const TextStyle(
+                            color: navy,
+                            fontSize: 30,
+                            height: 1.0,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.0,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Icon(
-                    Icons.copy_rounded,
-                    size: 18,
-                    color: canCopy
-                        ? Colors.white.withAlpha(220)
-                        : Colors.white.withAlpha(90),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Supporting hint — softest, lightest weight
-              Text(
-                canCopy
-                    ? 'Share to add new members · Tap to copy'
-                    : 'Share to add new members',
-                style: TextStyle(
-                  color: Colors.white.withAlpha(160),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  height: 1.3,
+                    const SizedBox(width: 12),
+                    // copy action — icon + label, clearly a control
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.copy_rounded,
+                          size: 17,
+                          color: canCopy ? accent : accent.withAlpha(90),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Copy',
+                          style: TextStyle(
+                            color: canCopy ? accent : accent.withAlpha(90),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            // ── Role 4: instruction (description only, no action) ──
+            Text(
+              'Share this code to add new family members.',
+              style: TextStyle(
+                color: Colors.white.withAlpha(215),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w400,
+                height: 1.3,
+              ),
+            ),
+          ],
         ),
       ),
     );
