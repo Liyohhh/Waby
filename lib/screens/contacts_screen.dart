@@ -483,118 +483,171 @@ class _ContactsScreenState extends State<ContactsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
+          // Lighter sky gradient
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF5E93D8), Color(0xFF3B74BC)],
+            colors: [Color(0xFF93BCEE), Color(0xFF5E93D8)],
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF3B74BC).withAlpha(64),
+              color: const Color(0xFF3B74BC).withAlpha(56),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Role 1: eyebrow label (metadata) ──
-            Text(
-              'FAMILY JOIN CODE',
-              style: TextStyle(
-                color: Colors.white.withAlpha(200),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.4,
-              ),
-            ),
-            const SizedBox(height: 14),
-            // ── Role 2 + 3: code (hero, navy on white) + copy control ──
-            GestureDetector(
-              onTap: copy,
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F8FF), // soft off-white, less stark than pure white
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.white.withAlpha(150),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(20),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            children: [
+              // Waby wave sweeping up to the top-right
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _JoinWavePainter(
+                      back: Colors.white.withAlpha(22),
+                      front: Colors.white.withAlpha(40),
                     ),
-                  ],
+                  ),
                 ),
-                child: Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          display,
-                          style: const TextStyle(
-                            color: navy,
-                            fontSize: 30,
-                            height: 1.0,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 2.0,
-                            fontFeatures: [FontFeature.tabularFigures()],
+                    // ── Role 1: eyebrow label (metadata) ──
+                    Text(
+                      'FAMILY JOIN CODE',
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(225),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // ── Role 2 + 3: code (hero, navy on white) + copy control ──
+                    GestureDetector(
+                      onTap: copy,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4F8FF),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(150),
+                            width: 1,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(20),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  display,
+                                  style: const TextStyle(
+                                    color: navy,
+                                    fontSize: 30,
+                                    height: 1.0,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 2.0,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.copy_rounded,
+                                  size: 17,
+                                  color: canCopy ? accent : accent.withAlpha(90),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Copy',
+                                  style: TextStyle(
+                                    color:
+                                        canCopy ? accent : accent.withAlpha(90),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // copy action — icon + label, clearly a control
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.copy_rounded,
-                          size: 17,
-                          color: canCopy ? accent : accent.withAlpha(90),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Copy',
-                          style: TextStyle(
-                            color: canCopy ? accent : accent.withAlpha(90),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 12),
+                    // ── Role 4: instruction (description only, no action) ──
+                    Text(
+                      'Share this code to add new family members.',
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(230),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w400,
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            // ── Role 4: instruction (description only, no action) ──
-            Text(
-              'Share this code to add new family members.',
-              style: TextStyle(
-                color: Colors.white.withAlpha(215),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w400,
-                height: 1.3,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+// Translucent wave sweeping up toward the top-right of the Join Code card.
+class _JoinWavePainter extends CustomPainter {
+  const _JoinWavePainter({required this.back, required this.front});
+  final Color back;
+  final Color front;
+
+  Path _wave(Size s, double dy) {
+    final w = s.width;
+    final h = s.height;
+    return Path()
+      ..moveTo(w, h * (0.72 + dy))
+      ..cubicTo(w * 0.86, h * (0.62 + dy), w * 0.84, h * (0.44 + dy),
+          w * 0.70, h * (0.38 + dy))
+      ..cubicTo(w * 0.58, h * (0.33 + dy), w * 0.56, h * (0.18 + dy),
+          w * 0.44, h * (0.12 + dy))
+      ..cubicTo(w * 0.39, h * (0.09 + dy), w * 0.37, h * (0.03 + dy),
+          w * 0.35, h * dy)
+      ..lineTo(w, h * dy)
+      ..close();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(_wave(size, 0.06), Paint()..color = back);
+    canvas.drawPath(_wave(size, 0.0), Paint()..color = front);
+  }
+
+  @override
+  bool shouldRepaint(covariant _JoinWavePainter old) =>
+      old.back != back || old.front != front;
 }
 
 // ── Children section (unchanged) ──────────────────────────────────────────────
@@ -849,8 +902,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
 
   Widget _childOptionsButton(BuildContext context, _ChildProfile child) {
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert,
-          color: Color(0xFF031E2A), size: 20),
+      icon: const Icon(Icons.more_vert, color: Color(0xFF031E2A), size: 20),
       padding: EdgeInsets.zero,
       offset: const Offset(0, 32),
       color: Colors.white,
