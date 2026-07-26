@@ -464,82 +464,100 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Widget _joinCodeCard({required String? code, required bool loading}) {
     final display = loading ? '••••••' : (code ?? '—');
     final canCopy = !loading && code != null;
+
+    void copy() {
+      if (!canCopy) return;
+      Clipboard.setData(ClipboardData(text: code!));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Code copied'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE9F5FE),
-          border: Border.all(
-              color: const Color(0xFF1F61B2).withAlpha(80),
-              style: BorderStyle.solid,
-              width: 1.5),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: const Color(0xFFBDD6F3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.bolt,
-                  color: Color(0xFF1F61B2), size: 20),
+      child: GestureDetector(
+        onTap: copy,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF5E93D8), Color(0xFF3B74BC)],
             ),
-            const SizedBox(height: 8),
-            const Text('Family Join Code',
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF3B74BC).withAlpha(64),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Eyebrow label — quiet, uppercase, distinct from body
+              Text(
+                'FAMILY JOIN CODE',
                 style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF031E2A))),
-            const SizedBox(height: 4),
-            const Text('Share this code to add new family members',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 11, color: Color(0x8C031E2A))),
-            const SizedBox(height: 10),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withAlpha(30),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2)),
-                  ],
+                  color: Colors.white.withAlpha(180),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.4,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(display,
+              ),
+              const SizedBox(height: 10),
+              // Hero code — largest, heaviest weight
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        display,
                         style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF3D7FB0))),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: canCopy
-                          ? () => Clipboard.setData(
-                              ClipboardData(text: code))
-                          : null,
-                      child: Icon(Icons.copy,
-                          size: 18,
-                          color: canCopy
-                              ? const Color(0xFF3D7FB0)
-                              : const Color(0x4D3D7FB0)),
+                          color: Colors.white,
+                          fontSize: 36,
+                          height: 1.0,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.0,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(
+                    Icons.copy_rounded,
+                    size: 18,
+                    color: canCopy
+                        ? Colors.white.withAlpha(220)
+                        : Colors.white.withAlpha(90),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Supporting hint — softest, lightest weight
+              Text(
+                canCopy
+                    ? 'Share to add new members · Tap to copy'
+                    : 'Share to add new members',
+                style: TextStyle(
+                  color: Colors.white.withAlpha(160),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  height: 1.3,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
