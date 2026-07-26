@@ -15,6 +15,15 @@ class ChildService {
         .map((rows) => rows.map(Child.fromMap).toList());
   }
 
+  /// One-shot fetch of children in the caller's family (RLS-scoped).
+  Future<List<Child>> myChildren() async {
+    if (_db.auth.currentUser == null) return [];
+    final rows = await _db.from('children').select().order('created_at');
+    return (rows as List)
+        .map((r) => Child.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> updateChild({
     required String id,
     String? name,

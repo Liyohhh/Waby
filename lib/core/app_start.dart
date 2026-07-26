@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_gate.dart';
 import '../screens/login_screen.dart';
@@ -24,6 +25,7 @@ class _AppStartState extends State<AppStart> {
     if (!mounted) return;
 
     final session = Supabase.instance.client.auth.currentSession;
+    FlutterNativeSplash.remove();
     if (session != null) {
       await routeAfterAuth(context);
       return;
@@ -40,7 +42,7 @@ class _AppStartState extends State<AppStart> {
       backgroundColor: Colors.white,
       body: Center(
         child: SizedBox(
-          width: 120,
+          width: 256,
           child: Image(image: AssetImage('assets/images/Waby_Logo_clean.png')),
         ),
       ),

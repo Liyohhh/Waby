@@ -27,6 +27,15 @@ class ContactService {
             rows.map((r) => Contact.fromMap(r['id'].toString(), r)).toList());
   }
 
+  // READ (one-shot fetch, scoped by RLS to the caller's family)
+  Future<List<Contact>> contactsList() async {
+    final rows = await _db.from('contacts').select().order('name');
+    return (rows as List)
+        .map((r) =>
+            Contact.fromMap(r['id'].toString(), r as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<int> contactsCount() async {
     final rows = await _db.from('contacts').select('id');
     return (rows as List).length;

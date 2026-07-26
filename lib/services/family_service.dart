@@ -61,7 +61,7 @@ class FamilyService {
   Future<List<Map<String, dynamic>>> fetchFamilyMembers() async {
     final rows = await _db
         .from('profiles')
-        .select('id, full_name, nickname, role, email')
+        .select('id, full_name, nickname, role, email, relation')
         .order('created_at');
     return List<Map<String, dynamic>>.from(rows);
   }

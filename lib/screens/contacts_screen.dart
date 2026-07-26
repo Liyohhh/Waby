@@ -28,29 +28,50 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen> {
   final Future<String?> _inviteCode = FamilyService().getInviteCode();
-  late final Stream<List<Map<String, dynamic>>> _familyMembersStream =
-      FamilyService().familyMembersStream();
-  late final Stream<List<Contact>> _contactsStream =
-      ContactService().contactsStream();
+  late Future<List<Map<String, dynamic>>> _familyMembersFuture =
+      FamilyService().fetchFamilyMembers();
+  late Future<List<Contact>> _contactsFuture = ContactService().contactsList();
+  final GlobalKey<_ChildrenSectionState> _childrenKey =
+      GlobalKey<_ChildrenSectionState>();
+
+  void _reloadMembers() {
+    setState(() {
+      _familyMembersFuture = FamilyService().fetchFamilyMembers();
+    });
+  }
+
+  void _reloadContacts() {
+    setState(() {
+      _contactsFuture = ContactService().contactsList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            _buildChildrenSection(context),
-            const SizedBox(height: 20),
-            _buildFamilyMembersSection(context),
-            const SizedBox(height: 20),
-            _buildEmergencyContactsSection(context),
-            const SizedBox(height: 20),
-            _buildJoinCodeCard(),
-            const SizedBox(height: 100),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _reloadMembers();
+          _reloadContacts();
+          _childrenKey.currentState?.reload();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              _buildChildrenSection(context),
+              const SizedBox(height: 20),
+              _buildFamilyMembersSection(context),
+              const SizedBox(height: 20),
+              _buildEmergencyContactsSection(context),
+              const SizedBox(height: 20),
+              _buildJoinCodeCard(),
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
     );
@@ -93,7 +114,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Widget _buildChildrenSection(BuildContext context) {
-    return const _ChildrenSection();
+    return _ChildrenSection(key: _childrenKey);
   }
 
   // ── Family Members section — read-only, managed in Settings ───────────────
@@ -120,28 +141,36 @@ class _ContactsScreenState extends State<ContactsScreen> {
             style: TextStyle(fontSize: 11, color: Color(0x8C031E2A)),
           ),
           const SizedBox(height: 12),
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _familyMembersStream,
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _familyMembersFuture,
             builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
               if (snapshot.hasError) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: Text(
-                        'Could not load family members.\n${snapshot.error}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.red, fontSize: 12)),
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Couldn't load family members.",
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _reloadMembers,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
-              if (snapshot.connectionState == ConnectionState.waiting &&
-                  !snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
               final members = snapshot.data ?? [];
               final currentUid = Supabase.instance.client.auth.currentUser?.id;
-              if (snapshot.hasData && members.isEmpty) {
+              if (members.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
@@ -201,37 +230,39 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          StreamBuilder<List<Contact>>(
-            stream: _contactsStream,
+          FutureBuilder<List<Contact>>(
+            future: _contactsFuture,
             builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
               if (snapshot.hasError) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: Text(
-                      'Could not load emergency contacts.\n${snapshot.error}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    child: Column(
+                      children: [
+                        const Text("Couldn't load emergency contacts.",
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
+                        const SizedBox(height: 8),
+                        TextButton(
+                            onPressed: _reloadContacts,
+                            child: const Text('Retry')),
+                      ],
                     ),
                   ),
                 );
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
               }
               final contacts = snapshot.data ?? [];
               if (contacts.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: Text(
-                      'No emergency contacts yet.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
+                    child: Text('No emergency contacts yet.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13)),
                   ),
                 );
               }
@@ -243,10 +274,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       _emergencyContactRow(context, c),
                       if (i < contacts.length - 1)
                         const Divider(
-                          color: Colors.black12,
-                          height: 1,
-                          thickness: 1,
-                        ),
+                            color: Colors.black12, height: 1, thickness: 1),
                     ],
                   );
                 }),
@@ -559,7 +587,7 @@ class _ChildProfile {
 }
 
 class _ChildrenSection extends StatefulWidget {
-  const _ChildrenSection();
+  const _ChildrenSection({super.key});
 
   @override
   State<_ChildrenSection> createState() => _ChildrenSectionState();
@@ -569,8 +597,13 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   final ChildService _childService = ChildService();
   final FamilyService _familyService = FamilyService();
   final AuthService _auth = AuthService();
-  late final Stream<List<Child>> _childrenStream =
-      _childService.myChildrenStream();
+  late Future<List<Child>> _childrenFuture = _childService.myChildren();
+
+  void reload() {
+    setState(() {
+      _childrenFuture = _childService.myChildren();
+    });
+  }
 
   bool _demoFamily = false;
 
@@ -634,11 +667,10 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF031E2A))),
           const SizedBox(height: 12),
-          StreamBuilder<List<Child>>(
-            stream: _childrenStream,
+          FutureBuilder<List<Child>>(
+            future: _childrenFuture,
             builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting &&
-                  !snap.hasData) {
+              if (snap.connectionState == ConnectionState.waiting) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
@@ -646,8 +678,29 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   ),
                 );
               }
+              if (snap.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Couldn't load children.",
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: reload,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
               final children = snap.data ?? [];
-              if (snap.hasData && children.isEmpty) {
+              if (children.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Text(
@@ -823,6 +876,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
             child.heightCm = h;
             _localOverrides[child.id] = child;
           });
+          reload();
         },
       ),
     );

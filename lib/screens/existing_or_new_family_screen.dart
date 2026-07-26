@@ -2,58 +2,166 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/auth_gate.dart';
 import '../core/theme.dart';
+import '../services/auth_service.dart';
 import '../services/family_service.dart';
+import '../widgets/auth_widgets.dart';
+import 'login_screen.dart';
 
 class ExistingOrNewFamilyScreen extends StatelessWidget {
   const ExistingOrNewFamilyScreen({super.key});
 
+  // ── Design constants (identical to Login / Register) ──────────────────────
+
   static const _kGutter = 30.0;
+  static const _kWaveH  = 140.0;
+  static const _kLogoD  = 96.0; // logo circle diameter
+
+  // This screen is always reached via pushAndRemoveUntil (stack cleared), so
+  // there's no previous route to pop to. "Back" here signs the user out and
+  // returns them to Login, which is the only meaningful prior step.
+  Future<void> _goBack(BuildContext context) async {
+    try {
+      await AuthService().signOut();
+    } catch (_) {
+      // Ignore sign-out errors — still route to Login below.
+    }
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 41),
-              const Text(
-                'Hello,\nNice to meet you!',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy,
-                  height: 0.94,
+      body: Column(
+        children: [
+          // ── Wave + overlapping logo circle (identical to Login) ──────────
+          SizedBox(
+            height: _kWaveH + _kLogoD / 2,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                // Gradient wave
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: ClipPath(
+                    clipper: AppWaveClipper(),
+                    child: Container(
+                      height: _kWaveH,
+                      decoration: const BoxDecoration(gradient: kHeaderGradient),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Please select if you want to create a new family or '
-                "you've been invited to join your existing family",
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: AppColors.textSecondary,
+
+                // Back arrow + "Waby" wordmark inside the wave
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 12, 24, 0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white, size: 22),
+                            tooltip: 'Back to sign in',
+                            onPressed: () => _goBack(context),
+                          ),
+                          const Text(
+                            'Waby',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              _FamilyOptionCard(
-                icon: Icons.family_restroom,
-                label: 'Create New Family',
-                onTap: () => _showCreateDialog(context),
-              ),
-              const SizedBox(height: 16),
-              _FamilyOptionCard(
-                icon: Icons.groups,
-                label: 'Join Existing Family',
-                onTap: () => _showJoinDialog(context),
-              ),
-            ],
+
+                // Logo circle — overlaps the wave bottom edge
+                Positioned(
+                  bottom: 0,
+                  child: Container(
+                    width: _kLogoD,
+                    height: _kLogoD,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(30),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(14),
+                    child: Image.asset(
+                      'assets/images/Waby_Logo_clean.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                          Icons.child_care,
+                          size: 40,
+                          color: AppColors.accent),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+
+          // ── Content ──────────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(_kGutter, 28, _kGutter, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Hello,\nNice to meet you!',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                      height: 0.94,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Please select if you want to create a new family or '
+                    "you've been invited to join your existing family",
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  _FamilyOptionCard(
+                    icon: Icons.family_restroom,
+                    label: 'Create New Family',
+                    onTap: () => _showCreateDialog(context),
+                  ),
+                  const SizedBox(height: 16),
+                  _FamilyOptionCard(
+                    icon: Icons.groups,
+                    label: 'Join Existing Family',
+                    onTap: () => _showJoinDialog(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

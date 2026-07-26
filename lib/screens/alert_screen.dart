@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../models/seat_status.dart';
@@ -182,60 +183,22 @@ class _AlertScreenState extends State<AlertScreen> {
                     ),
                   ),
                   if (_showCountdown) ...[
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 36),
                     const Text(
-                      'Your family members will\nbe notified in',
+                      'EMERGENCY CONTACTS WILL BE NOTIFIED IN',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.1,
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Builder(
-                      builder: (context) {
-                        final circleSize =
-                            (MediaQuery.of(context).size.width * 0.78)
-                                .clamp(260.0, 320.0);
-                        return SizedBox(
-                          width: circleSize,
-                          height: circleSize,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CircularProgressIndicator(
-                                value: progress,
-                                strokeWidth: 18,
-                                backgroundColor:
-                                    AppColors.warning.withAlpha(40),
-                                valueColor: const AlwaysStoppedAnimation(
-                                    AppColors.warning),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '${(_remaining.inSeconds ~/ 60).toString().padLeft(2, '0')}:'
-                                    '${(_remaining.inSeconds % 60).toString().padLeft(2, '0')}',
-                                    style: const TextStyle(
-                                      fontSize: 56,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.navy,
-                                    ),
-                                  ),
-                                  const Text(
-                                    'remaining',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                    const SizedBox(height: 20),
+                    _CountdownRing(
+                      progress: progress,
+                      remaining: _remaining,
+                      color: AppColors.warning,
                     ),
                   ],
                   const Spacer(flex: 3),
@@ -256,4 +219,152 @@ class _AlertScreenState extends State<AlertScreen> {
       ),
     );
   }
+}
+
+// ── Countdown ring ────────────────────────────────────────────────────────────
+
+/// Escalation countdown dial.
+///
+/// Uses a custom painter rather than [CircularProgressIndicator] so the arc can
+/// sweep smoothly between ticks — the service only updates once per second, so
+/// a stock indicator visibly steps. The value is interpolated across each
+/// second, and the numeral sits on a raised inner disc so the ring reads as a
+/// distinct outer layer rather than a border around text.
+class _CountdownRing extends StatelessWidget {
+  const _CountdownRing({
+    required this.progress,
+    required this.remaining,
+    required this.color,
+  });
+
+  final double progress;
+  final Duration remaining;
+  final Color color;
+
+  static const _stroke = 12.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final size =
+        (MediaQuery.of(context).size.width * 0.60).clamp(212.0, 248.0);
+
+    final secs = remaining.inSeconds;
+    final underMinute = secs < 60;
+    final value = underMinute
+        ? '$secs'
+        : '${(secs ~/ 60).toString().padLeft(2, '0')}:'
+            '${(secs % 60).toString().padLeft(2, '0')}';
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: progress, end: progress),
+        duration: const Duration(milliseconds: 950),
+        curve: Curves.linear,
+        builder: (context, animated, _) {
+          return CustomPaint(
+            painter: _RingPainter(
+              progress: animated,
+              color: color,
+              stroke: _stroke,
+            ),
+            child: Center(
+              child: Container(
+                width: size - (_stroke * 2) - 26,
+                height: size - (_stroke * 2) - 26,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.navy.withValues(alpha: 0.10),
+                      blurRadius: 22,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: underMinute ? 64 : 50,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy,
+                        height: 1.0,
+                        letterSpacing: -1.5,
+                        fontFeatures: const [
+                          FontFeature.tabularFigures(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      underMinute ? 'SECONDS' : 'REMAINING',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.6,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  const _RingPainter({
+    required this.progress,
+    required this.color,
+    required this.stroke,
+  });
+
+  final double progress;
+  final Color color;
+  final double stroke;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - stroke) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Track — the full dial, so remaining time reads against the whole.
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = color.withValues(alpha: 0.14),
+    );
+
+    if (progress <= 0) return;
+
+    // Depleting arc — starts at 12 o'clock, sweeps clockwise.
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * progress.clamp(0.0, 1.0),
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.color != color || old.stroke != stroke;
 }
