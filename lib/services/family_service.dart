@@ -95,7 +95,7 @@ class FamilyService {
         .single();
     final members = await _db
         .from('profiles')
-        .select('id, full_name, email, role, avatar_path')
+        .select('id, full_name, nickname, email, role, avatar_path')
         .order('created_at');
 
     return {

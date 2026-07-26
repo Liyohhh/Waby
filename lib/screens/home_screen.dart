@@ -1019,17 +1019,6 @@ class _ChildCard extends StatelessWidget {
     this.photoPath,
   });
 
-  // Safe & caution share the calm blue background; warning gets red.
-  // An empty seat is always calm — never show the warning red.
-  Color get _cardBg {
-    if (!present) return AppColors.safeCard;
-    return switch (status) {
-      _CardStatus.safe    => AppColors.safeCard,
-      _CardStatus.caution => AppColors.safeCard,
-      _CardStatus.warning => AppColors.warningCard,
-    };
-  }
-
   Color get _badgeColor => switch (status) {
         _CardStatus.safe    => AppColors.safe,               // green
         _CardStatus.caution => const Color(0xFFE6A817),      // yellow/amber
@@ -1049,107 +1038,241 @@ class _ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final warning = present && status == _CardStatus.warning;
+
+    final headerGradient = warning
+        ? const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE0685F), Color(0xFFC2291D)],
+          )
+        : const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // Lighter take on kHeaderGradient (headerTop → headerBottom)
+            colors: [Color(0xFF4DBAD4), Color(0xFFA8E0EF)],
+            stops: [0.31, 0.88],
+          );
+
+    final shadowColor =
+        (warning ? const Color(0xFFC2291D) : AppColors.headerTop).withAlpha(36);
+
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 14, offset: const Offset(0, 6)),
+        ],
       ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SignedAvatar(
-                photoPath: photoPath,
-                radius: 26,
-                backgroundColor: AppColors.accent,
-                fallbackText: name.isNotEmpty ? name[0] : '?',
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 2),
-                    Text(dob,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            height: 1.4)),
-                    Text(details,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            height: 1.4)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: present
-                      ? _badgeColor
-                      : AppColors.textSecondary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(present ? _badgeLabel : 'SEAT EMPTY',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (!present)
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Gradient wave-header (identity) ──
+            Stack(
               children: [
-                Icon(Icons.child_care_outlined,
-                    size: 18, color: AppColors.textSecondary),
-                SizedBox(width: 6),
-                Text('No baby detected',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13)),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Expanded(child: StatusPill(
-                  icon: buckled ? Icons.link : Icons.link_off,
-                  label: buckled ? 'Buckled' : 'Unbuckled',
-                  tone: _buckleTone,
-                )),
-                const SizedBox(width: 8),
-                Expanded(child: StatusPill(
-                  icon: near ? Icons.location_on : Icons.location_off,
-                  label: near ? 'Near' : 'Far',
-                  tone: _nearTone,
-                )),
-                const SizedBox(width: 8),
-                Expanded(child: StatusPill(
-                  icon: battery <= 20 ? Icons.battery_alert : Icons.battery_full,
-                  label: '$battery%',
-                  tone: _batteryTone,
-                )),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(gradient: headerGradient),
+                  ),
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _CardHeaderWavePainter(
+                        back: Colors.white.withAlpha(20),
+                        front: Colors.white.withAlpha(36),
+                      ),
+                    ),
+                  ),
+                ),
+                // Soft fade so the header melts into the white body (no hard seam)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 48,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withAlpha(0),
+                            Colors.white.withAlpha(90),
+                            Colors.white,
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withAlpha(160),
+                        ),
+                        child: SignedAvatar(
+                          photoPath: photoPath,
+                          radius: 24,
+                          backgroundColor: const Color(0xFFE8F6FB),
+                          iconColor: AppColors.navy,
+                          fallbackText: name.isNotEmpty ? name[0] : '?',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.navy)),
+                            const SizedBox(height: 2),
+                            Text(dob,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.navy.withAlpha(170),
+                                    height: 1.3)),
+                            Text(details,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.navy.withAlpha(170),
+                                    height: 1.3)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _statusChip(),
+                    ],
+                  ),
+                ),
               ],
             ),
+            // ── White body (status indicators stay high-contrast) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+              child: !present
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.child_care_outlined,
+                            size: 18, color: AppColors.textSecondary),
+                        SizedBox(width: 6),
+                        Text('No baby detected',
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                            child: StatusPill(
+                          icon: buckled ? Icons.link : Icons.link_off,
+                          label: buckled ? 'Buckled' : 'Unbuckled',
+                          tone: _buckleTone,
+                        )),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: StatusPill(
+                          icon: near ? Icons.location_on : Icons.location_off,
+                          label: near ? 'Near' : 'Far',
+                          tone: _nearTone,
+                        )),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: StatusPill(
+                          icon: battery <= 20
+                              ? Icons.battery_alert
+                              : Icons.battery_full,
+                          label: '$battery%',
+                          tone: _batteryTone,
+                        )),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Status badge as a white chip with a colored dot + label — legible on any
+  // header gradient (blue or red) and consistent with the Join Code chip.
+  Widget _statusChip() {
+    final label = present ? _badgeLabel : 'SEAT EMPTY';
+    final color = present ? _badgeColor : AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F8FF),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w700, fontSize: 12)),
         ],
       ),
     );
   }
+}
+
+// Translucent wave sweeping to the top-right of the child-card header.
+class _CardHeaderWavePainter extends CustomPainter {
+  const _CardHeaderWavePainter({required this.back, required this.front});
+  final Color back;
+  final Color front;
+
+  Path _wave(Size s, double dy) {
+    final w = s.width;
+    final h = s.height;
+    return Path()
+      ..moveTo(w, h * (0.78 + dy))
+      ..cubicTo(w * 0.86, h * (0.66 + dy), w * 0.84, h * (0.46 + dy),
+          w * 0.70, h * (0.40 + dy))
+      ..cubicTo(w * 0.58, h * (0.34 + dy), w * 0.56, h * (0.18 + dy),
+          w * 0.44, h * (0.12 + dy))
+      ..cubicTo(w * 0.39, h * (0.09 + dy), w * 0.37, h * (0.03 + dy),
+          w * 0.35, h * dy)
+      ..lineTo(w, h * dy)
+      ..close();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(_wave(size, 0.05), Paint()..color = back);
+    canvas.drawPath(_wave(size, 0.0), Paint()..color = front);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CardHeaderWavePainter old) =>
+      old.back != back || old.front != front;
 }
 
 /// Two-loop wave: small crest on the left, bigger crest on the right.

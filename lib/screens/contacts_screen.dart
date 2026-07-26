@@ -185,24 +185,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
               return Column(
                 children: List.generate(members.length, (i) {
                   final m = members[i];
-                  final name = (m['full_name'] ?? '').toString().trim();
-                  final display = name.isNotEmpty
-                      ? name
-                      : (m['email'] ?? 'Member').toString();
+                  final nick = (m['nickname'] ?? '').toString().trim();
+                  final full = (m['full_name'] ?? '').toString().trim();
+                  final display = nick.isNotEmpty
+                      ? nick
+                      : (full.isNotEmpty
+                          ? full
+                          : (m['email'] ?? 'Member').toString());
                   final rel = (m['relation'] ?? '').toString().trim();
-                  return Column(
-                    children: [
-                      _memberRow(
-                        display,
-                        subtitle: rel.isNotEmpty ? rel : 'Member',
-                        verified: i == 0,
-                        isMe: m['id']?.toString() == currentUid,
-                        avatarPath: m['avatar_path'] as String?,
-                      ),
-                      if (i < members.length - 1)
-                        const Divider(
-                            color: Colors.black12, height: 1, thickness: 1),
-                    ],
+                  return Padding(
+                    padding: EdgeInsets.only(
+                        bottom: i < members.length - 1 ? 8 : 0),
+                    child: _memberRow(
+                      display,
+                      subtitle: rel.isNotEmpty ? rel : 'Member',
+                      verified: i == 0,
+                      isMe: m['id']?.toString() == currentUid,
+                      avatarPath: m['avatar_path'] as String?,
+                    ),
                   );
                 }),
               );
@@ -269,13 +269,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
               return Column(
                 children: List.generate(contacts.length, (i) {
                   final c = contacts[i];
-                  return Column(
-                    children: [
-                      _emergencyContactRow(context, c),
-                      if (i < contacts.length - 1)
-                        const Divider(
-                            color: Colors.black12, height: 1, thickness: 1),
-                    ],
+                  return Padding(
+                    padding: EdgeInsets.only(
+                        bottom: i < contacts.length - 1 ? 8 : 0),
+                    child: _emergencyContactRow(context, c),
                   );
                 }),
               );
@@ -287,20 +284,38 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Widget _emergencyContactRow(BuildContext context, Contact c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(36),
+            blurRadius: 2,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: AppColors.accent,
-                child: const Icon(
-                  Icons.person_outline,
-                  color: Colors.white,
-                  size: 20,
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFD4EEF8).withAlpha(180),
+                ),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFFE8F6FB),
+                  child: Icon(
+                    Icons.person_outline,
+                    color: AppColors.navy,
+                    size: 20,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -312,18 +327,20 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       c.name,
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF031E2A),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy,
                       ),
                     ),
-                    if (c.relation.isNotEmpty)
+                    if (c.relation.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
                         c.relation,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0x80031E2A),
+                          color: AppColors.navy.withAlpha(170),
                         ),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -332,60 +349,53 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ],
           ),
           if (!c.isLinked) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 52),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F8FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE9F5FE),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          c.linkCode,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                            color: Color(0xFF3D7FB0),
-                          ),
+                  Row(
+                    children: [
+                      Text(
+                        c.linkCode,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          color: AppColors.navy,
                         ),
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(text: c.linkCode));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Code copied'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          },
-                          child: const Icon(Icons.copy,
-                              size: 14, color: Color(0xFF3D7FB0)),
-                        ),
-                      ],
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: c.linkCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Code copied'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        child: Icon(Icons.copy_rounded,
+                            size: 14, color: AppColors.headerTop),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ask ${c.name} to send this code to @WabyBabyBot on Telegram',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.navy.withAlpha(160),
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 52),
-              child: Text(
-                'Ask ${c.name} to send this code to @WabyBabyBot on Telegram',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0x8C031E2A),
-                ),
               ),
             ),
           ],
@@ -399,15 +409,34 @@ class _ContactsScreenState extends State<ContactsScreen> {
       bool verified = false,
       bool isMe = false,
       String? avatarPath}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(36),
+            blurRadius: 2,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          SignedAvatar(
-            photoPath: avatarPath,
-            radius: 20,
-            backgroundColor: AppColors.accent,
-            fallbackText: display.isNotEmpty ? display[0].toUpperCase() : '?',
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFD4EEF8).withAlpha(180),
+            ),
+            child: SignedAvatar(
+              photoPath: avatarPath,
+              radius: 20,
+              backgroundColor: const Color(0xFFE8F6FB),
+              iconColor: AppColors.navy,
+              fallbackText: display.isNotEmpty ? display[0].toUpperCase() : '?',
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -416,30 +445,36 @@ class _ContactsScreenState extends State<ContactsScreen> {
               children: [
                 Row(
                   children: [
-                    Text(display,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF031E2A))),
+                    Flexible(
+                      child: Text(display,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy)),
+                    ),
                     if (isMe) ...[
                       const SizedBox(width: 6),
-                      const Text('(me)',
+                      Text('(me)',
                           style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary)),
+                              color: AppColors.navy.withAlpha(150))),
                     ],
                     if (verified) ...[
                       const SizedBox(width: 6),
                       const Icon(Icons.verified,
-                          size: 14, color: Color(0xFF008FB4)),
+                          size: 14, color: AppColors.headerTop),
                     ],
                   ],
                 ),
-                if (subtitle != null)
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
                   Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0x80031E2A))),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.navy.withAlpha(170))),
+                ],
               ],
             ),
           ),
@@ -476,8 +511,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       );
     }
 
-    const navy = Color(0xFF0F2D54);   // AppColors.navy — code text
-    const accent = Color(0xFF3B74BC); // AppColors.accent — copy action
+    const navy = Color(0xFF0F2D54); // AppColors.navy — code text
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -485,17 +519,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          // Lighter sky gradient
+          // Same light teal as Home child-card headers / wave header family
           gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF93BCEE), Color(0xFF5E93D8)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF4DBAD4), Color(0xFFA8E0EF)],
+            stops: [0.31, 0.88],
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF3B74BC).withAlpha(56),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+              color: AppColors.headerTop.withAlpha(50),
+              blurRadius: 2,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -523,14 +558,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     Text(
                       'FAMILY JOIN CODE',
                       style: TextStyle(
-                        color: Colors.white.withAlpha(225),
+                        color: AppColors.navy.withAlpha(170),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.4,
                       ),
                     ),
                     const SizedBox(height: 14),
-                    // ── Role 2 + 3: code (hero, navy on white) + copy control ──
+                    // ── Role 2 + 3: code (hero, navy on soft chip) + copy control ──
                     GestureDetector(
                       onTap: copy,
                       child: Container(
@@ -578,14 +613,17 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                 Icon(
                                   Icons.copy_rounded,
                                   size: 17,
-                                  color: canCopy ? accent : accent.withAlpha(90),
+                                  color: canCopy
+                                      ? AppColors.headerTop
+                                      : AppColors.headerTop.withAlpha(90),
                                 ),
                                 const SizedBox(width: 5),
                                 Text(
                                   'Copy',
                                   style: TextStyle(
-                                    color:
-                                        canCopy ? accent : accent.withAlpha(90),
+                                    color: canCopy
+                                        ? AppColors.headerTop
+                                        : AppColors.headerTop.withAlpha(90),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -601,7 +639,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     Text(
                       'Share this code to add new family members.',
                       style: TextStyle(
-                        color: Colors.white.withAlpha(230),
+                        color: AppColors.navy.withAlpha(170),
                         fontSize: 12.5,
                         fontWeight: FontWeight.w400,
                         height: 1.3,
@@ -832,12 +870,13 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 
   Widget _childCard(BuildContext context, _ChildProfile child) {
-    final bgColor = child.isWarning
-        ? const Color(0xFFFFE5E5)
-        : const Color(0xFFDEE8F3);
-    final batteryColor = child.isWarning
-        ? const Color(0xFFFF0E0E)
-        : const Color(0xFF031E2A);
+    final warning = child.isWarning;
+
+    // Flat single colour — light teal (header family) or soft warning red.
+    final bgColor = warning
+        ? const Color(0xFFFBE6E5)
+        : const Color(0xFFD4EEF8);
+    final chipText = warning ? const Color(0xFFC2291D) : AppColors.navy;
 
     return GestureDetector(
       onTap: () => _showChildDetail(context, child),
@@ -845,15 +884,33 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: (warning
+                      ? const Color(0xFFC2291D)
+                      : AppColors.headerTop)
+                  .withAlpha(50),
+              blurRadius: 2,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            SignedAvatar(
-              photoPath: child.photoPath,
-              radius: 22,
-              backgroundColor: AppColors.accent.withAlpha(180),
-              fallbackIcon: Icons.child_care,
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withAlpha(160),
+              ),
+              child: SignedAvatar(
+                photoPath: child.photoPath,
+                radius: 22,
+                backgroundColor: const Color(0xFFE8F6FB),
+                iconColor: AppColors.navy,
+                fallbackIcon: Icons.child_care,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -863,21 +920,49 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   Text(child.name,
                       style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF031E2A))),
-                  const SizedBox(height: 2),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF031E2A)),
-                      children: [
-                        TextSpan(text: '${child.ageLabel} | '),
-                        TextSpan(
-                          text: 'Battery: ${child.battery}%',
-                          style: TextStyle(color: batteryColor),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Text(
+                        child.ageLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.navy.withAlpha(170),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(220),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              warning
+                                  ? Icons.battery_alert_rounded
+                                  : Icons.battery_full_rounded,
+                              size: 13,
+                              color: chipText,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${child.battery}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: chipText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

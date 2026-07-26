@@ -1049,11 +1049,15 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
                         ),
                         const SizedBox(height: 8),
                         ...members.map((m) {
-                          final name =
+                          final nick =
+                              (m['nickname'] ?? '').toString().trim();
+                          final full =
                               (m['full_name'] ?? '').toString().trim();
-                          final display = name.isNotEmpty
-                              ? name
-                              : (m['email'] ?? 'Member').toString();
+                          final display = nick.isNotEmpty
+                              ? nick
+                              : (full.isNotEmpty
+                                  ? full
+                                  : (m['email'] ?? 'Member').toString());
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),
                             padding: const EdgeInsets.symmetric(

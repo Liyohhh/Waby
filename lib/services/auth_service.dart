@@ -23,14 +23,16 @@ class AuthService {
     return email == DemoAccount.email.toLowerCase();
   }
 
-  /// Display name for the current user — profiles row, then auth metadata,
-  /// then the email local-part, then a generic fallback.
+  /// Display name for the current user — nickname, then full name, then auth
+  /// metadata, then the email local-part, then a generic fallback.
   Future<String> getDisplayName() async {
     final user = currentUser;
     if (user == null) return 'User';
 
     try {
       final data = await getProfile();
+      final nickname = (data?['nickname'] as String?)?.trim();
+      if (nickname != null && nickname.isNotEmpty) return nickname;
       final fromProfile = (data?['full_name'] as String?)?.trim();
       if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
     } catch (_) {}
