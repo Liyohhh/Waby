@@ -58,3 +58,45 @@
   - Acknowledging or clearing that alert sets `resolved_at` on the same row.
   - When the client countdown auto-fires, the same row gets `escalated_at` so server cron can see the escalation was already handled.
   - Test alerts remain client-only and do not create `alert_events` rows.
+
+## TEST-005
+- Date: 2026-07-28
+- Requirement traced: Life-safety escalation independent of client app state
+- Preconditions: `alert_events` table + `check_alert_escalations()` + `pg_cron` 30s schedule deployed; `service_role_key` in vault; family with linked Telegram contact
+- Steps:
+  1. Inserted a stale `alert_events` row (`started_at = now() - 60s`, `total_seconds = 30`)
+  2. Waited <=30s for cron cycle
+  3. Verified Telegram delivered to linked contact
+  4. Queried `alert_events`; `escalated_at` populated
+- Expected result: Telegram fires within 30s of insertion; `escalated_at` set atomically
+- Actual result: Pass
+- Evidence: pending - user to attach Telegram screenshot + `SELECT escalated_at` query result
+
+## BUG-005
+- Date: 2026-07-28
+- Area: Low battery handling on Home vs alert modal
+- Root cause: Low battery was still modeled like a modal alert even though it is advisory, not an immediate life-safety condition, so it competed with heat/left-behind alerts and produced the wrong UX priority.
+- Fix: Kept low battery out of the modal alert flow, added a dismissible Home banner with persisted dismissal state, and made the banner reappear only after the battery drops another 5% from the dismissal point.
+
+## TEST-006
+- Date: 2026-07-28
+- Scope: Low-battery Home banner behavior
+- Verification target:
+  - When live battery drops below 20%, the banner appears on Home without opening the alert sheet or firing sound/vibration/push.
+  - Dismissing the banner hides it until the battery falls at least 5% below the dismissal point.
+  - Lowering battery from 15% to 9% makes the banner reappear; lowering from 15% to 14% does not.
+  - A realtime `UPDATE live SET battery = ...` change is reflected on Home within a second or two.
+
+## BUG-006
+- Date: 2026-07-28
+- Area: Client-side critical alert timing model
+- Root cause: The in-app escalation ladder had grown into four distinct beats, which added implementation complexity without giving the caregiver a clearer mental model of what changed between phases.
+- Fix: Simplified the client flow to a deliberate 3-beat model: initial alert, escalated alert at 50% of the window, then Telegram/external help at expiry.
+
+## TEST-007
+- Date: 2026-07-28
+- Scope: 3-beat escalation timing
+- Verification target:
+  - `0s`: sound starts and the alert sheet opens.
+  - `15s` on a 30s heat timer: sound is clearly louder and the push notification appears.
+  - `30s`: Telegram is delivered.

@@ -393,14 +393,12 @@ class _AlertPageContent extends StatelessWidget {
       'heat' => 'Heat rising',
       'left_behind' => 'Child left in car',
       'buckle' => 'Buckle unlatched',
-      'low_battery' => 'Battery low',
       _ => 'Alert'
     };
     final hint = switch (alert.alertType) {
       'heat' => 'Move your child now and cool the seat area.',
       'left_behind' => 'Return to the vehicle and check your child immediately.',
       'buckle' => 'Secure the buckle before continuing your trip.',
-      'low_battery' => 'Recharge the seat device soon to avoid missed alerts.',
       _ => 'Check on your child now.'
     };
 

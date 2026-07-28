@@ -211,7 +211,7 @@ assets/
 | `present && !distanceNear` | Warning | `leftBehind` | **Highest priority**; buckle irrelevant |
 | `present && temperature > 30°C` | Warning | `heat` | Heat alarm |
 | `present && !buckled && distanceNear` | Caution | `buckleReminder` | Gentle only |
-| `battery < 20` | Caution | `lowBattery` | Caution only |
+| `battery < 20` | Caution | `lowBattery` | Home banner only; not part of the modal critical path |
 
 #### Grace (before tiered alert)
 
@@ -219,21 +219,22 @@ assets/
 |-----------|-------|
 | Heat | 15 seconds |
 | Left-behind | 2 minutes |
-| Buckle / low battery | None (one-shot notification + log) |
+| Buckle / low battery | None (buckle one-shot only; low battery banner only) |
 
 #### Configurable escalation window
 - Stored as `profiles.alert_timer_seconds` (default **60**, UI range **30–90**).
 - Left-behind total window = full timer.
 - Heat total window = **half** of timer, clamped **15–90s**.
 
-#### Critical tiers
+#### Critical stages
 
-| Tier | Window fraction | Behaviour |
-|------|-----------------|-----------|
-| 1 | Heat first ~20%; left-behind first ~25% | Local push “Waby Warning” + open AlertScreen |
-| 2 | Until ~50% | Second push: urgent / still unresolved |
-| 3 | Second half | Countdown ring on AlertScreen (“family members will be notified in…”) |
-| 4 | End of window | Edge function `send-telegram-alert` with `event`, `message`, `family_id`; store `lastNotifiedCount` from response `sent` |
+| Stage | Timing | Behaviour |
+|-------|--------|-----------|
+| 1 | First half of the escalation window | Initial in-app alert starts immediately after grace; alert sheet opens and foreground sound begins |
+| 2 | Second half of the escalation window (50% onward) | Escalated in-app alert: louder sound and push notification |
+| 3 | End of window | Telegram escalation fires via Edge Function / server fallback; store `lastNotifiedCount` from response `sent` |
+
+This 3-beat model is deliberate: users only need to distinguish the first alert, the escalated alert, and the point where external help is involved. A 4-beat ladder was an implementation artefact, not a better user experience.
 
 **Telegram event names:** `left_behind`, `heat_alarm`, `buckle_reminder`, `low_battery`.
 
@@ -249,7 +250,7 @@ assets/
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | ALT-1 | Implement detection rules above exactly | Must |
-| ALT-2 | Escalate critical alerts through tiers 1–4 | Must |
+| ALT-2 | Escalate critical alerts through the 3-beat model above | Must |
 | ALT-3 | Caution reasons one-shot only (no Telegram ladder) | Must |
 | ALT-4 | Persist alert timer setting and apply in AlertService | Must |
 | ALT-5 | Log events to `logs` | Must |
@@ -400,7 +401,7 @@ These are **product acceptance tests**, not suggestions:
 3. Presence + temperature > 30°C → heat warning.
 4. Presence + near + unbuckled → buckle **caution** only (no Telegram ladder).
 5. Battery < 20% → caution only.
-6. Critical path: grace → L1 push → L2 urgent → L3 countdown → Telegram.
+6. Critical path: grace → initial alert → escalated alert at 50% → Telegram.
 7. Acknowledge clears current escalation but does not disable future detection.
 8. Logging/Telegram errors are non-fatal.
 9. UI-only settings must not silently disable danger detection unless a future PRD revision explicitly wires and documents that behaviour.

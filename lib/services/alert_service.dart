@@ -118,9 +118,6 @@ class AlertService {
     return _alertTimerSeconds;
   }
 
-  double _tier1Fraction(AlertReason reason) =>
-      reason == AlertReason.heat ? 0.2 : 0.25;
-
   static const Duration heatDebounce = Duration(seconds: 15);
   static const Duration leftBehindGrace = Duration(minutes: 2);
 
@@ -231,9 +228,9 @@ class AlertService {
         changed = true;
       }
 
-      if (tier >= 2 && tracked.lastFiredTier < tier && tier <= 3) {
-        tracked.lastFiredTier = tier;
-        await _emitUserFacingAlert(tracked, notify: tier == 2);
+      if (tier == 2 && tracked.lastFiredTier < 2) {
+        tracked.lastFiredTier = 2;
+        await _emitUserFacingAlert(tracked, notify: true);
       }
 
       if (_remainingSeconds(tracked.startedAt, tracked.totalSeconds) <= 0 &&
@@ -317,11 +314,9 @@ class AlertService {
 
   int _tierFor(AlertReason reason, DateTime startedAt, int totalSeconds) {
     final elapsed = DateTime.now().difference(startedAt).inSeconds;
-    final tier1End = (totalSeconds * _tier1Fraction(reason)).round();
-    final tier2End = (totalSeconds * 0.5).round();
-    if (elapsed < tier1End) return 1;
-    if (elapsed < tier2End) return 2;
-    return 3;
+    final tier2Start = (totalSeconds * 0.5).round();
+    if (elapsed < tier2Start) return 1;
+    return 2;
   }
 
   double _remainingSeconds(DateTime startedAt, int totalSeconds) {

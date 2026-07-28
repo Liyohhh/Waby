@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../core/app_state.dart';
 import '../core/demo_data.dart';
@@ -15,6 +16,7 @@ import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
+import '../widgets/low_battery_banner.dart';
 import '../widgets/signed_avatar.dart';
 import '../widgets/status_pill.dart';
 import 'login_screen.dart';
@@ -29,6 +31,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _kLowBatteryBannerDismissedAtKey =
+      'low_battery_banner_dismissed_at';
+
   final LiveService _liveService = LiveService();
   final AuthService _auth = AuthService();
   late final Stream<SeatStatus> _liveStream = _liveService.liveStream();
@@ -39,12 +44,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final String _greetingName = AppState.greetingName.value ?? 'there';
   bool _demoFamily = false;
+  int? _lastDismissedAtBattery;
 
   @override
   void initState() {
     super.initState();
     _loadUserName();
     _loadDemoFamily();
+    _loadLowBatteryBannerState();
+  }
+
+  Future<void> _loadLowBatteryBannerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _lastDismissedAtBattery =
+          prefs.getInt(_kLowBatteryBannerDismissedAtKey);
+    });
   }
 
   Future<void> _loadDemoFamily() async {
@@ -89,6 +105,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return parts.join(' · ');
   }
 
+  bool _shouldShowBatteryBanner(int battery) {
+    if (battery >= 20) return false;
+    if (_lastDismissedAtBattery == null) return true;
+    return battery <= _lastDismissedAtBattery! - 5;
+  }
+
+  Future<void> _dismissBatteryBanner(int currentBattery) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kLowBatteryBannerDismissedAtKey, currentBattery);
+    if (!mounted) return;
+    setState(() => _lastDismissedAtBattery = currentBattery);
+  }
+
   Widget _emptyState() => Padding(
         padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
         child: Column(
@@ -124,6 +153,27 @@ class _HomeScreenState extends State<HomeScreen> {
               final headerStatus = useDemo
                   ? (rawLive.temperature > 0 ? rawLive : DemoAccount.headerLive)
                   : rawLive;
+              final batteryEntries = children
+                  .map((child) {
+                    final seed =
+                        useDemo ? DemoAccount.childSeedFor(child.name) : null;
+                    return (
+                      name: child.name,
+                      battery: seed?.battery ?? rawLive.battery,
+                    );
+                  })
+                  .where((entry) => entry.battery < 20)
+                  .toList();
+              final lowestBatteryEntry = batteryEntries.isEmpty
+                  ? null
+                  : batteryEntries.reduce(
+                      (a, b) => a.battery <= b.battery ? a : b,
+                    );
+              final batteryBannerTitle = batteryEntries.length > 1
+                  ? 'One or more seat devices low'
+                  : lowestBatteryEntry != null
+                      ? "${lowestBatteryEntry.name}'s seat battery low"
+                      : 'Seat device battery low';
               return SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,6 +185,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             context, headerStatus, name ?? _greetingName);
                       },
                     ),
+                    if (lowestBatteryEntry != null &&
+                        _shouldShowBatteryBanner(lowestBatteryEntry.battery))
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: LowBatteryBanner(
+                          title: batteryBannerTitle,
+                          batteryPercent: lowestBatteryEntry.battery,
+                          onDismiss: () => _dismissBatteryBanner(
+                            lowestBatteryEntry.battery,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
                     const SizedBox(height: 16),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),

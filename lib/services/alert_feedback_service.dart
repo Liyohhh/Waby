@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// In-app alert audio + haptic feedback (foreground path).
 ///
-/// Volume ramps with escalation [tier] (1 → quieter, 3 → full). Call [stop]
+/// Volume ramps with escalation [tier] (baseline → escalated). Call [stop]
 /// whenever the alert ends so playback never leaks past the alert UI.
 enum AlertSeverity { caution, warning, critical }
 
@@ -25,16 +25,10 @@ class AlertFeedbackService {
     AlertSeverity.critical: 'sounds/alert_critical.mp3',
   };
 
-  /// Volume by escalation tier (1–3). Values outside the range are clamped.
-  double _volumeForTier(int tier) {
-    switch (tier.clamp(1, 3)) {
-      case 1:
-        return 0.45;
-      case 2:
-        return 0.75;
-      default:
-        return 1.0;
-    }
+  /// Volume by severity and escalation tier.
+  double _volumeFor(AlertSeverity severity, int tier) {
+    if (severity == AlertSeverity.caution) return 0.6;
+    return tier <= 1 ? 0.85 : 1.0;
   }
 
   /// Start (or re-start) looping alert sound + vibration for [severity].
@@ -52,7 +46,7 @@ class AlertFeedbackService {
       if (!allowSound && !allowVibration) return;
     }
 
-    final volume = _volumeForTier(tier);
+    final volume = _volumeFor(severity, tier);
     try {
       if (allowSound) {
         await _player.stop();
