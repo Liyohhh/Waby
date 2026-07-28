@@ -1,0 +1,71 @@
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
+
+/// In-app alert audio + haptic feedback (foreground path).
+///
+/// Volume ramps with escalation [tier] (1 → quieter, 3 → full). Call [stop]
+/// whenever the alert ends so playback never leaks past the alert UI.
+enum AlertSeverity { caution, warning, critical }
+
+class AlertFeedbackService {
+  AlertFeedbackService._internal();
+  static final AlertFeedbackService instance = AlertFeedbackService._internal();
+
+  final AudioPlayer _player = AudioPlayer();
+  bool _playing = false;
+
+  static const _assetFor = {
+    AlertSeverity.caution: 'sounds/alert_caution.mp3',
+    AlertSeverity.warning: 'sounds/alert_warning.mp3',
+    AlertSeverity.critical: 'sounds/alert_critical.mp3',
+  };
+
+  /// Volume by escalation tier (1–3). Values outside the range are clamped.
+  double _volumeForTier(int tier) {
+    switch (tier.clamp(1, 3)) {
+      case 1:
+        return 0.45;
+      case 2:
+        return 0.75;
+      default:
+        return 1.0;
+    }
+  }
+
+  /// Start (or re-start) looping alert sound + vibration for [severity].
+  /// Passing a higher [tier] raises volume for the escalation ramp.
+  Future<void> fire(AlertSeverity severity, {required int tier}) async {
+    final asset = _assetFor[severity];
+    if (asset == null) return;
+
+    final volume = _volumeForTier(tier);
+    try {
+      await _player.stop();
+      await _player.setReleaseMode(ReleaseMode.loop);
+      await _player.setVolume(volume);
+      await _player.play(AssetSource(asset));
+      _playing = true;
+      await HapticFeedback.heavyImpact();
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      await HapticFeedback.vibrate();
+    } catch (_) {
+      // Non-fatal — audio failure must never block the alert path.
+    }
+  }
+
+  /// Stop looping audio (idempotent).
+  Future<void> stop() async {
+    if (!_playing) {
+      try {
+        await _player.stop();
+      } catch (_) {}
+      return;
+    }
+    _playing = false;
+    try {
+      await _player.stop();
+    } catch (_) {
+      // Non-fatal.
+    }
+  }
+}

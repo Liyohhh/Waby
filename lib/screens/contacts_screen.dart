@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/app_state.dart';
 import '../core/demo_data.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
@@ -182,29 +183,38 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   ),
                 );
               }
-              return Column(
-                children: List.generate(members.length, (i) {
-                  final m = members[i];
-                  final nick = (m['nickname'] ?? '').toString().trim();
-                  final full = (m['full_name'] ?? '').toString().trim();
-                  final display = nick.isNotEmpty
-                      ? nick
-                      : (full.isNotEmpty
-                          ? full
-                          : (m['email'] ?? 'Member').toString());
-                  final rel = (m['relation'] ?? '').toString().trim();
-                  return Padding(
-                    padding: EdgeInsets.only(
-                        bottom: i < members.length - 1 ? 8 : 0),
-                    child: _memberRow(
-                      display,
-                      subtitle: rel.isNotEmpty ? rel : 'Member',
-                      verified: i == 0,
-                      isMe: m['id']?.toString() == currentUid,
-                      avatarPath: m['avatar_path'] as String?,
-                    ),
+              return ValueListenableBuilder<String?>(
+                valueListenable: AppState.avatarPath,
+                builder: (context, myAvatar, _) {
+                  return Column(
+                    children: List.generate(members.length, (i) {
+                      final m = members[i];
+                      final nick = (m['nickname'] ?? '').toString().trim();
+                      final full = (m['full_name'] ?? '').toString().trim();
+                      final display = nick.isNotEmpty
+                          ? nick
+                          : (full.isNotEmpty
+                              ? full
+                              : (m['email'] ?? 'Member').toString());
+                      final rel = (m['relation'] ?? '').toString().trim();
+                      final isMe = m['id']?.toString() == currentUid;
+                      final dbAvatar = m['avatar_path'] as String?;
+                      return Padding(
+                        padding: EdgeInsets.only(
+                            bottom: i < members.length - 1 ? 8 : 0),
+                        child: _memberRow(
+                          display,
+                          subtitle: rel.isNotEmpty ? rel : 'Member',
+                          verified: i == 0,
+                          isMe: isMe,
+                          avatarPath: isMe
+                              ? (myAvatar ?? dbAvatar)
+                              : dbAvatar,
+                        ),
+                      );
+                    }),
                   );
-                }),
+                },
               );
             },
           ),
@@ -502,7 +512,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
     void copy() {
       if (!canCopy) return;
-      Clipboard.setData(ClipboardData(text: code!));
+      Clipboard.setData(ClipboardData(text: code));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Code copied'),

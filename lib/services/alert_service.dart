@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/seat_status.dart';
+import 'alert_feedback_service.dart';
 import 'live_service.dart';
 
 class AlertEvent {
@@ -115,6 +117,22 @@ class AlertService {
   bool get telegramSent => _telegramSent;
   int get lastNotifiedCount => _lastNotifiedCount;
 
+  /// Maps detection [AlertReason] → in-app [AlertSeverity] for feedback.
+  /// Detection rules themselves are unchanged — this is presentation only.
+  AlertSeverity? _feedbackSeverityFor(AlertReason reason) {
+    switch (reason) {
+      case AlertReason.buckleReminder:
+        return AlertSeverity.caution;
+      case AlertReason.leftBehind:
+        return AlertSeverity.warning;
+      case AlertReason.heat:
+        return AlertSeverity.critical;
+      case AlertReason.lowBattery:
+      case AlertReason.none:
+        return null;
+    }
+  }
+
   Future<void> initNotifications() async {
     if (_notificationsInitialized) return;
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -151,7 +169,12 @@ class AlertService {
       _clearActive();
       if (reason != _lastCautionReason) {
         _lastCautionReason = reason;
-        _showPushNotification(severity, message);
+        unawaited(_emitUserFacingAlert(
+          reason: reason,
+          seatSeverity: severity,
+          message: message,
+          tier: 1,
+        ));
         _writeLog(reason, message);
         _controller.add(AlertEvent(severity, reason, message));
       }
@@ -165,6 +188,7 @@ class AlertService {
     if (_pendingReason == reason) return; // already in its grace period
 
     // New critical condition — start its grace period from scratch.
+    // Silent grace: no fire() / no push until Tier 1 promotion.
     _clearPending();
     _clearActive();
     _pendingReason = reason;
@@ -180,7 +204,12 @@ class AlertService {
     _telegramSent = false;
 
     final message = _messageFor(reason);
-    _showPushNotification(SeatSeverity.warning, message);
+    unawaited(_emitUserFacingAlert(
+      reason: reason,
+      seatSeverity: SeatSeverity.warning,
+      message: message,
+      tier: 1,
+    ));
     _writeLog(reason, message);
     _controller.add(AlertEvent(SeatSeverity.warning, reason, message));
     _lastFiredTier = 1;
@@ -212,19 +241,59 @@ class AlertService {
 
     if (tier == 2 && _lastFiredTier < 2) {
       _lastFiredTier = 2;
-      await _showPushNotification(
-        SeatSeverity.warning,
-        'URGENT — still unresolved: ${_messageFor(reason)}',
+      await _emitUserFacingAlert(
+        reason: reason,
+        seatSeverity: SeatSeverity.warning,
+        message: 'URGENT — still unresolved: ${_messageFor(reason)}',
+        tier: 2,
       );
     } else if (tier == 3 && _lastFiredTier < 3) {
       _lastFiredTier = 3;
-      // No separate push here — AlertScreen switches to the visible
-      // countdown ring at this point on its own polling.
+      // No separate push copy here — AlertScreen switches to the visible
+      // countdown ring. Re-fire feedback so volume ramps for tier 3.
+      await _emitUserFacingAlert(
+        reason: reason,
+        seatSeverity: SeatSeverity.warning,
+        message: _messageFor(reason),
+        tier: 3,
+        notify: false,
+      );
     }
 
     if (tier >= 4 && !_telegramSent) {
       _telegramSent = true;
       await _escalate(reason, _messageFor(reason));
+      // Countdown complete / Telegram auto-fired — stop in-app alarm.
+      await AlertFeedbackService.instance.stop();
+    }
+  }
+
+  /// Foreground/background arbitration point:
+  /// - App resumed (foreground): in-app [AlertFeedbackService.fire] owns
+  ///   sound + vibration; any system notification is posted silent.
+  /// - App backgrounded/inactive: do NOT call fire(); the notification
+  ///   channel carries sound/vibration instead.
+  Future<void> _emitUserFacingAlert({
+    required AlertReason reason,
+    required SeatSeverity seatSeverity,
+    required String message,
+    required int tier,
+    bool notify = true,
+  }) async {
+    final inForeground =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    final feedbackSeverity = _feedbackSeverityFor(reason);
+
+    if (inForeground && feedbackSeverity != null) {
+      await AlertFeedbackService.instance.fire(feedbackSeverity, tier: tier);
+    }
+
+    if (notify) {
+      await _showPushNotification(
+        seatSeverity,
+        message,
+        silent: inForeground,
+      );
     }
   }
 
@@ -241,6 +310,7 @@ class AlertService {
     _activeSince = null;
     _lastFiredTier = 0;
     _telegramSent = false;
+    unawaited(AlertFeedbackService.instance.stop());
   }
 
   /// Call this from AlertScreen when the caregiver acknowledges the alert.
@@ -268,7 +338,12 @@ class AlertService {
       _clearPending();
       _clearActive();
       _lastCautionReason = reason;
-      _showPushNotification(severity, message);
+      unawaited(_emitUserFacingAlert(
+        reason: reason,
+        seatSeverity: severity,
+        message: message,
+        tier: 1,
+      ));
       _writeLog(reason, message);
       _controller.add(AlertEvent(severity, reason, message));
       return;
@@ -280,16 +355,22 @@ class AlertService {
   }
 
   Future<void> _showPushNotification(
-      SeatSeverity severity, String message) async {
+    SeatSeverity severity,
+    String message, {
+    bool silent = false,
+  }) async {
     await initNotifications();
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'waby_alerts',
       'Waby Alerts',
       channelDescription: 'Seat safety alerts',
       importance: Importance.max,
       priority: Priority.high,
+      playSound: !silent,
+      enableVibration: !silent,
+      silent: silent,
     );
-    const details = NotificationDetails(android: androidDetails);
+    final details = NotificationDetails(android: androidDetails);
     await _notifications.show(
       0,
       severity == SeatSeverity.warning ? 'Waby Warning' : 'Waby Caution',
@@ -381,6 +462,7 @@ class AlertService {
     _sub.cancel();
     _graceTimer?.cancel();
     _tickTimer?.cancel();
+    unawaited(AlertFeedbackService.instance.stop());
     _controller.close();
   }
 }

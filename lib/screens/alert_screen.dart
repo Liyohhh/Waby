@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../models/seat_status.dart';
+import '../services/alert_feedback_service.dart';
 import '../services/alert_service.dart';
 import '../widgets/draining_ack_button.dart';
 
@@ -47,10 +48,13 @@ class _AlertScreenState extends State<AlertScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    // Ensure in-app audio never leaks past this screen.
+    unawaited(AlertFeedbackService.instance.stop());
     super.dispose();
   }
 
   void _acknowledge() {
+    unawaited(AlertFeedbackService.instance.stop());
     AlertService.instance.acknowledge();
     Navigator.of(context).pop();
   }

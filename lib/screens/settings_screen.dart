@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import '../models/contact.dart';
 import '../models/seat_status.dart';
@@ -86,165 +87,178 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ── Design constants ──────────────────────────────────────────────────────
-  static const _kGutter        = 20.0;
-  static const _kCardRadius    = 12.0;
-  static const _kSectionGap    = 24.0;
-  static const _kLabelCardGap  =  8.0;
-  static const _kRowV          = 14.0;  // vertical padding per row
-  static const _kIconSize      = 44.0;
+  static const _kCardRadius = 16.0;
+  static const _kRowV = 14.0; // vertical padding per row
+  static const _kIconSize = 44.0;
   // Light-blue chip tint derived from theme
   static const _kIconBg = Color(0xFFD4EEF8);
+  // Same page grey used by Profile / Privacy / Help (Home/Family content surface)
+  static const _kScaffoldBg = Color(0xFFF4F6F9);
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: _kScaffoldBg,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            const SizedBox(height: _kSectionGap),
-            _buildProfileCard(context),
-            const SizedBox(height: _kSectionGap),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildProfileCard(context),
 
-            // ── Notifications ────────────────────────────────────────────
-            _sectionLabel('Notifications'),
-            const SizedBox(height: _kLabelCardGap),
-            _card([
-              _toggleRow(Icons.notifications_outlined, 'App Alerts',       _appAlerts,   (v) => setState(() => _appAlerts   = v)),
-              _divider(),
-              _toggleRow(Icons.vibration,              'Vibration',         _vibration,   (v) => setState(() => _vibration   = v)),
-              _divider(),
-              _toggleRow(Icons.volume_up_outlined,     'Audible Warning',   _audibleWarn, (v) => setState(() => _audibleWarn = v)),
-              _divider(),
-              _navRow(Icons.send_outlined, 'Send Test Notification',
-                  onTap: () async {
-                    await AlertService.instance.sendTestNotification();
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Test notification sent'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }),
-              _divider(),
-              _navRow(Icons.crop_din_outlined, 'Test Alert Screens',
-                  onTap: () => showModalBottomSheet<void>(
-                        context: context,
-                        builder: (ctx) => SafeArea(
-                          child: Wrap(
-                            children: [
-                              ListTile(
-                                leading: const Icon(Icons.person_off_outlined),
-                                title: const Text('Left Behind'),
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  AlertService.instance
-                                      .fireTestAlert(AlertReason.leftBehind);
-                                },
-                              ),
-                              ListTile(
-                                leading:
-                                    const Icon(Icons.thermostat_outlined),
-                                title: const Text('Heat'),
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  AlertService.instance
-                                      .fireTestAlert(AlertReason.heat);
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.link_outlined),
-                                title: const Text('Buckle Reminder'),
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  AlertService.instance.fireTestAlert(
-                                      AlertReason.buckleReminder);
-                                },
-                              ),
-                              ListTile(
-                                leading:
-                                    const Icon(Icons.battery_alert_outlined),
-                                title: const Text('Low Battery'),
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  AlertService.instance
-                                      .fireTestAlert(AlertReason.lowBattery);
-                                },
-                              ),
-                            ],
-                          ),
+                  // ── Notifications ──────────────────────────────────────
+                  _sectionLabel('Notifications'),
+                  _card([
+                    _toggleRow(Icons.notifications_outlined, 'App Alerts',
+                        _appAlerts, (v) => setState(() => _appAlerts = v)),
+                    _divider(),
+                    _toggleRow(Icons.vibration, 'Vibration', _vibration,
+                        (v) => setState(() => _vibration = v)),
+                    _divider(),
+                    _toggleRow(
+                        Icons.volume_up_outlined,
+                        'Audible Warning',
+                        _audibleWarn,
+                        (v) => setState(() => _audibleWarn = v)),
+                    _divider(),
+                    _navRow(Icons.send_outlined, 'Send Test Notification',
+                        onTap: () async {
+                      await AlertService.instance.sendTestNotification();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Test notification sent'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: Duration(seconds: 2),
                         ),
-                      )),
-            ]),
-            const SizedBox(height: _kSectionGap),
+                      );
+                    }),
+                    _divider(),
+                    _navRow(Icons.crop_din_outlined, 'Test Alert Screens',
+                        onTap: () => showModalBottomSheet<void>(
+                              context: context,
+                              builder: (ctx) => SafeArea(
+                                child: Wrap(
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(
+                                          Icons.person_off_outlined),
+                                      title: const Text('Left Behind'),
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        AlertService.instance.fireTestAlert(
+                                            AlertReason.leftBehind);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(
+                                          Icons.thermostat_outlined),
+                                      title: const Text('Heat'),
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        AlertService.instance
+                                            .fireTestAlert(AlertReason.heat);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading:
+                                          const Icon(Icons.link_outlined),
+                                      title: const Text('Buckle Reminder'),
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        AlertService.instance.fireTestAlert(
+                                            AlertReason.buckleReminder);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(
+                                          Icons.battery_alert_outlined),
+                                      title: const Text('Low Battery'),
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        AlertService.instance.fireTestAlert(
+                                            AlertReason.lowBattery);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )),
+                  ]),
 
-            // ── Distance Setting ─────────────────────────────────────────
-            _sectionLabel('Distance Setting'),
-            const SizedBox(height: _kLabelCardGap),
-            _card([
-              _sliderRow(
-                icon: Icons.social_distance_outlined,
-                label: 'Far Distance Alert',
-                value: _distance,
-                min: 1, max: 5, divisions: 4,
-                badgeText: '${_distance.round()} m',
-                onChanged: (v) => setState(() => _distance = v),
+                  // ── Distance Setting ───────────────────────────────────
+                  _sectionLabel('Distance Setting'),
+                  _card([
+                    _sliderRow(
+                      icon: Icons.social_distance_outlined,
+                      label: 'Far Distance Alert',
+                      value: _distance,
+                      min: 1,
+                      max: 5,
+                      divisions: 4,
+                      badgeText: '${_distance.round()} m',
+                      onChanged: (v) => setState(() => _distance = v),
+                    ),
+                    _divider(),
+                    _sliderRow(
+                      icon: Icons.timer_outlined,
+                      label: 'Auto-alert timer',
+                      value: _alertTimer,
+                      min: 30,
+                      max: 90,
+                      divisions: 12,
+                      badgeText: '${_alertTimer.round()} sec',
+                      onChanged: (v) async {
+                        setState(() => _alertTimer = v);
+                        await _auth.updateAlertTimerSeconds(v.round());
+                        await AlertService.instance
+                            .refreshAlertTimerSetting();
+                      },
+                    ),
+                  ]),
+
+                  // ── Connectivity & Access ──────────────────────────────
+                  _sectionLabel('Connectivity & Access'),
+                  _card([
+                    _navRow(Icons.people_outlined, 'Family Management',
+                        subtitle: _memberSubtitle,
+                        onTap: () => _showFamilyManagement()),
+                  ]),
+
+                  // ── Support & Safety ───────────────────────────────────
+                  _sectionLabel('Support & Safety'),
+                  _card([
+                    _navRow(Icons.shield_outlined, 'Privacy & Data',
+                        onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const PrivacyDataScreen()),
+                            )),
+                    _divider(),
+                    _navRow(Icons.help_outline, 'Help & Support',
+                        onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const HelpSupportScreen()),
+                            )),
+                  ]),
+                  const SizedBox(height: 32),
+
+                  // ── Sign Out ───────────────────────────────────────────
+                  _buildSignOut(),
+                  const SizedBox(height: 12),
+                  _buildDeleteAccount(),
+                  const SizedBox(height: 100),
+                ],
               ),
-              _divider(),
-              _sliderRow(
-                icon: Icons.timer_outlined,
-                label: 'Auto-alert timer',
-                value: _alertTimer,
-                min: 30, max: 90, divisions: 12,
-                badgeText: '${_alertTimer.round()} sec',
-                onChanged: (v) async {
-                  setState(() => _alertTimer = v);
-                  await _auth.updateAlertTimerSeconds(v.round());
-                  await AlertService.instance.refreshAlertTimerSetting();
-                },
-              ),
-            ]),
-            const SizedBox(height: _kSectionGap),
-
-            // ── Connectivity & Access ─────────────────────────────────────
-            _sectionLabel('Connectivity & Access'),
-            const SizedBox(height: _kLabelCardGap),
-            _card([
-              _navRow(Icons.people_outlined, 'Family Management',
-                  subtitle: _memberSubtitle,
-                  onTap: () => _showFamilyManagement()),
-            ]),
-            const SizedBox(height: _kSectionGap),
-
-            // ── Support & Safety ──────────────────────────────────────────
-            _sectionLabel('Support & Safety'),
-            const SizedBox(height: _kLabelCardGap),
-            _card([
-              _navRow(Icons.shield_outlined, 'Privacy & Data',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const PrivacyDataScreen()),
-                  )),
-              _divider(),
-              _navRow(Icons.help_outline, 'Help & Support',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const HelpSupportScreen()),
-                  )),
-            ]),
-            const SizedBox(height: 32),
-
-            // ── Sign Out ──────────────────────────────────────────────────
-            _buildSignOut(),
-            const SizedBox(height: 12),
-            _buildDeleteAccount(),
-            const SizedBox(height: 100),
+            ),
           ],
         ),
       ),
@@ -266,10 +280,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(_kGutter, 18, _kGutter, 0),
-            child: const Text(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+            child: Text(
               'Settings',
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -284,51 +298,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ── Profile card ──────────────────────────────────────────────────────────
 
   Widget _buildProfileCard(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-      child: _cardContainer(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(_kCardRadius),
-          onTap: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            );
-            _loadDisplayName();
-            _loadAvatarPath();
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: _kGutter, vertical: _kRowV),
-            child: Row(
-              children: [
-                SignedAvatar(
-                  photoPath: _avatarPath,
-                  radius: 24,
-                  backgroundColor: AppColors.accent,
-                  fallbackIcon: Icons.person,
+    return _cardContainer(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
+          _loadDisplayName();
+          _loadAvatarPath();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: _kRowV),
+          child: Row(
+            children: [
+              SignedAvatar(
+                photoPath: _avatarPath,
+                radius: 24,
+                backgroundColor: AppColors.accent,
+                fallbackIcon: Icons.person,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_displayName,
+                        style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy)),
+                    const SizedBox(height: 2),
+                    Text('Account owner',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppColors.textSecondary)),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_displayName,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navy)),
-                      const SizedBox(height: 2),
-                      const Text('Account owner',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary)),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right,
-                    color: AppColors.textSecondary, size: 22),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textSecondary, size: 22),
+            ],
           ),
         ),
       ),
@@ -339,14 +349,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _sectionLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 16),
       child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-          letterSpacing: 0.8,
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.navy,
         ),
       ),
     );
@@ -355,10 +364,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ── Card wrapper ──────────────────────────────────────────────────────────
 
   Widget _card(List<Widget> rows) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-      child: _cardContainer(child: Column(children: rows)),
-    );
+    return _cardContainer(child: Column(children: rows));
   }
 
   Widget _cardContainer({required Widget child}) {
@@ -367,24 +373,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(_kCardRadius),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: AppColors.navy.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        child: child,
+      ),
     );
   }
 
   Widget _divider() => const Divider(
         height: 1,
-        thickness: 0.5,
-        indent: _kGutter + _kIconSize + 14,
-        endIndent: 0,
-        color: Color(0xFFE5EAF0),
+        indent: 16,
+        endIndent: 16,
+        color: Color(0x11000000),
       );
 
   // ── Toggle row ────────────────────────────────────────────────────────────
@@ -396,15 +404,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ValueChanged<bool> onChanged,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: _kGutter, vertical: _kRowV),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: _kRowV),
       child: Row(
         children: [
           _iconBubble(icon),
           const SizedBox(width: 14),
           Expanded(
             child: Text(label,
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary)),
@@ -436,7 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<double> onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(_kGutter, _kRowV, _kGutter, 8),
+      padding: const EdgeInsets.fromLTRB(16, _kRowV, 16, 8),
       child: Column(
         children: [
           // ── Top row: icon + label + value badge ──
@@ -446,20 +453,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(label,
-                    style: const TextStyle(
+                    style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.accent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   badgeText,
-                  style: const TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -475,10 +483,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               activeTrackColor: AppColors.dot,
               inactiveTrackColor: const Color(0xFFD1D5DB),
               thumbColor: AppColors.accent,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 7),
-              overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 14),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
               overlayColor: AppColors.accent.withAlpha(30),
             ),
             child: Slider(
@@ -515,8 +521,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(_kCardRadius),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: _kGutter, vertical: _kRowV),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: _kRowV),
         child: Row(
           children: [
             _iconBubble(icon),
@@ -526,14 +531,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: const TextStyle(
+                      style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textPrimary)),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: const TextStyle(
+                        style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: AppColors.textSecondary)),
                   ],
@@ -695,63 +700,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSignOut() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: ElevatedButton(
-          onPressed: () => _confirmSignOut(context),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.warning,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_kCardRadius)),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.logout, size: 20, color: Colors.white),
-              SizedBox(width: 10),
-              Text('Sign Out',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
-            ],
-          ),
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: () => _confirmSignOut(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.warning,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_kCardRadius)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.logout, size: 20, color: Colors.white),
+            const SizedBox(width: 10),
+            Text('Sign Out',
+                style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildDeleteAccount() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: OutlinedButton(
-          onPressed: () => _confirmDeleteAccount(context),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.warning,
-            side: const BorderSide(color: AppColors.warning),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_kCardRadius)),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.delete_forever, size: 20, color: AppColors.warning),
-              SizedBox(width: 10),
-              Text('Delete Account',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.warning)),
-            ],
-          ),
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: () => _confirmDeleteAccount(context),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.warning,
+          side: const BorderSide(color: AppColors.warning),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_kCardRadius)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.delete_forever,
+                size: 20, color: AppColors.warning),
+            const SizedBox(width: 10),
+            Text('Delete Account',
+                style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.warning)),
+          ],
         ),
       ),
     );

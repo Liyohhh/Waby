@@ -1,6 +1,6 @@
 {
-    "name": "seatcare_app",
-    "short_name": "seatcare_app",
+    "name": "Waby",
+    "short_name": "Waby",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -40,6 +40,7 @@ dependencies:
   image_cropper: ^12.2.1
   uuid: ^4.5.3
   flutter_native_splash: ^2.4.7
+  audioplayers: ^6.7.1
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/sounds/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
