@@ -22,8 +22,9 @@ class AppColors {
 
   // Status
   static const safe         = Color(0xFF56B337); // SAFE green
-  static const caution      = Color(0xFFF2A33C); // CAUTION amber (buckle reminder / low battery)
+  static const caution      = Color(0xFFE89827); // CAUTION amber
   static const warning      = Color(0xFFC2291D); // WARNING / critical red
+  static const critical     = Color(0xFFC2291D); // CRITICAL red
 
   // Text
   static const textPrimary   = Color(0xFF0F2D54);

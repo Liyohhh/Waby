@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+
+Testing log lives at `docs/TESTING_LOG.md`.
+For behavioural fixes or UI changes, append at least one `BUG-XXX` entry with the root cause and one `TEST-XXX` entry listing the verification performed.

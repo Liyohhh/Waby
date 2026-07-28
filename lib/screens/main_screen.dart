@@ -3,11 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme.dart';
-import '../models/seat_status.dart';
-import '../models/child.dart';
 import '../services/alert_service.dart';
-import '../services/child_service.dart';
-import 'alert_screen.dart';
+import '../widgets/alert_bottom_sheet.dart';
 import 'existing_or_new_family_screen.dart';
 import 'home_screen.dart';
 import 'contacts_screen.dart';
@@ -24,12 +21,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
   RealtimeChannel? _profileChannel;
-  StreamSubscription<AlertEvent>? _alertSub;
-  StreamSubscription<List<Child>>? _childrenSub;
-  bool _alertShowing = false;
-  String? _firstChildName;
-
-  final ChildService _childService = ChildService();
+  StreamSubscription<List<ActiveAlert>>? _alertSub;
 
   final List<Widget> _pages = [
     const HomeScreen(),
@@ -41,34 +33,19 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _watchMyProfile();
-    _alertSub = AlertService.instance.alertStream.listen(_onAlert);
-    _childrenSub = _childService.myChildrenStream().listen((children) {
-      _firstChildName = children.isNotEmpty ? children.first.name : null;
-    });
+    _alertSub = AlertService.instance.activeAlertsStream.listen(_onAlerts);
   }
 
   @override
   void dispose() {
     _alertSub?.cancel();
-    _childrenSub?.cancel();
     _profileChannel?.unsubscribe();
     super.dispose();
   }
 
-  void _onAlert(AlertEvent event) {
-    if (event.severity == SeatSeverity.safe || _alertShowing || !mounted) return;
-    _alertShowing = true;
-    Navigator.of(context)
-        .push<void>(
-          MaterialPageRoute(
-            fullscreenDialog: true,
-            builder: (_) => AlertScreen(
-              event: event,
-              childName: _firstChildName,
-            ),
-          ),
-        )
-        .then((_) => _alertShowing = false);
+  void _onAlerts(List<ActiveAlert> alerts) {
+    if (alerts.isEmpty || AlertService.instance.sheetOpen || !mounted) return;
+    showAlertBottomSheet(context, initial: alerts);
   }
 
   void _watchMyProfile() {
