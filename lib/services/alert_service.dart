@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/child.dart';
@@ -54,7 +55,7 @@ class AlertService {
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       unawaited(_tick());
     });
-    refreshAlertTimerSetting();
+    unawaited(refreshAlertTimerSetting().then((_) => _loadFamilyId()));
   }
   static final AlertService instance = AlertService._internal();
 
@@ -69,6 +70,7 @@ class AlertService {
 
   int _alertTimerSeconds = 60;
   bool _sheetOpen = false;
+  String? _familyId;
   String _primaryChildId = 'primary-child';
   String _primaryChildName = 'Your child';
   final Map<String, _PendingAlert> _pending = {};
@@ -91,6 +93,21 @@ class AlertService {
       if (v != null) _alertTimerSeconds = v;
     } catch (_) {
       // Keep previous/default value on failure.
+    }
+  }
+
+  Future<void> _loadFamilyId() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('family_id')
+          .eq('id', userId)
+          .maybeSingle();
+      _familyId = data?['family_id'] as String?;
+    } catch (_) {
+      // Keep previous/null value on failure.
     }
   }
 
@@ -222,8 +239,17 @@ class AlertService {
       if (_remainingSeconds(tracked.startedAt, tracked.totalSeconds) <= 0 &&
           !_autoFired.contains(tracked.alertId)) {
         _autoFired.add(tracked.alertId);
-        tracked.telegramSent = true;
+        final shouldEscalateLocally = await _markEscalated(tracked);
+        if (!shouldEscalateLocally) {
+          // Server-side pg_cron already fired Telegram for this alert.
+          // Skip the local function invoke, but still reflect the sent state.
+          tracked.telegramSent = true;
+          tracked.lastNotifiedCount = 0;
+          changed = true;
+          continue;
+        }
         await _escalate(tracked);
+        tracked.telegramSent = true;
         await AlertFeedbackService.instance.stop();
         await PushNotificationService.instance.cancelAll();
         changed = true;
@@ -242,12 +268,17 @@ class AlertService {
     final removed = _active.remove(alertId);
     _autoFired.remove(alertId);
     if (removed != null) {
+      unawaited(_markResolved(removed));
       unawaited(AlertFeedbackService.instance.stop());
       unawaited(PushNotificationService.instance.cancelAll());
     }
   }
 
-  void _activate(_AlertCondition condition, DateTime startedAt) {
+  void _activate(
+    _AlertCondition condition,
+    DateTime startedAt, {
+    bool logToServer = true,
+  }) {
     final alert = _TrackedAlert(
       alertId: alertIdOf(
         childId: condition.childId,
@@ -267,8 +298,12 @@ class AlertService {
       lastNotifiedCount: 0,
       message: condition.message,
       detail: condition.detail,
+      eventRowId: null,
     );
     _active[alert.alertId] = alert;
+    if (logToServer && alert.isCritical) {
+      unawaited(_insertAlertEvent(alert));
+    }
     unawaited(_emitUserFacingAlert(alert));
     unawaited(_writeLog(condition.reason, condition.message));
   }
@@ -310,6 +345,12 @@ class AlertService {
 
     if (!notify || inForeground) return;
 
+    if (alert.severity == AlertSeverity.caution) {
+      final prefs = await SharedPreferences.getInstance();
+      final allowPush = prefs.getBool(kPushNotificationsPrefKey) ?? true;
+      if (!allowPush) return;
+    }
+
     final (title, body) = _notificationCopyFor(alert);
     await PushNotificationService.instance.show(
       severity: alert.severity,
@@ -338,16 +379,79 @@ class AlertService {
     }
   }
 
+  Future<void> _insertAlertEvent(_TrackedAlert alert) async {
+    if (_familyId == null) {
+      await _loadFamilyId();
+    }
+    final familyId = _familyId;
+    if (familyId == null) return;
+    try {
+      final row = await Supabase.instance.client.from('alert_events').insert({
+        'family_id': familyId,
+        'child_id': alert.childId,
+        'alert_type': alert.alertType,
+        'severity': alert.severity.name,
+        'message': alert.message,
+        'total_seconds': alert.totalSeconds,
+        'started_at': alert.startedAt.toIso8601String(),
+      }).select('id').single();
+      alert.eventRowId = row['id']?.toString();
+      if (alert.telegramSent) {
+        await _markEscalated(alert);
+      }
+      if (!_active.containsKey(alert.alertId)) {
+        await _markResolved(alert);
+      }
+    } catch (_) {
+      // Non-fatal — server-side escalation is a fallback only.
+    }
+  }
+
+  Future<bool> _markEscalated(_TrackedAlert alert) async {
+    final eventRowId = alert.eventRowId;
+    if (eventRowId == null) return true;
+    try {
+      final rows = await Supabase.instance.client
+          .from('alert_events')
+          .update({
+            'escalated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', eventRowId)
+          .isFilter('escalated_at', null)
+          .select('id');
+      if (rows.isNotEmpty) return true;
+      debugPrint(
+        'AlertService: server-side escalation already claimed for $eventRowId',
+      );
+      return false;
+    } catch (_) {
+      // If the fallback marker fails, keep local escalation behavior.
+      return true;
+    }
+  }
+
+  Future<void> _markResolved(_TrackedAlert alert) async {
+    final eventRowId = alert.eventRowId;
+    if (eventRowId == null) return;
+    try {
+      await Supabase.instance.client
+          .from('alert_events')
+          .update({
+            'resolved_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', eventRowId)
+          .isFilter('resolved_at', null);
+    } catch (_) {
+      // Non-fatal.
+    }
+  }
+
   Future<void> _escalate(_TrackedAlert alert) async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('family_id')
-          .eq('id', userId)
-          .maybeSingle();
-      final familyId = profile?['family_id'] as String?;
+      if (_familyId == null) {
+        await _loadFamilyId();
+      }
+      final familyId = _familyId;
       if (familyId == null) return;
 
       final response = await Supabase.instance.client.functions.invoke(
@@ -440,17 +544,6 @@ class AlertService {
         detail: '$childName · Caregiver not nearby',
       ));
     }
-    if (status.battery < 20) {
-      conditions.add(_AlertCondition(
-        childId: childId,
-        childName: childName,
-        reason: AlertReason.lowBattery,
-        alertType: 'low_battery',
-        severity: AlertSeverity.caution,
-        message: 'Device battery is running low.',
-        detail: 'Seat device battery — ${status.battery}%',
-      ));
-    }
     return conditions;
   }
 
@@ -500,6 +593,7 @@ class AlertService {
             detail: '$childName · Buckle unlatched',
           ),
           now,
+          logToServer: false,
         );
       case AlertReason.heat:
         _activate(
@@ -513,6 +607,7 @@ class AlertService {
             detail: "$childName's seat — 34.0°C",
           ),
           now,
+          logToServer: false,
         );
       case AlertReason.leftBehind:
         _activate(
@@ -526,20 +621,10 @@ class AlertService {
             detail: '$childName · Caregiver not nearby',
           ),
           now,
+          logToServer: false,
         );
       case AlertReason.lowBattery:
-        _activate(
-          _AlertCondition(
-            childId: childId,
-            childName: childName,
-            reason: reason,
-            alertType: 'low_battery',
-            severity: AlertSeverity.caution,
-            message: 'Device battery is running low.',
-            detail: 'Seat device battery — 15%',
-          ),
-          now,
-        );
+        return;
       case AlertReason.none:
         break;
     }
@@ -639,6 +724,7 @@ class _TrackedAlert {
   int lastNotifiedCount;
   String message;
   String detail;
+  String? eventRowId;
 
   _TrackedAlert({
     required this.alertId,
@@ -655,6 +741,7 @@ class _TrackedAlert {
     required this.lastNotifiedCount,
     required this.message,
     required this.detail,
+    required this.eventRowId,
   });
 
   bool get isCritical =>

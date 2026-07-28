@@ -44,7 +44,7 @@ Every year, children are injured or die after being left alone in vehicles, ofte
 ### 2.2 Non-goals (current scope)
 - Production multi-tenant SaaS, billing, or App Store polish beyond a working demo.
 - Per-device live telemetry rows (current `live` feed is a **single shared row** `id = 1`).
-- Real Bluetooth pairing handshake (Connect flow is **simulated**; real data path is Wi‑Fi → Supabase).
+- Real device pairing handshake (Connect flow is **simulated**; real data path is Wi‑Fi → Supabase).
 - App control of on-seat LED/buzzer (those are firmware-side).
 - Email-based emergency alerts (implementation is **Telegram** via `@WabyBabyBot`).
 - Fully wired admin multi-user dashboard (screens exist as mock; main auth flow does not route there).

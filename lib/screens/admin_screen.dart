@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
+import '../models/seat_status.dart';
+import '../services/alert_service.dart';
 
 /// Admin dashboard — shows all monitored users and their live seat data.
 /// Data is mocked for demo; wire to Supabase in production.
@@ -66,6 +68,8 @@ class AdminScreen extends StatelessWidget {
               totalChildren: totalChildren,
               totalAlerts: totalAlerts,
             ),
+            const SizedBox(height: _kSectionGap),
+            _buildAlertTriggers(),
             const SizedBox(height: _kSectionGap),
 
             // ── User cards ────────────────────────────────────────────────
@@ -221,6 +225,74 @@ class AdminScreen extends StatelessWidget {
                     fontSize: 11,
                     color: AppColors.textSecondary)),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlertTriggers() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Examiner Alert Triggers',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _triggerButton(
+            label: 'Trigger CAUTION (buckle)',
+            color: AppColors.caution,
+            onTap: () =>
+                AlertService.instance.fireTestAlert(AlertReason.buckleReminder),
+          ),
+          const SizedBox(height: 10),
+          _triggerButton(
+            label: 'Trigger WARNING (left-behind)',
+            color: AppColors.warning,
+            onTap: () =>
+                AlertService.instance.fireTestAlert(AlertReason.leftBehind),
+          ),
+          const SizedBox(height: 10),
+          _triggerButton(
+            label: 'Trigger CRITICAL (heat)',
+            color: AppColors.critical,
+            onTap: () => AlertService.instance.fireTestAlert(AlertReason.heat),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _triggerButton({
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

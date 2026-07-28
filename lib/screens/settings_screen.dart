@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
 import '../models/contact.dart';
 import '../models/seat_status.dart';
 import '../services/alert_service.dart';
 import '../services/auth_service.dart';
+import '../services/alert_feedback_service.dart';
 import '../services/contact_service.dart';
 import '../services/family_service.dart';
 import '../widgets/contact_status_badge.dart';
@@ -45,6 +47,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadAvatarPath();
     _loadMemberCount();
     _loadAlertTimer();
+    _loadReminderPreferences();
+  }
+
+  Future<void> _loadReminderPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _appAlerts = prefs.getBool(kPushNotificationsPrefKey) ?? true;
+      _vibration = prefs.getBool(kVibrationPrefKey) ?? true;
+      _audibleWarn = prefs.getBool(kSoundPrefKey) ?? false;
+    });
+  }
+
+  Future<void> _setReminderPreference(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
   }
 
   Future<void> _loadDisplayName() async {
@@ -113,20 +131,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildProfileCard(context),
 
-                  // ── Notifications ──────────────────────────────────────
-                  _sectionLabel('Notifications'),
+                  // ── Reminder preferences ───────────────────────────────
+                  _sectionLabel('Reminder preferences'),
                   _card([
-                    _toggleRow(Icons.notifications_outlined, 'App Alerts',
-                        _appAlerts, (v) => setState(() => _appAlerts = v)),
-                    _divider(),
-                    _toggleRow(Icons.vibration, 'Vibration', _vibration,
-                        (v) => setState(() => _vibration = v)),
+                    _toggleRow(
+                      Icons.notifications_none_rounded,
+                      'Push notifications',
+                      'Show a banner and lock-screen notification when the app is in the background.',
+                      _appAlerts,
+                      (v) async {
+                        setState(() => _appAlerts = v);
+                        await _setReminderPreference(
+                            kPushNotificationsPrefKey, v);
+                      },
+                    ),
                     _divider(),
                     _toggleRow(
-                        Icons.volume_up_outlined,
-                        'Audible Warning',
-                        _audibleWarn,
-                        (v) => setState(() => _audibleWarn = v)),
+                      Icons.vibration_rounded,
+                      'Vibration',
+                      'Vibrate the phone when a caution reminder fires.',
+                      _vibration,
+                      (v) async {
+                        setState(() => _vibration = v);
+                        await _setReminderPreference(kVibrationPrefKey, v);
+                      },
+                    ),
+                    _divider(),
+                    _toggleRow(
+                      Icons.volume_up_rounded,
+                      'Sound',
+                      'Play the alert tone when a caution reminder fires.',
+                      _audibleWarn,
+                      (v) async {
+                        setState(() => _audibleWarn = v);
+                        await _setReminderPreference(kSoundPrefKey, v);
+                      },
+                    ),
                     _divider(),
                     _navRow(Icons.send_outlined, 'Send Test Notification',
                         onTap: () async {
@@ -177,16 +217,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             AlertReason.buckleReminder);
                                       },
                                     ),
-                                    ListTile(
-                                      leading: const Icon(
-                                          Icons.battery_alert_outlined),
-                                      title: const Text('Low Battery'),
-                                      onTap: () {
-                                        Navigator.pop(ctx);
-                                        AlertService.instance.fireTestAlert(
-                                            AlertReason.lowBattery);
-                                      },
-                                    ),
                                   ],
                                 ),
                               ),
@@ -224,8 +254,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ]),
 
-                  // ── Connectivity & Access ──────────────────────────────
-                  _sectionLabel('Connectivity & Access'),
+                  // ── Access ──────────────────────────────────────────────
+                  _sectionLabel('Access'),
                   _card([
                     _navRow(Icons.people_outlined, 'Family Management',
                         subtitle: _memberSubtitle,
@@ -400,6 +430,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _toggleRow(
     IconData icon,
     String label,
+    String infoBody,
     bool value,
     ValueChanged<bool> onChanged,
   ) {
@@ -410,11 +441,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _iconBubble(icon),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(label,
-                style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary)),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(label,
+                      style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary)),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints.tight(const Size(20, 20)),
+                  onPressed: () => _showToggleInfo(context, label, infoBody),
+                ),
+              ],
+            ),
           ),
           Switch(
             value: value,
@@ -424,6 +471,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFD1D5DB),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showToggleInfo(
+    BuildContext context,
+    String title,
+    String firstParagraph,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(
+          '$firstParagraph\n\nSafety warnings — heat, left-behind — always sound and vibrate even when this is off.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
           ),
         ],
       ),

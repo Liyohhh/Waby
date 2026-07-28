@@ -35,4 +35,4 @@ Poppins (via `google_fonts`). Big bold headings, bold coloured values, grey seco
 - **Alert screen** — full-screen colour gradient (red for temp/danger), big icon, bold title, subtitle, navy Acknowledge button.
 
 ## Icons
-Mostly Material Icons (`Icons.home`, `Icons.bluetooth`, `Icons.link`, `Icons.thermostat`, battery, gps). Use the exported PNG assets for the baby, gender, and family glyphs.
+Mostly Material Icons (`Icons.home`, `Icons.link`, `Icons.thermostat`, battery, gps). Use the exported PNG assets for the baby, gender, and family glyphs.

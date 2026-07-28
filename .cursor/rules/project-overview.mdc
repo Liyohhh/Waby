@@ -11,7 +11,7 @@ Waby is a **smart baby car seat safety system** built as a final-year project (s
 - **App:** Flutter (Dart, null-safe).
 - **Firmware:** ESP32 (Arduino / C++).
 - **Backend / API / database:** Firebase Realtime Database (free Spark plan).
-- **Data flow:** ESP32 → WiFi → Firebase; the Flutter app reads live data from Firebase. (Bluetooth appears in the UI but Firebase carries the real data.)
+- **Data flow:** ESP32 → WiFi → Firebase; the Flutter app reads live data from Firebase. Avoid local-pairing wording in the UI because the real data path is network-backed.
 
 ## Hardware sensors
 FSR (presence/weight), auto-detect buckle, DHT11 (temperature), GPS NEO-6M, ESP32. Outputs: LED indicators + buzzer for alarms.

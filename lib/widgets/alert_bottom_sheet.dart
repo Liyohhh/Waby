@@ -10,6 +10,32 @@ import '../services/alert_feedback_service.dart';
 import '../services/alert_service.dart';
 import '../services/push_notification_service.dart';
 
+class _AlertSheetWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..lineTo(0, size.height - 22)
+      ..quadraticBezierTo(
+        size.width * 0.30,
+        size.height - 4,
+        size.width * 0.55,
+        size.height - 14,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.80,
+        size.height - 26,
+        size.width,
+        size.height - 14,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
 Future<void> showAlertBottomSheet(
   BuildContext context, {
   required List<ActiveAlert> initial,
@@ -126,7 +152,7 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
     final current = _currentAlert;
     final currentColor = severityColorOf(current.severity);
     final heightFactor =
-        current.severity == AlertSeverity.caution ? 0.45 : 0.68;
+        current.severity == AlertSeverity.caution ? 0.45 : 0.70;
 
     return PopScope(
       canPop: current.severity == AlertSeverity.caution,
@@ -143,34 +169,104 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
             ),
             child: Column(
               children: [
-                Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: currentColor,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                ),
-                GestureDetector(
-                  onVerticalDragUpdate: current.severity == AlertSeverity.caution
-                      ? (details) {
-                          if (details.delta.dy > 60) {
-                            Navigator.of(context).pop();
-                          }
-                        }
-                      : null,
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 10, bottom: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD9D9D9),
-                      borderRadius: BorderRadius.circular(999),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: KeyedSubtree(
+                    key: ValueKey(current.severity),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 150,
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: ClipPath(
+                                  clipper: _AlertSheetWaveClipper(),
+                                  child: ColoredBox(color: currentColor),
+                                ),
+                              ),
+                              Positioned.fill(
+                                child: ClipPath(
+                                  clipper: _AlertSheetWaveClipper(),
+                                  child: CustomPaint(
+                                    painter: _InnerWavePainter(currentColor),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 12,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: GestureDetector(
+                                    onVerticalDragUpdate:
+                                        current.severity == AlertSeverity.caution
+                                            ? (details) {
+                                                if (details.delta.dy > 60) {
+                                                  Navigator.of(context).pop();
+                                                }
+                                              }
+                                            : null,
+                                    child: Container(
+                                      width: 40,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.55),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 40,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: _SeverityPill(
+                                    severity: current.severity,
+                                    whiteVariant: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Transform.translate(
+                          offset: const Offset(0, -36),
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: severityHaloOf(current.severity),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _iconForAlertType(current.alertType),
+                                    size: 30,
+                                    color: currentColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                _SeverityPill(severity: current.severity),
-                const SizedBox(height: 16),
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
@@ -235,17 +331,26 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
 }
 
 class _SeverityPill extends StatelessWidget {
-  const _SeverityPill({required this.severity});
+  const _SeverityPill({
+    required this.severity,
+    this.whiteVariant = false,
+  });
 
   final AlertSeverity severity;
+  final bool whiteVariant;
 
   @override
   Widget build(BuildContext context) {
     final color = severityColorOf(severity);
+    final bg = whiteVariant
+        ? Colors.white.withValues(alpha: 0.18)
+        : color.withValues(alpha: 0.12);
+    final dot = whiteVariant ? Colors.white : color;
+    final textColor = whiteVariant ? Colors.white : color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -254,7 +359,7 @@ class _SeverityPill extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
           Text(
@@ -264,7 +369,7 @@ class _SeverityPill extends StatelessWidget {
               AlertSeverity.critical => 'CRITICAL',
             },
             style: GoogleFonts.poppins(
-              color: color,
+              color: textColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
@@ -284,9 +389,6 @@ class _AlertPageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = severityColorOf(alert.severity);
-    final icon = alert.severity == AlertSeverity.caution
-        ? Icons.link_off
-        : Icons.warning_amber_rounded;
     final title = switch (alert.alertType) {
       'heat' => 'Heat rising',
       'left_behind' => 'Child left in car',
@@ -303,19 +405,9 @@ class _AlertPageContent extends StatelessWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
       child: Column(
         children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              color: severityHaloOf(alert.severity),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 30),
-          ),
-          const SizedBox(height: 16),
           Text(
             title,
             textAlign: TextAlign.center,
@@ -447,6 +539,55 @@ class _PulseHaloState extends State<_PulseHalo>
         );
       },
     );
+  }
+}
+
+class _InnerWavePainter extends CustomPainter {
+  const _InnerWavePainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, size.height * 0.70)
+      ..quadraticBezierTo(
+        size.width * 0.28,
+        size.height * 0.83,
+        size.width * 0.58,
+        size.height * 0.74,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.82,
+        size.height * 0.63,
+        size.width,
+        size.height * 0.72,
+      )
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(
+      path,
+      Paint()..color = color.withValues(alpha: 0.35),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _InnerWavePainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+IconData _iconForAlertType(String alertType) {
+  switch (alertType) {
+    case 'heat':
+      return Icons.thermostat_rounded;
+    case 'left_behind':
+      return Icons.child_care_rounded;
+    case 'buckle':
+      return Icons.link_off_rounded;
+    default:
+      return Icons.warning_amber_rounded;
   }
 }
 

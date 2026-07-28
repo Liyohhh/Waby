@@ -1,11 +1,16 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// In-app alert audio + haptic feedback (foreground path).
 ///
 /// Volume ramps with escalation [tier] (1 → quieter, 3 → full). Call [stop]
 /// whenever the alert ends so playback never leaks past the alert UI.
 enum AlertSeverity { caution, warning, critical }
+
+const kPushNotificationsPrefKey = 'settings_app_alerts';
+const kVibrationPrefKey = 'settings_vibration';
+const kSoundPrefKey = 'settings_sound';
 
 class AlertFeedbackService {
   AlertFeedbackService._internal();
@@ -38,16 +43,33 @@ class AlertFeedbackService {
     final asset = _assetFor[severity];
     if (asset == null) return;
 
+    var allowSound = true;
+    var allowVibration = true;
+    if (severity == AlertSeverity.caution) {
+      final prefs = await SharedPreferences.getInstance();
+      allowSound = prefs.getBool(kSoundPrefKey) ?? false;
+      allowVibration = prefs.getBool(kVibrationPrefKey) ?? true;
+      if (!allowSound && !allowVibration) return;
+    }
+
     final volume = _volumeForTier(tier);
     try {
-      await _player.stop();
-      await _player.setReleaseMode(ReleaseMode.loop);
-      await _player.setVolume(volume);
-      await _player.play(AssetSource(asset));
-      _playing = true;
-      await HapticFeedback.heavyImpact();
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      await HapticFeedback.vibrate();
+      if (allowSound) {
+        await _player.stop();
+        await _player.setReleaseMode(ReleaseMode.loop);
+        await _player.setVolume(volume);
+        await _player.play(AssetSource(asset));
+        _playing = true;
+      } else {
+        await _player.stop();
+        _playing = false;
+      }
+
+      if (allowVibration) {
+        await HapticFeedback.heavyImpact();
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        await HapticFeedback.vibrate();
+      }
     } catch (_) {
       // Non-fatal — audio failure must never block the alert path.
     }
