@@ -886,12 +886,26 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
 
   Widget _childCard(BuildContext context, _ChildProfile child) {
     final warning = child.isWarning;
+    final isGirl = child.gender == 'Girl';
 
-    // Flat single colour — light teal (header family) or soft warning red.
+    // Same gender palette as Home `_ChildCard`: soft blue / soft pink,
+    // with warning red always winning as the safety signal.
     final bgColor = warning
         ? const Color(0xFFFBE6E5)
-        : const Color(0xFFD4EEF8);
+        : isGirl
+            ? const Color(0xFFFCEAF2)
+            : const Color(0xFFD7F1F8);
+    final avatarBg = warning
+        ? const Color(0xFFFBE6E5)
+        : isGirl
+            ? const Color(0xFFFCEAF2)
+            : const Color(0xFFD7F1F8);
     final chipText = warning ? const Color(0xFFC2291D) : AppColors.navy;
+    final shadowBase = warning
+        ? const Color(0xFFC2291D)
+        : isGirl
+            ? const Color(0xFFF5B4CD)
+            : const Color(0xFF7FD0E4);
 
     return GestureDetector(
       onTap: () => _showChildDetail(context, child),
@@ -902,10 +916,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: (warning
-                      ? const Color(0xFFC2291D)
-                      : AppColors.headerTop)
-                  .withAlpha(50),
+              color: shadowBase.withAlpha(50),
               blurRadius: 2,
               offset: const Offset(0, 2),
             ),
@@ -922,7 +933,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
               child: SignedAvatar(
                 photoPath: child.photoPath,
                 radius: 22,
-                backgroundColor: const Color(0xFFE8F6FB),
+                backgroundColor: avatarBg,
                 iconColor: AppColors.navy,
                 fallbackIcon: Icons.child_care,
               ),
@@ -944,7 +955,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                         child.ageLabel,
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.navy.withAlpha(170),
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.navy.withAlpha(225),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1137,12 +1149,28 @@ class _ChildDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safe = !child.isWarning;
+    final isGirl = child.gender == 'Girl';
     final statusColor =
         safe ? const Color(0xFF56B337) : const Color(0xFFC2291D);
-    final headerTop =
-        safe ? const Color(0xFF008FB4) : const Color(0xFFC2291D);
-    final headerBot =
-        safe ? const Color(0xFF7AD0E4) : const Color(0xFFE05555);
+    final headerTop = !safe
+        ? const Color(0xFFC2291D)
+        : isGirl
+            ? const Color(0xFFF5B4CD)
+            : const Color(0xFF7FD0E4);
+    final headerBot = !safe
+        ? const Color(0xFFE05555)
+        : isGirl
+            ? const Color(0xFFFCEAF2)
+            : const Color(0xFFD7F1F8);
+    final avatarBg = !safe
+        ? Colors.white.withAlpha(60)
+        : isGirl
+            ? const Color(0xFFFCEAF2)
+            : const Color(0xFFD7F1F8);
+    final headerOnColor = safe ? AppColors.navy : Colors.white;
+    final headerMuted = safe
+        ? AppColors.navy.withAlpha(225)
+        : Colors.white70;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
@@ -1172,7 +1200,9 @@ class _ChildDetailSheet extends StatelessWidget {
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: Colors.white54,
+                          color: safe
+                              ? AppColors.navy.withAlpha(60)
+                              : Colors.white54,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -1182,7 +1212,8 @@ class _ChildDetailSheet extends StatelessWidget {
                         SignedAvatar(
                           photoPath: child.photoPath,
                           radius: 30,
-                          backgroundColor: Colors.white.withAlpha(60),
+                          backgroundColor: avatarBg,
+                          iconColor: AppColors.navy,
                           fallbackIcon: Icons.child_care,
                         ),
                   const SizedBox(width: 16),
@@ -1191,14 +1222,14 @@ class _ChildDetailSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(child.name,
-                            style: const TextStyle(
-                                color: Colors.white,
+                            style: TextStyle(
+                                color: headerOnColor,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700)),
                         const SizedBox(height: 4),
                         Text([child.ageLabel, if (child.gender != null && child.gender!.isNotEmpty) child.gender!].join(' · '),
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 13)),
+                            style: TextStyle(
+                                color: headerMuted, fontSize: 13)),
                         if (child.gender != null ||
                             child.weightKg != null ||
                             child.heightCm != null) ...[
@@ -1212,8 +1243,8 @@ class _ChildDetailSheet extends StatelessWidget {
                               if (child.heightCm != null)
                                 '${child.heightCm!.toStringAsFixed(0)} cm',
                             ].join(' · '),
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 13),
+                            style: TextStyle(
+                                color: headerMuted, fontSize: 13),
                           ),
                         ],
                       ],

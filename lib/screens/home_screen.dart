@@ -1133,22 +1133,24 @@ class _ChildCard extends StatelessWidget {
             ? const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFF4A8C5), Color(0xFFFCE8F1)],
+                // Soft pastel pink — lighter than EC82AC while keeping
+                // navy DOB/details (alpha 225) readable on the header.
+                colors: [Color(0xFFF5B4CD), Color(0xFFFCEAF2)],
                 stops: [0.31, 0.88],
               )
             : const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                // Lighter take on kHeaderGradient (headerTop → headerBottom)
-                colors: [Color(0xFF4DBAD4), Color(0xFFA8E0EF)],
+                // Soft pastel blue — lighter take on the header gradient.
+                colors: [Color(0xFF7FD0E4), Color(0xFFD7F1F8)],
                 stops: [0.31, 0.88],
               );
 
     final shadowColor = (warning
             ? const Color(0xFFC2291D)
             : isGirl
-                ? const Color(0xFFF4A8C5)
-                : AppColors.headerTop)
+                ? const Color(0xFFF5B4CD)
+                : const Color(0xFF7FD0E4))
         .withAlpha(36);
 
     return Container(
@@ -1218,7 +1220,9 @@ class _ChildCard extends StatelessWidget {
                         child: SignedAvatar(
                           photoPath: photoPath,
                           radius: 24,
-                          backgroundColor: const Color(0xFFE8F6FB),
+                          backgroundColor: isGirl
+                              ? const Color(0xFFFCEAF2)
+                              : const Color(0xFFD7F1F8),
                           iconColor: AppColors.navy,
                           fallbackText: name.isNotEmpty ? name[0] : '?',
                         ),
@@ -1241,14 +1245,22 @@ class _ChildCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                     fontSize: 12,
-                                    color: AppColors.navy.withAlpha(170),
+                                    fontWeight: FontWeight.w600,
+                                    // Was navy.withAlpha(170) — that blended
+                                    // into the gradient header (~3.2:1
+                                    // contrast on blue, ~2.6:1 on pink, both
+                                    // below WCAG AA's 4.5:1). Near-solid navy
+                                    // plus weight differentiates it from the
+                                    // name without sacrificing legibility.
+                                    color: AppColors.navy.withAlpha(225),
                                     height: 1.3)),
                             Text(details,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                     fontSize: 12,
-                                    color: AppColors.navy.withAlpha(170),
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.navy.withAlpha(225),
                                     height: 1.3)),
                           ],
                         ),

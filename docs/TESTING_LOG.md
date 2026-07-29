@@ -242,7 +242,7 @@
 - Date: 2026-07-29
 - Area: Home child card gender theme
 - Root cause: Home `_ChildCard` header used one blue gradient for all non-warning children, so Boy/Girl was only text and not reflected in the card chrome.
-- Fix: Pass `gender` into `_ChildCard` and theme the header/shadow a light pink (`#F4A8C5` → `#FCE8F1`) for Girl when not in warning; warning red still wins over gender decoration. Status/Buckled/Near/Battery pills unchanged.
+- Fix: Pass `gender` into `_ChildCard` and theme Girl cards soft pastel pink (`#F5B4CD` → `#FCEAF2`, avatar `#FCEAF2`) and Boy cards soft pastel blue (`#7FD0E4` → `#D7F1F8`, avatar `#D7F1F8`) when not in warning. Warning red still wins over gender decoration. Status/Buckled/Near/Battery pills unchanged.
 
 ## TEST-018
 - Date: 2026-07-29
@@ -252,3 +252,30 @@
   - Girl + SAFE/CAUTION → pink card header.
   - Girl + WARNING → red warning header (not pink).
   - SAFE/CAUTION/WARNING badge and Buckled/Near/Battery pills still follow status only.
+
+## BUG-017
+- Date: 2026-07-29
+- Area: Home child card DOB/details contrast on gradient header
+- Root cause: DOB and details used `AppColors.navy.withAlpha(170)`, which was too faint on blue/pink gradient headers (~3.2:1 / ~2.6:1, below WCAG AA 4.5:1).
+- Fix: Raise to `withAlpha(225)` and `FontWeight.w600` so the secondary lines stay readable while still secondary to the name. Pink gradient already at `#EC82AC` → `#F6C9DE`.
+
+## TEST-019
+- Date: 2026-07-29
+- Scope: Child card secondary text legibility
+- Verification target:
+  - DOB and details lines are clearly readable on both blue (Boy) and pink (Girl) headers.
+  - Name remains visually primary; DOB/details stay slightly softer but heavier than before.
+
+## BUG-018
+- Date: 2026-07-29
+- Area: Family page child gender colour scheme
+- Root cause: Family/Contacts child list and detail sheet used a single teal treatment for all non-warning children, so Boy/Girl theming only existed on Home.
+- Fix: Apply the same soft blue (`#D7F1F8` / `#7FD0E4`) and soft pink (`#FCEAF2` / `#F5B4CD`) palette to Family child cards, avatars, and detail headers; warning red still wins. Detail header text switches to navy on pastel headers for contrast.
+
+## TEST-020
+- Date: 2026-07-29
+- Scope: Family children Boy/Girl colour scheme
+- Verification target:
+  - Boy child card + detail header → soft blue; Girl → soft pink.
+  - Warning child still uses soft red regardless of gender.
+  - Avatar fill matches the gender pastel on list and detail.
