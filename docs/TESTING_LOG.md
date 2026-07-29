@@ -445,3 +445,27 @@
 - Verification target:
   - Active car with plate → badge under smaller car on Home header.
   - Clear plate (or no active car) → badge gone, car image alone.
+
+## BUG-031
+- Date: 2026-07-29
+- Area: Add/Edit Car sheet keyboard overflow
+- Root cause: `_CarFormSheet` Column was not scrollable, so opening the keyboard shrunk available height and overflowed/clipped the Save button.
+- Fix: Wrapped the form Column in a `SingleChildScrollView` (viewInsets padding already applied by the parent sheet).
+
+## TEST-033
+- Date: 2026-07-29
+- Scope: Car form sheet keyboard scroll
+- Verification target:
+  - Add Car → focus name/plate → no RenderFlex overflow; sheet scrolls; Add/Save button reachable.
+
+## BUG-032
+- Date: 2026-07-29
+- Area: Home plate badge styling
+- Root cause: Plate badge used flat black border/text that did not match Waby navy/accent + Poppins card styling.
+- Fix: Restyled badge with navy border, accent tab, soft navy shadow, and Poppins.
+
+## TEST-034
+- Date: 2026-07-29
+- Scope: Home plate badge visual
+- Verification target:
+  - Active car with plate shows navy-bordered white badge + accent stripe + Poppins plate text under car.

@@ -305,110 +305,112 @@ class _CarFormSheetState extends State<_CarFormSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration:
-                  BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            widget.existing != null ? 'Edit Car' : 'Add Car',
-            style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF031E2A)),
-          ),
-          const SizedBox(height: 20),
-          const Text('Car name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _nameCtrl,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              hintText: 'e.g. Honda City',
-              filled: true,
-              fillColor: AppColors.field,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration:
+                    BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(2)),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text('Number plate (optional)',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _plateCtrl,
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              hintText: 'e.g. ABC 1234',
-              filled: true,
-              fillColor: AppColors.field,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+            const SizedBox(height: 20),
+            Text(
+              widget.existing != null ? 'Edit Car' : 'Add Car',
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF031E2A)),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text('Color', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: kCarColorOptions.map((hex) {
-              final selected = hex == _color;
-              return GestureDetector(
-                onTap: () => setState(() => _color = hex),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: carColorFromHex(hex),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selected ? AppColors.navy : Colors.black12,
-                      width: selected ? 3 : 1,
-                    ),
-                  ),
-                  child: selected
-                      ? Icon(Icons.check,
-                          size: 18,
-                          color: hex == '#FFFFFF' ? Colors.black : Colors.white)
-                      : null,
+            const SizedBox(height: 20),
+            const Text('Car name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nameCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: 'e.g. Honda City',
+                filled: true,
+                fillColor: AppColors.field,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 28),
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navy,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: _saving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text(widget.existing != null ? 'Save Changes' : 'Add Car'),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            const Text('Number plate (optional)',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _plateCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'e.g. ABC 1234',
+                filled: true,
+                fillColor: AppColors.field,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Color', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: kCarColorOptions.map((hex) {
+                final selected = hex == _color;
+                return GestureDetector(
+                  onTap: () => setState(() => _color = hex),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: carColorFromHex(hex),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? AppColors.navy : Colors.black12,
+                        width: selected ? 3 : 1,
+                      ),
+                    ),
+                    child: selected
+                        ? Icon(Icons.check,
+                            size: 18,
+                            color: hex == '#FFFFFF' ? Colors.black : Colors.white)
+                        : null,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(widget.existing != null ? 'Save Changes' : 'Add Car'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
