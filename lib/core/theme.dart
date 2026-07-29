@@ -20,11 +20,16 @@ class AppColors {
   static const warningCard  = Color(0xFFFBE6E5); // warning child card
   static const card         = Color(0xFFFFFFFF);
 
-  // Status
+  // Status (general UI)
   static const safe         = Color(0xFF56B337); // SAFE green
-  static const caution      = Color(0xFFE89827); // CAUTION amber
-  static const warning      = Color(0xFFC2291D); // WARNING / critical red
-  static const critical     = Color(0xFFC2291D); // CRITICAL red
+  static const caution      = Color(0xFFF0C040); // amber (non-alert UI)
+  static const warning      = Color(0xFFC2291D); // destructive / status red
+  static const critical     = Color(0xFFC2291D); // critical red
+
+  // Alert escalation ramp — matches soft → warning → critical sound cues
+  static const alertSoft     = Color(0xFF8A9199); // grey — tier 1 / caution sound
+  static const alertCaution  = Color(0xFFF0A020); // yellow-orange — tier 2 / warning sound
+  static const alertCritical = Color(0xFFC2291D); // red — tier 3 / critical sound
 
   // Text
   static const textPrimary   = Color(0xFF0F2D54);

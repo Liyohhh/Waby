@@ -1,6 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vibration/vibration.dart';
 
 /// In-app alert audio + haptic feedback (foreground path).
 ///
@@ -25,21 +27,30 @@ class AlertFeedbackService {
     AlertSeverity.critical: 'sounds/alert_critical.mp3',
   };
 
-  /// Volume by severity and escalation tier.
+  /// Volume by severity and escalation tier — each step is a clear jump.
   double _volumeFor(AlertSeverity severity, int tier) {
     if (severity == AlertSeverity.caution) return 0.6;
-    return tier <= 1 ? 0.85 : 1.0;
+    if (tier <= 2) return 0.85;
+    return 1.0;
   }
 
   /// Start (or re-start) looping alert sound + vibration for [severity].
   /// Passing a higher [tier] raises volume for the escalation ramp.
-  Future<void> fire(AlertSeverity severity, {required int tier}) async {
+  ///
+  /// [respectReminderPrefs] should only be true for buckle reminders. Danger
+  /// alerts may start softly at tier 1, but they still must not be silenced by
+  /// the reminder toggles.
+  Future<void> fire(
+    AlertSeverity severity, {
+    required int tier,
+    bool respectReminderPrefs = true,
+  }) async {
     final asset = _assetFor[severity];
     if (asset == null) return;
 
     var allowSound = true;
     var allowVibration = true;
-    if (severity == AlertSeverity.caution) {
+    if (severity == AlertSeverity.caution && respectReminderPrefs) {
       final prefs = await SharedPreferences.getInstance();
       allowSound = prefs.getBool(kSoundPrefKey) ?? false;
       allowVibration = prefs.getBool(kVibrationPrefKey) ?? true;
@@ -59,10 +70,15 @@ class AlertFeedbackService {
         _playing = false;
       }
 
-      if (allowVibration) {
-        await HapticFeedback.heavyImpact();
-        await Future<void>.delayed(const Duration(milliseconds: 120));
-        await HapticFeedback.vibrate();
+      if (allowVibration && await Vibration.hasVibrator()) {
+        final pattern = switch (tier) {
+          1 => Int64List.fromList([0, 400, 200, 400]), // slow double-pulse
+          2 => Int64List.fromList([0, 200, 100, 200, 100, 200]), // medium burst
+          _ => Int64List.fromList(
+              [0, 200, 100, 200, 100, 200, 100, 200],
+            ), // rapid burst
+        };
+        await Vibration.vibrate(pattern: pattern, repeat: 0);
       }
     } catch (_) {
       // Non-fatal — audio failure must never block the alert path.

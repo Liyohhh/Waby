@@ -228,13 +228,14 @@ assets/
 
 #### Critical stages
 
-| Stage | Timing | Behaviour |
-|-------|--------|-----------|
-| 1 | First half of the escalation window | Initial in-app alert starts immediately after grace; alert sheet opens and foreground sound begins |
-| 2 | Second half of the escalation window (50% onward) | Escalated in-app alert: louder sound and push notification |
-| 3 | End of window | Telegram escalation fires via Edge Function / server fallback; store `lastNotifiedCount` from response `sent` |
+| Stage | Timing | Colour / sound | Behaviour |
+|-------|--------|----------------|-----------|
+| 1 | First ~33% of the escalation window | Yellow + caution chime | Initial in-app alert after grace; sheet opens locked for heat/left-behind |
+| 2 | ~33%–66% | Orange + warning tone | Escalated in-app alert, louder sound, push notification, haptic burst |
+| 3 | ~66%–100% | Red + critical siren | Final in-app urgency; countdown label becomes "NOTIFYING FAMILY IN" |
+| Telegram | End of window (100%) | — | Edge Function / server fallback fires Telegram; store `lastNotifiedCount` |
 
-This 3-beat model is deliberate: users only need to distinguish the first alert, the escalated alert, and the point where external help is involved. A 4-beat ladder was an implementation artefact, not a better user experience.
+This three-tier escalation is modelled on standard alarm-management practice from safety-critical domains (ISA-18.2, IEC 62682) — reminder, warning, critical — mapped to universally recognised yellow / orange / red visual cues. Alarm fatigue is a real risk in monitoring systems; a graded escalation ensures the loudest, most disruptive state is reserved for the genuine emergency, not the first hint of a problem. Buckle reminders stay caution-only and never enter this ladder.
 
 **Telegram event names:** `left_behind`, `heat_alarm`, `buckle_reminder`, `low_battery`.
 

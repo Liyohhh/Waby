@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:vibration/vibration.dart';
 
 import '../models/child.dart';
 import '../models/seat_status.dart';
@@ -18,12 +20,20 @@ String alertIdOf({
 }) =>
     '$childId::$alertType::${startedAt.millisecondsSinceEpoch}';
 
+AlertSeverity severityFor(String alertType, int tier) {
+  if (alertType == 'buckle') return AlertSeverity.caution;
+  return switch (tier) {
+    1 => AlertSeverity.caution, // grey + soft caution sound
+    2 => AlertSeverity.warning, // yellow/orange + warning sound
+    _ => AlertSeverity.critical, // red + critical sound
+  };
+}
+
 class ActiveAlert {
   final String alertId;
   final String childId;
   final String childName;
   final String alertType;
-  final AlertSeverity severity;
   final DateTime startedAt;
   final int totalSeconds;
   final int tier;
@@ -37,7 +47,6 @@ class ActiveAlert {
     required this.childId,
     required this.childName,
     required this.alertType,
-    required this.severity,
     required this.startedAt,
     required this.totalSeconds,
     required this.tier,
@@ -46,6 +55,8 @@ class ActiveAlert {
     required this.message,
     required this.detail,
   });
+
+  AlertSeverity get severity => severityFor(alertType, tier);
 }
 
 class AlertService {
@@ -220,7 +231,7 @@ class AlertService {
     }
 
     for (final tracked in _active.values.toList()) {
-      if (!tracked.isCritical) continue;
+      if (!tracked.escalates) continue;
 
       final tier = _tierFor(tracked.reason, tracked.startedAt, tracked.totalSeconds);
       if (tier != tracked.tier) {
@@ -228,9 +239,18 @@ class AlertService {
         changed = true;
       }
 
-      if (tier == 2 && tracked.lastFiredTier < 2) {
-        tracked.lastFiredTier = 2;
+      if (tier != tracked.lastFiredTier && tier >= 2) {
+        tracked.lastFiredTier = tier;
         await _emitUserFacingAlert(tracked, notify: true);
+        // Distinctive "escalation moment" haptic at each transition.
+        if (await Vibration.hasVibrator()) {
+          final burst = tier == 3
+              ? Int64List.fromList(
+                  [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
+                )
+              : Int64List.fromList([0, 80, 60, 80, 60, 80, 60, 200]);
+          await Vibration.vibrate(pattern: burst, repeat: -1);
+        }
       }
 
       if (_remainingSeconds(tracked.startedAt, tracked.totalSeconds) <= 0 &&
@@ -286,7 +306,6 @@ class AlertService {
       childName: condition.childName,
       alertType: condition.alertType,
       reason: condition.reason,
-      severity: condition.severity,
       startedAt: startedAt,
       totalSeconds: totalSecondsFor(condition.reason),
       tier: 1,
@@ -298,7 +317,9 @@ class AlertService {
       eventRowId: null,
     );
     _active[alert.alertId] = alert;
-    if (logToServer && alert.isCritical) {
+    final escalates =
+        condition.alertType == 'heat' || condition.alertType == 'left_behind';
+    if (logToServer && escalates) {
       unawaited(_insertAlertEvent(alert));
     }
     unawaited(_emitUserFacingAlert(alert));
@@ -314,9 +335,11 @@ class AlertService {
 
   int _tierFor(AlertReason reason, DateTime startedAt, int totalSeconds) {
     final elapsed = DateTime.now().difference(startedAt).inSeconds;
-    final tier2Start = (totalSeconds * 0.5).round();
-    if (elapsed < tier2Start) return 1;
-    return 2;
+    final t2 = (totalSeconds * 0.33).round();
+    final t3 = (totalSeconds * 0.66).round();
+    if (elapsed < t2) return 1;
+    if (elapsed < t3) return 2;
+    return 3;
   }
 
   double _remainingSeconds(DateTime startedAt, int totalSeconds) {
@@ -335,12 +358,14 @@ class AlertService {
       await AlertFeedbackService.instance.fire(
         alert.severity,
         tier: alert.tier,
+        respectReminderPrefs: alert.alertType == 'buckle',
       );
     }
 
     if (!notify || inForeground) return;
 
-    if (alert.severity == AlertSeverity.caution) {
+    if (alert.alertType == 'buckle' &&
+        alert.severity == AlertSeverity.caution) {
       final prefs = await SharedPreferences.getInstance();
       final allowPush = prefs.getBool(kPushNotificationsPrefKey) ?? true;
       if (!allowPush) return;
@@ -552,7 +577,6 @@ class AlertService {
             childId: a.childId,
             childName: a.childName,
             alertType: a.alertType,
-            severity: a.severity,
             startedAt: a.startedAt,
             totalSeconds: a.totalSeconds,
             tier: a.tier,
@@ -710,7 +734,6 @@ class _TrackedAlert {
   String childName;
   final String alertType;
   final AlertReason reason;
-  final AlertSeverity severity;
   final DateTime startedAt;
   final int totalSeconds;
   int tier;
@@ -727,7 +750,6 @@ class _TrackedAlert {
     required this.childName,
     required this.alertType,
     required this.reason,
-    required this.severity,
     required this.startedAt,
     required this.totalSeconds,
     required this.tier,
@@ -739,6 +761,7 @@ class _TrackedAlert {
     required this.eventRowId,
   });
 
-  bool get isCritical =>
-      severity == AlertSeverity.warning || severity == AlertSeverity.critical;
+  AlertSeverity get severity => severityFor(alertType, tier);
+
+  bool get escalates => alertType == 'heat' || alertType == 'left_behind';
 }

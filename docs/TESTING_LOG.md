@@ -100,3 +100,54 @@
   - `0s`: sound starts and the alert sheet opens.
   - `15s` on a 30s heat timer: sound is clearly louder and the push notification appears.
   - `30s`: Telegram is delivered.
+
+## TEST-008
+- Date: 2026-07-28
+- Scope: Tier-2 in-app perceptibility
+- Verification target:
+  - `0s`: phone uses the slow double-pulse vibration, foreground audio starts at the lower tier-1 volume, and the alert sheet opens without the `ESCALATED` chip.
+  - `15s` on a 30s heat timer: audio jumps to the louder tier-2 level, vibration switches to the rapid-burst pattern, and the red `ESCALATED` chip fades in on the sheet.
+  - The foreground/background arbitration still prevents duplicate in-app plus notification sound while the app is open.
+
+## BUG-007
+- Date: 2026-07-28
+- Area: Graded escalation presentation
+- Root cause: Heat and left-behind alerts entered the UI already red/high-severity, so the caregiver could not perceive a clear transition from reminder to danger escalation inside the same alert.
+- Fix: Derived severity from `alertType + tier`, so heat and left-behind now begin yellow/caution, cross-fade to red at 50% of the timer, and keep Telegram as the final 100% escalation point. Buckle remains caution-only and is the only dismissible alert.
+
+## TEST-009
+- Date: 2026-07-28
+- Scope: Examiner-facing graded escalation demo
+- Verification target:
+  - `T=0s`: yellow sheet slides up, caution pill shows, soft caution audio starts, gentle vibration begins, countdown starts at 30, and the sheet cannot be dismissed.
+  - `T=15s`: sheet cross-fades from yellow to red over ~600ms, a distinct triple-tap escalation burst is felt, the louder escalated sound replaces the caution sound, and the pill changes from `CAUTION` to `CRITICAL` / `WARNING`.
+  - `T=30s`: Telegram is delivered; the sheet stays in the escalated state until Acknowledge is tapped.
+
+## BUG-008
+- Date: 2026-07-28
+- Area: Three-tier yellow → orange → red escalation
+- Root cause: The prior two-step caution→danger model collapsed the warning phase into a single red jump, so caregivers never saw a distinct intermediate escalation state with its own colour and sound.
+- Fix: Split the window into thirds (33% / 66% / 100%), mapped tiers to caution/warning/critical with yellow/orange/red colours and matching audio assets, and fired feedback + haptic bursts on every tier transition.
+
+## TEST-010
+- Date: 2026-07-28
+- Scope: Primary examiner-facing three-tier escalation demo
+- Verification target:
+  - `T=0s`: yellow sheet, soft caution chime, gentle vibration, sheet locked for heat, countdown from 30.
+  - `T=10s`: 600ms yellow→orange cross-fade, triple-tap haptic burst, warning tone replaces chime and loops, pill reads WARNING.
+  - `T=20s`: 600ms orange→red cross-fade, longer/faster haptic burst, critical siren replaces warning tone, pill reads CRITICAL, countdown label swaps to "NOTIFYING FAMILY IN", number grows ~15%.
+  - `T=30s`: Telegram delivered; sheet stays red until Acknowledge.
+
+## BUG-009
+- Date: 2026-07-28
+- Area: Alert countdown ring / remaining time display
+- Root cause: `_CountdownRing` painted remaining time once at build time, and `AlertService` only emits the active-alert stream on tier/state changes — so between escalations the sheet never rebuilt and the countdown number/ring froze.
+- Fix: Converted `_CountdownRing` to a StatefulWidget with a 200ms wall-clock timer that recomputes remaining time from `startedAt` + `totalSeconds` independently of stream emissions.
+
+## TEST-011
+- Date: 2026-07-28
+- Scope: Countdown motion on alert sheet
+- Verification target:
+  - On a heat test alert, the countdown number decreases every second without waiting for a tier transition.
+  - The ring progress depletes smoothly in sync with wall-clock remaining time.
+  - Countdown keeps moving across yellow → orange → red tier changes for the same `alertId`.
