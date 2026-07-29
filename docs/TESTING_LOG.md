@@ -279,3 +279,33 @@
   - Boy child card + detail header → soft blue; Girl → soft pink.
   - Warning child still uses soft red regardless of gender.
   - Avatar fill matches the gender pastel on list and detail.
+
+## BUG-019
+- Date: 2026-07-29
+- Area: Add-child Date of Birth field
+- Root cause: `_DateInputFormatter` re-sliced all digits into fixed DD/MM/YYYY positions on every keystroke, so deleting/editing a middle digit shifted later digits left and corrupted other segments (e.g. month erase pulled a year digit into the month).
+- Fix: Replaced the single masked field with three independent DD / MM / YYYY boxes, auto-advance/back-focus between segments, `_dobFromFields()` for parsing, and calendar pick filling the three controllers. Removed `_DateInputFormatter` and `_dobController`.
+
+## TEST-021
+- Date: 2026-07-29
+- Scope: Add-child segmented DOB entry
+- Verification target:
+  - Typing day then month then year advances focus at 2 / 2 digits.
+  - Backspace on empty month/year moves focus to the previous box without deleting the previous segment.
+  - Editing/deleting a digit in month does not change day or year digits.
+  - Calendar picker fills DD, MM, YYYY correctly.
+  - Invalid / out-of-range dates still show the existing `_error` messages on save or when complete.
+
+## BUG-020
+- Date: 2026-07-29
+- Area: Family page children list freshness
+- Root cause: `_ChildrenSectionState` used a one-shot `Future`/`FutureBuilder` for children. `ContactsScreen` stays alive in an `IndexedStack`, so a child added from Home never appeared until pull-to-refresh.
+- Fix: Switched Children section to `ChildService.myChildrenStream()` + `StreamBuilder`, matching Home, so Realtime updates show new children immediately. Retry/reload re-subscribes the stream.
+
+## TEST-022
+- Date: 2026-07-29
+- Scope: Family children live after Home add
+- Verification target:
+  - Add a child from Home → open Family tab without pull-to-refresh → new child appears.
+  - Retry still recovers from stream errors by re-subscribing.
+  - Empty and loading UIs unchanged.

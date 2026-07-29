@@ -752,11 +752,11 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   final ChildService _childService = ChildService();
   final FamilyService _familyService = FamilyService();
   final AuthService _auth = AuthService();
-  late Future<List<Child>> _childrenFuture = _childService.myChildren();
+  late Stream<List<Child>> _childrenStream = _childService.myChildrenStream();
 
   void reload() {
     setState(() {
-      _childrenFuture = _childService.myChildren();
+      _childrenStream = _childService.myChildrenStream();
     });
   }
 
@@ -824,8 +824,8 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF031E2A))),
           const SizedBox(height: 12),
-          FutureBuilder<List<Child>>(
-            future: _childrenFuture,
+          StreamBuilder<List<Child>>(
+            stream: _childrenStream,
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
                 return const Padding(

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../core/app_state.dart';
@@ -518,7 +517,12 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   final _name = TextEditingController();
   final _weight = TextEditingController();
   final _height = TextEditingController();
-  final _dobController = TextEditingController();
+  final _dobDayCtrl = TextEditingController();
+  final _dobMonthCtrl = TextEditingController();
+  final _dobYearCtrl = TextEditingController();
+  final _dobMonthFocus = FocusNode();
+  final _dobYearFocus = FocusNode();
+  final _dobFieldFocus = FocusNode(); // for the day field, used for back-focus
   final _childFormKey = GlobalKey<FormState>();
   DateTime? _dob;
   String _gender = kGenderOptions.first;
@@ -527,6 +531,29 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   String? _photoPath;
   File? _photoPreview;
   bool _uploadingPhoto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _dobMonthFocus.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.backspace &&
+          _dobMonthCtrl.text.isEmpty) {
+        _dobFieldFocus.requestFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+    _dobYearFocus.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.backspace &&
+          _dobYearCtrl.text.isEmpty) {
+        _dobMonthFocus.requestFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+  }
 
   Future<void> _pickChildPhoto() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -582,7 +609,12 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     _name.dispose();
     _weight.dispose();
     _height.dispose();
-    _dobController.dispose();
+    _dobDayCtrl.dispose();
+    _dobMonthCtrl.dispose();
+    _dobYearCtrl.dispose();
+    _dobMonthFocus.dispose();
+    _dobYearFocus.dispose();
+    _dobFieldFocus.dispose();
     super.dispose();
   }
 
@@ -593,18 +625,41 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     setState(() { _connecting = false; _step = 1; });
   }
 
-  DateTime? _parseDob(String input) {
-    final parts = input.split('/');
-    if (parts.length != 3) return null;
-    final d = int.tryParse(parts[0]);
-    final m = int.tryParse(parts[1]);
-    final y = int.tryParse(parts[2]);
+  DateTime? _dobFromFields() {
+    final d = int.tryParse(_dobDayCtrl.text);
+    final m = int.tryParse(_dobMonthCtrl.text);
+    final y = int.tryParse(_dobYearCtrl.text);
     if (d == null || m == null || y == null) return null;
-    if (parts[2].length != 4) return null;
+    if (_dobYearCtrl.text.length != 4) return null;
     if (m < 1 || m > 12 || d < 1 || d > 31) return null;
     final dt = DateTime(y, m, d);
     if (dt.day != d || dt.month != m || dt.year != y) return null;
     return dt;
+  }
+
+  void _syncDobFromFields() {
+    final parsed = _dobFromFields();
+    setState(() {
+      if (parsed != null && _isDobInRange(parsed)) {
+        _dob = parsed;
+        if (_error == 'Invalid date (use DD/MM/YYYY)' ||
+            _error == 'Child must be between 1 month and 12 years old') {
+          _error = null;
+        }
+        return;
+      }
+
+      _dob = null;
+      final complete = _dobDayCtrl.text.length == 2 &&
+          _dobMonthCtrl.text.length == 2 &&
+          _dobYearCtrl.text.length == 4;
+      if (!complete) return;
+      if (parsed == null) {
+        _error = 'Invalid date (use DD/MM/YYYY)';
+      } else {
+        _error = 'Child must be between 1 month and 12 years old';
+      }
+    });
   }
 
   DateTime _dobMinDate() {
@@ -634,7 +689,13 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     if (picked != null) {
       setState(() {
         _dob = picked;
-        _dobController.text = DateFormat('dd/MM/yyyy').format(picked);
+        _dobDayCtrl.text = picked.day.toString().padLeft(2, '0');
+        _dobMonthCtrl.text = picked.month.toString().padLeft(2, '0');
+        _dobYearCtrl.text = picked.year.toString();
+        if (_error == 'Invalid date (use DD/MM/YYYY)' ||
+            _error == 'Child must be between 1 month and 12 years old') {
+          _error = null;
+        }
       });
     }
   }
@@ -645,7 +706,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
       setState(() => _error = "Please enter the child's name.");
       return;
     }
-    final parsed = _parseDob(_dobController.text);
+    final parsed = _dobFromFields();
     if (parsed == null) {
       setState(() => _error = 'Invalid date (use DD/MM/YYYY)');
       return;
@@ -708,6 +769,24 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+      ),
+    );
+  }
+
+  InputDecoration _dobBoxDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      counterText: '',
+      filled: true,
+      fillColor: AppColors.field,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
     );
   }
@@ -831,52 +910,107 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _dobController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_DateInputFormatter()],
-                        decoration: InputDecoration(
-                          labelText: 'Date of Birth',
-                          hintText: 'DD/MM/YYYY',
-                          filled: true,
-                          fillColor: AppColors.field,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 14,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: const Icon(
-                              Icons.calendar_today,
-                              size: 20,
-                              color: AppColors.textSecondary,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Date of Birth',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.navy.withAlpha(180),
                             ),
-                            onPressed: _saving ? null : _pickDob,
                           ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a date of birth';
-                          }
-                          final parsed = _parseDob(value);
-                          if (parsed == null) {
-                            return 'Invalid date (use DD/MM/YYYY)';
-                          }
-                          if (!_isDobInRange(parsed)) {
-                            return 'Child must be between 1 month and 12 years old';
-                          }
-                          return null;
-                        },
-                        onChanged: (value) {
-                          final parsed = _parseDob(value);
-                          _dob = (parsed != null && _isDobInRange(parsed))
-                              ? parsed
-                              : null;
-                        },
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _dobDayCtrl,
+                                  focusNode: _dobFieldFocus,
+                                  enabled: !_saving,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  maxLength: 2,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: _dobBoxDecoration('DD'),
+                                  onChanged: (value) {
+                                    if (value.length == 2) {
+                                      _dobMonthFocus.requestFocus();
+                                    }
+                                    _syncDobFromFields();
+                                  },
+                                ),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                child: Text('/',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    )),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _dobMonthCtrl,
+                                  focusNode: _dobMonthFocus,
+                                  enabled: !_saving,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  maxLength: 2,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: _dobBoxDecoration('MM'),
+                                  onChanged: (value) {
+                                    if (value.length == 2) {
+                                      _dobYearFocus.requestFocus();
+                                    }
+                                    _syncDobFromFields();
+                                  },
+                                ),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                child: Text('/',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    )),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: TextFormField(
+                                  controller: _dobYearCtrl,
+                                  focusNode: _dobYearFocus,
+                                  enabled: !_saving,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  maxLength: 4,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: _dobBoxDecoration('YYYY'),
+                                  onChanged: (_) => _syncDobFromFields(),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.calendar_today,
+                                  size: 20,
+                                  color: AppColors.textSecondary,
+                                ),
+                                onPressed: _saving ? null : _pickDob,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       GenderSelector(
@@ -1424,40 +1558,4 @@ class _WaveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => true;
-}
-
-class _DateInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final rawBeforeCursor =
-        newValue.text.substring(0, newValue.selection.end.clamp(0, newValue.text.length));
-    final digitsBeforeCursor =
-        rawBeforeCursor.replaceAll(RegExp(r'[^0-9]'), '').length;
-
-    var digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length > 8) digits = digits.substring(0, 8);
-
-    final buf = StringBuffer();
-    for (int i = 0; i < digits.length; i++) {
-      if (i == 2 || i == 4) buf.write('/');
-      buf.write(digits[i]);
-    }
-    final text = buf.toString();
-
-    var seenDigits = 0;
-    var cursor = text.length;
-    for (int i = 0; i < text.length; i++) {
-      if (seenDigits >= digitsBeforeCursor) {
-        cursor = i;
-        break;
-      }
-      if (text[i] != '/') seenDigits++;
-    }
-
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: cursor),
-    );
-  }
 }
