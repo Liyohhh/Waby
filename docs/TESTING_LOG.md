@@ -237,3 +237,18 @@
   - Edit Child form loads the saved value and updates it correctly.
   - Home and Contacts child profile surfaces show the saved Boy/Girl value alongside the child details.
   - Existing rows with null gender still load without crashing.
+
+## BUG-016
+- Date: 2026-07-29
+- Area: Home child card gender theme
+- Root cause: Home `_ChildCard` header used one blue gradient for all non-warning children, so Boy/Girl was only text and not reflected in the card chrome.
+- Fix: Pass `gender` into `_ChildCard` and theme the header/shadow a light pink (`#F4A8C5` → `#FCE8F1`) for Girl when not in warning; warning red still wins over gender decoration. Status/Buckled/Near/Battery pills unchanged.
+
+## TEST-018
+- Date: 2026-07-29
+- Scope: Home child card gender-coloured header
+- Verification target:
+  - Boy (or null gender) + SAFE/CAUTION → blue card header.
+  - Girl + SAFE/CAUTION → pink card header.
+  - Girl + WARNING → red warning header (not pink).
+  - SAFE/CAUTION/WARNING badge and Buckled/Near/Battery pills still follow status only.

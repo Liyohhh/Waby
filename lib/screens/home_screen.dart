@@ -248,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   near: seed?.near ?? rawLive.distanceNear,
                                   battery: seed?.battery ?? rawLive.battery,
                                   photoPath: c.photoPath,
+                                  gender: seed?.gender ?? c.gender,
                                 );
                               }),
                               const SizedBox(height: 16),
@@ -1081,6 +1082,7 @@ class _ChildCard extends StatelessWidget {
   final bool near;
   final int battery;
   final String? photoPath;
+  final String? gender;
 
   const _ChildCard({
     required this.name,
@@ -1092,6 +1094,7 @@ class _ChildCard extends StatelessWidget {
     required this.near,
     required this.battery,
     this.photoPath,
+    this.gender,
   });
 
   Color get _badgeColor => switch (status) {
@@ -1114,23 +1117,39 @@ class _ChildCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final warning = present && status == _CardStatus.warning;
+    final isGirl = gender == 'Girl';
 
+    // Gender is purely decorative on the card's own background — it never
+    // touches the SAFE/CAUTION/WARNING pill or the Buckled/Near/Battery
+    // pills below, and a warning state always wins over the gender theme
+    // since that red is a safety signal, not decoration.
     final headerGradient = warning
         ? const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [Color(0xFFE0685F), Color(0xFFC2291D)],
           )
-        : const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            // Lighter take on kHeaderGradient (headerTop → headerBottom)
-            colors: [Color(0xFF4DBAD4), Color(0xFFA8E0EF)],
-            stops: [0.31, 0.88],
-          );
+        : isGirl
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFF4A8C5), Color(0xFFFCE8F1)],
+                stops: [0.31, 0.88],
+              )
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                // Lighter take on kHeaderGradient (headerTop → headerBottom)
+                colors: [Color(0xFF4DBAD4), Color(0xFFA8E0EF)],
+                stops: [0.31, 0.88],
+              );
 
-    final shadowColor =
-        (warning ? const Color(0xFFC2291D) : AppColors.headerTop).withAlpha(36);
+    final shadowColor = (warning
+            ? const Color(0xFFC2291D)
+            : isGirl
+                ? const Color(0xFFF4A8C5)
+                : AppColors.headerTop)
+        .withAlpha(36);
 
     return Container(
       decoration: BoxDecoration(
