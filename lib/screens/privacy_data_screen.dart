@@ -51,8 +51,8 @@ class PrivacyDataScreen extends StatelessWidget {
               _infoRow(
                 icon: Icons.child_care,
                 heading: 'Child profile',
-                body: 'Your child\'s name, date of birth, and optional height '
-                    'and weight.',
+                body: 'Your child\'s name, date of birth, Boy/Girl selection, '
+                    'and optional height and weight.',
               ),
               _divider(),
               _infoRow(

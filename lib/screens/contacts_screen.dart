@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_state.dart';
-import '../core/demo_data.dart';
+import '../core/constants.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
 import '../models/contact.dart';
@@ -16,6 +16,7 @@ import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../widgets/contact_status_badge.dart';
+import '../widgets/gender_selector.dart';
 import '../widgets/signed_avatar.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -720,6 +721,7 @@ class _ChildProfile {
     required this.dob,
     required this.battery,
     required this.isWarning,
+    this.gender,
     this.weightKg,
     this.heightCm,
     this.photoPath,
@@ -731,6 +733,7 @@ class _ChildProfile {
   DateTime dob;
   int battery;
   bool isWarning;
+  String? gender;
   double? weightKg;
   double? heightCm;
   String? photoPath;
@@ -783,6 +786,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         dob: o.dob,
         battery: o.battery,
         isWarning: o.isWarning,
+        gender: o.gender,
         weightKg: o.weightKg,
         heightCm: o.heightCm,
         photoPath: o.photoPath ?? c.photoPath,
@@ -800,6 +804,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
       battery: seed?.battery ?? 88,
       isWarning: seed?.status == SeatSeverity.warning,
+      gender: c.gender ?? seed?.gender,
       weightKg: c.weightKg,
       heightCm: c.heightCm,
       photoPath: c.photoPath,
@@ -1056,13 +1061,14 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       useSafeArea: true,
       builder: (_) => _ChildEditSheet(
         child: child,
-        onSave: (name, dob, weight, height) async {
+        onSave: (name, dob, gender, weight, height) async {
           final w = double.tryParse(weight);
           final h = double.tryParse(height);
           await ChildService().updateChild(
             id: child.id,
             name: name,
             dob: dob,
+            gender: gender,
             weightKg: w,
             heightCm: h,
           );
@@ -1070,6 +1076,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
           setState(() {
             child.name = name;
             child.dob = dob;
+            child.gender = gender;
             child.weightKg = w;
             child.heightCm = h;
             _localOverrides[child.id] = child;
@@ -1189,14 +1196,17 @@ class _ChildDetailSheet extends StatelessWidget {
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700)),
                         const SizedBox(height: 4),
-                        Text(child.ageLabel,
+                        Text([child.ageLabel, if (child.gender != null && child.gender!.isNotEmpty) child.gender!].join(' · '),
                             style: const TextStyle(
                                 color: Colors.white70, fontSize: 13)),
-                        if (child.weightKg != null ||
+                        if (child.gender != null ||
+                            child.weightKg != null ||
                             child.heightCm != null) ...[
                           const SizedBox(height: 4),
                           Text(
                             [
+                              if (child.gender != null && child.gender!.isNotEmpty)
+                                child.gender!,
                               if (child.weightKg != null)
                                 '${child.weightKg!.toStringAsFixed(1)} kg',
                               if (child.heightCm != null)
@@ -1600,6 +1610,7 @@ class _ChildEditSheet extends StatefulWidget {
   final Future<void> Function(
     String name,
     DateTime dob,
+    String gender,
     String weight,
     String height,
   ) onSave;
@@ -1616,6 +1627,7 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
   late final TextEditingController _weightCtrl;
   late final TextEditingController _heightCtrl;
   late DateTime _selectedDob;
+  late String _gender;
   bool _saving = false;
   String? _photoPath;
   File? _photoPreview;
@@ -1632,6 +1644,7 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
       text: widget.child.heightCm?.toStringAsFixed(0) ?? '',
     );
     _selectedDob = widget.child.dob;
+    _gender = widget.child.gender ?? kGenderOptions.first;
     _photoPath = widget.child.photoPath;
   }
 
@@ -1737,6 +1750,7 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
       await widget.onSave(
         _nameCtrl.text.trim(),
         _selectedDob,
+        _gender,
         _weightCtrl.text.trim(),
         _heightCtrl.text.trim(),
       );
@@ -1855,6 +1869,16 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
                                       color: AppColors.textSecondary, size: 18),
                                 ],
                               ),
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 14),
+                        _section([
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                            child: GenderSelector(
+                              value: _gender,
+                              onChanged: (value) => setState(() => _gender = value),
                             ),
                           ),
                         ]),

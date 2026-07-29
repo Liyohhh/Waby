@@ -6,6 +6,7 @@ class DemoChildSeed {
     required this.name,
     required this.deviceName,
     required this.dob,
+    required this.gender,
     required this.weightKg,
     required this.heightCm,
     required this.status,
@@ -17,6 +18,7 @@ class DemoChildSeed {
   final String name;
   final String deviceName;
   final DateTime dob;
+  final String gender;
   final double weightKg;
   final double heightCm;
   final SeatSeverity status;
@@ -58,6 +60,7 @@ class DemoAccount {
       name: 'Jason Tan',
       deviceName: "Jason's Seat",
       dob: DateTime(2026, 1, 15),
+      gender: 'Boy',
       weightKg: 8.5,
       heightCm: 73,
       status: SeatSeverity.safe,
@@ -69,6 +72,7 @@ class DemoAccount {
       name: 'Nur Alysha',
       deviceName: "Alysha's Seat",
       dob: DateTime(2025, 3, 20),
+      gender: 'Girl',
       weightKg: 7.2,
       heightCm: 68,
       status: SeatSeverity.warning,

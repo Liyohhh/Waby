@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../core/app_state.dart';
-import '../core/demo_data.dart';
+import '../core/constants.dart';
 import '../core/theme.dart';
 import '../models/child.dart';
 import '../models/seat_status.dart';
@@ -16,6 +16,7 @@ import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
+import '../widgets/gender_selector.dart';
 import '../widgets/low_battery_banner.dart';
 import '../widgets/signed_avatar.dart';
 import '../widgets/status_pill.dart';
@@ -98,8 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'DOB: ${d.day} ${m[d.month - 1]} ${d.year}';
   }
 
-  String _formatDetails(double? w, double? h) {
+  String _formatDetails(String? gender, double? w, double? h) {
     final parts = <String>[];
+    if (gender != null && gender.isNotEmpty) parts.add(gender);
     if (w != null) parts.add('${w.toStringAsFixed(1)} kg');
     if (h != null) parts.add('${h.toStringAsFixed(0)} cm');
     return parts.join(' · ');
@@ -238,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   name: c.name,
                                   dob: _formatDob(c.dob),
                                   details:
-                                      _formatDetails(c.weightKg, c.heightCm),
+                                      _formatDetails(seed?.gender ?? c.gender, c.weightKg, c.heightCm),
                                   status: _mapSeverity(
                                       seed?.status ?? rawLive.severity),
                                   present: seed?.present ?? rawLive.present,
@@ -518,6 +520,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
   final _dobController = TextEditingController();
   final _childFormKey = GlobalKey<FormState>();
   DateTime? _dob;
+  String _gender = kGenderOptions.first;
 
   String? _childId;
   String? _photoPath;
@@ -657,6 +660,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
         deviceName: 'Waby Seat',
         childName: _name.text.trim(),
         dob: _dob,
+        gender: _gender,
         weightKg: double.tryParse(_weight.text),
         heightCm: double.tryParse(_height.text),
         childId: _childId,
@@ -872,6 +876,13 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                               ? parsed
                               : null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      GenderSelector(
+                        value: _gender,
+                        onChanged: _saving
+                            ? (_) {}
+                            : (value) => setState(() => _gender = value),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(

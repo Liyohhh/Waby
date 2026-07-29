@@ -28,6 +28,7 @@ class ChildService {
     required String id,
     String? name,
     DateTime? dob,
+    String? gender,
     double? weightKg,
     double? heightCm,
   }) async {
@@ -35,6 +36,7 @@ class ChildService {
       'weight_kg': weightKg,
       'height_cm': heightCm,
     };
+    if (gender != null) data['gender'] = gender;
     if (name != null) data['name'] = name;
     if (dob != null) data['dob'] = dob.toIso8601String().split('T').first;
     await _db.from('children').update(data).eq('id', id);

@@ -222,3 +222,18 @@
 - Verification target:
   - Register and Profile country pickers show Australia … Vietnam in A–Z order.
   - Existing saved country still selects correctly if it remains in the list.
+
+## BUG-015
+- Date: 2026-07-29
+- Area: Child profile gender data
+- Root cause: Child records only stored name, DOB, height, weight, and photo, so caregivers could not record Boy/Girl and child profile surfaces had no place to show it.
+- Fix: Added nullable `gender` across the child model and Supabase write paths, created a Boy/Girl selector for add/edit child forms, surfaced gender in Home/Contacts child displays, updated demo seeds, and added a SQL migration for `children.gender`.
+
+## TEST-017
+- Date: 2026-07-29
+- Scope: Boy/Girl child profile option
+- Verification target:
+  - Add Child form defaults to Boy and lets the user switch between Boy and Girl before saving.
+  - Edit Child form loads the saved value and updates it correctly.
+  - Home and Contacts child profile surfaces show the saved Boy/Girl value alongside the child details.
+  - Existing rows with null gender still load without crashing.

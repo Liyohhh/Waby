@@ -1,5 +1,7 @@
 export 'demo_data.dart';
 
+const List<String> kGenderOptions = ['Boy', 'Girl'];
+
 const List<String> kCountryOptions = [
   'Australia',
   'Brunei',

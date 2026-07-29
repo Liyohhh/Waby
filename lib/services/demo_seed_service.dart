@@ -54,6 +54,7 @@ class DemoSeedService {
           deviceName: seed.deviceName,
           childName: seed.name,
           dob: seed.dob,
+          gender: seed.gender,
           weightKg: seed.weightKg,
           heightCm: seed.heightCm,
         );
