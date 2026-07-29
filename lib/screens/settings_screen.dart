@@ -12,6 +12,7 @@ import '../services/family_service.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/invite_family_sheet.dart';
 import '../widgets/signed_avatar.dart';
+import 'car_settings_screen.dart';
 import 'existing_or_new_family_screen.dart';
 import 'help_support_screen.dart';
 import 'login_screen.dart';
@@ -260,6 +261,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _navRow(Icons.people_outlined, 'Family Management',
                         subtitle: _memberSubtitle,
                         onTap: () => _showFamilyManagement()),
+                    _divider(),
+                    _navRow(Icons.directions_car_outlined, 'Car Profiles',
+                        onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const CarSettingsScreen()),
+                            )),
                   ]),
 
                   // ── Support & Safety ───────────────────────────────────

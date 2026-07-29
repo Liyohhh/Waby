@@ -10,6 +10,7 @@ import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../widgets/signed_avatar.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/phone_number_field.dart';
 import '../widgets/picker_sheet.dart';
 
 /// Edit profile screen for the account owner (Mom / primary caregiver).
@@ -116,6 +117,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+      AppState.mainTabIndex.value = 2; // Settings tab
+      Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -268,12 +273,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         hint: 'What should we call you?',
                       ),
                       _divider(),
-                      _fieldRow(
-                        label: 'Phone Number',
-                        icon: Icons.phone_outlined,
-                        controller: _phoneCtrl,
-                        hint: 'e.g. +60 12 345 6789',
-                        keyboard: TextInputType.phone,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _iconBubble(Icons.phone_outlined),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: PhoneNumberField(
+                                controller: _phoneCtrl,
+                                validator: (v) {
+                                  final digits = (v ?? '').trim();
+                                  if (digits.isEmpty) {
+                                    return 'Please enter a phone number';
+                                  }
+                                  if (digits.length < 7 || digits.length > 11) {
+                                    return 'Enter a valid phone number';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ]),
                     const SizedBox(height: 16),

@@ -309,3 +309,139 @@
   - Add a child from Home → open Family tab without pull-to-refresh → new child appears.
   - Retry still recovers from stream errors by re-subscribing.
   - Empty and loading UIs unchanged.
+
+## BUG-021
+- Date: 2026-07-29
+- Area: Family page members and emergency contacts freshness
+- Root cause: Family members and emergency contacts used one-shot Futures/`FutureBuilder`s while `ContactsScreen` stays alive in an `IndexedStack`, so adds/edits/removes elsewhere did not appear until pull-to-refresh.
+- Fix: Wired `FamilyService.familyMembersStream()` and `ContactService.contactsStream()` into `StreamBuilder`s; reload re-subscribes. Invite-code lookup left as a one-shot Future.
+
+## TEST-023
+- Date: 2026-07-29
+- Scope: Family members and contacts live updates
+- Verification target:
+  - Add/remove a family member elsewhere → Family page updates without pull-to-refresh.
+  - Add/edit/remove an emergency contact → Family page updates without pull-to-refresh.
+  - Pull-to-refresh and Retry still re-subscribe cleanly.
+  - Join code card still loads via its one-shot Future.
+
+## BUG-022
+- Date: 2026-07-29
+- Area: Stale profile avatar/name after sign-out
+- Root cause: `AppState.greetingName` and `AppState.avatarPath` are process-wide `ValueNotifier`s never cleared on sign-out. Home only re-fetches avatar when the cached value is null, so Account B after Account A kept A's photo (and briefly name) in the same session.
+- Fix: Clear both notifiers in `AuthService.signOut()`, and refresh avatar path alongside greeting name in `routeAfterAuth()`.
+
+## TEST-024
+- Date: 2026-07-29
+- Scope: Profile cache cleared across accounts
+- Verification target:
+  - Sign in as account with a photo → sign out → create/sign in as a new account → Home shows no previous avatar (or the new account's own).
+  - Greeting name updates to the new account after `routeAfterAuth`.
+
+## BUG-023
+- Date: 2026-07-29
+- Area: Join-family confirmation before write
+- Root cause: Entering an invite code called `joinFamily` immediately, so users joined before seeing which family the code belonged to.
+- Fix: Added `FamilyService.lookupFamilyByCode` (RPC already deployed) and a two-step join dialog — lookup then Confirm — so the DB join only runs after confirmation.
+
+## TEST-025
+- Date: 2026-07-29
+- Scope: Join family confirm step
+- Verification target:
+  - Valid code → "Join this family? You are about to join '<name>'." before any join write.
+  - Confirm → joins and shows Joined! success dialog.
+  - Back returns to code entry without closing the dialog.
+  - Invalid code still shows "Invalid invite code" SnackBar at lookup.
+
+## BUG-024
+- Date: 2026-07-29
+- Area: Phone number entry UX
+- Root cause: Register, Profile, and Add Emergency Contact used free-text phone fields, so users typed dial codes manually and formats were inconsistent.
+- Fix: Added `kCountryDialCodes` + reusable `PhoneNumberField` (flag + dial code picker + local digits) that keeps `controller.text` as a single stored string like `+60123456789`.
+
+## TEST-026
+- Date: 2026-07-29
+- Scope: Country-code phone field
+- Verification target:
+  - Register with Singapore +65 stores/displays the correct combined number.
+  - Profile prefills an existing saved phone with the right flag/code and local digits.
+  - Add Emergency Contact uses the same picker and still saves via the unchanged ContactService API.
+
+## BUG-025
+- Date: 2026-07-29
+- Area: Profile save return tab
+- Root cause: Profile is pushed from Home or Settings, but MainScreen kept tab index as private state — after save from Home, popping returned to Home instead of Settings.
+- Fix: Added `AppState.mainTabIndex` and drove MainScreen's IndexedStack/BottomNavigationBar from it; after a successful Profile save, set tab to Settings (2) then pop.
+
+## TEST-027
+- Date: 2026-07-29
+- Scope: Profile save lands on Settings
+- Verification target:
+  - Home avatar → Profile → Save → after "Profile saved", lands on Settings tab.
+  - Settings → Profile → Save → lands on Settings tab.
+  - Failed save stays on Profile.
+
+## BUG-026
+- Date: 2026-07-29
+- Area: Phone country picker visuals
+- Root cause: Dial-code UI used national flag emojis, which looked casual and inconsistent across platforms.
+- Fix: Removed flag emojis from `CountryDialCode`; selector and sheet now use a Material `Icons.public` globe icon (circular bubble in the list) while still showing country name + dial code.
+
+## TEST-028
+- Date: 2026-07-29
+- Scope: Professional dial-code icons
+- Verification target:
+  - Register / Profile / Add Emergency Contact phone field shows globe icon + dial code (no flag emoji).
+  - Country sheet lists countries with globe icon bubbles; selecting still stores `+XX...` correctly.
+## BUG-027
+- Date: 2026-07-29
+- Area: Car profiles + active-car prompt + Telegram car mention
+- Root cause: App had no client for the new `cars` / `families.active_car_id` backend, so caregivers could not save cars or have alerts name which vehicle was in use.
+- Fix: Added `Car` model, `CarService`, FamilyService active-car getters/RPC, Car Profiles settings UI, MainScreen "Which car today?" prompt, and append `Car: <name>.` on Telegram escalate messages (refreshing active car name at escalate time).
+
+## TEST-029
+- Date: 2026-07-29
+- Scope: Car profiles end-to-end
+- Verification target:
+  - Settings → Car Profiles → add two cars with different colors; set one current.
+  - Kill/reopen app → "Which car today?" shows current name; Change lists both with swatches.
+  - Escalated Telegram alert includes `Car: <name>.` when an active car is set.
+
+## BUG-028
+- Date: 2026-07-29
+- Area: Car number plate on profiles
+- Root cause: Car profiles only stored name + color, so cars with the same model could not be told apart in the UI or Telegram alerts.
+- Fix: Added optional `number_plate` (model/service/form/list/picker) and `Car.displayLabel` for Telegram; SQL migration `20260729_add_cars_number_plate.sql` must be applied in Supabase.
+
+## TEST-030
+- Date: 2026-07-29
+- Scope: Car number plate
+- Verification target:
+  - Apply migration, then Add/Edit car with plate e.g. ABC 1234 — list shows plate under name.
+  - "Which car today?" / picker shows plate; Telegram escalate includes `Car: Name (PLATE).` when plate set.
+
+## BUG-029
+- Date: 2026-07-29
+- Area: Car plate_number field alignment
+- Root cause: Client used `number_plate` / non-null String while backend column is nullable `plate_number`.
+- Fix: Switched model/service/UI/Telegram to optional `plateNumber` mapped from `plate_number`; list/picker show plate separately; Telegram uses `Car: Name (PLATE).`.
+
+## TEST-031
+- Date: 2026-07-29
+- Scope: plate_number end-to-end
+- Verification target:
+  - Add/edit car with optional plate — list and which-car picker show plate.
+  - Telegram escalate reads `...Car: Honda City (ABC 1234).` when plate set.
+
+## BUG-030
+- Date: 2026-07-29
+- Area: Home header active-car plate badge
+- Root cause: Home wave header showed only the car image, with no cue which vehicle was active.
+- Fix: Load active car via FamilyService/CarService on Home init; shrink/raise car image and show a white plate badge under it when `plateNumber` is set.
+
+## TEST-032
+- Date: 2026-07-29
+- Scope: Home plate badge
+- Verification target:
+  - Active car with plate → badge under smaller car on Home header.
+  - Clear plate (or no active car) → badge gone, car image alone.

@@ -6,6 +6,7 @@ import '../core/relations.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/phone_number_field.dart';
 import '../widgets/picker_sheet.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -263,18 +264,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Phone Number
                     _fieldLabel('Phone Number'),
                     const SizedBox(height: 8),
-                    TextFormField(
+                    PhoneNumberField(
                       controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: _fieldDecoration(
-                        hint: 'e.g. +60 12 345 6789',
-                        prefix: Icons.phone_outlined,
-                      ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
+                        final digits = (v ?? '').trim();
+                        if (digits.isEmpty) {
                           return 'Please enter a phone number';
                         }
-                        if (!RegExp(r'^[0-9+\s]{7,15}$').hasMatch(v.trim())) {
+                        if (digits.length < 7 || digits.length > 11) {
                           return 'Enter a valid phone number';
                         }
                         return null;

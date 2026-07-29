@@ -24,6 +24,24 @@ class FamilyService {
     return row?['family_id'] as String?;
   }
 
+  /// The family's currently active car id — null if none set.
+  Future<String?> getActiveCarId() async {
+    final fid = await myFamilyId();
+    if (fid == null) return null;
+    final row = await _db
+        .from('families')
+        .select('active_car_id')
+        .eq('id', fid)
+        .maybeSingle();
+    return row?['active_car_id'] as String?;
+  }
+
+  /// Sets (or clears, if null) the family's active car via the
+  /// set_active_car RPC — direct writes to `families` are blocked by RLS.
+  Future<void> setActiveCar(String? carId) async {
+    await _db.rpc('set_active_car', params: {'p_car_id': carId});
+  }
+
   Future<String?> getInviteCode() async {
     final familyId = await myFamilyId();
     if (familyId == null) return null;
@@ -45,6 +63,16 @@ class FamilyService {
 
   Future<void> createFamily(String name) async {
     await _db.rpc('create_family', params: {'p_name': name});
+  }
+
+  /// Looks up a family's name by invite code WITHOUT joining — used to
+  /// show a confirmation step before the user commits to joining.
+  Future<String> lookupFamilyByCode(String code) async {
+    final normalized = normalizeInviteCode(code);
+    final result = await _db
+        .rpc('lookup_family_by_code', params: {'p_code': normalized}) as List;
+    final row = result.first as Map<String, dynamic>;
+    return (row['family_name'] as String?) ?? 'this family';
   }
 
   /// Joins a family by invite code and returns the family's name for a

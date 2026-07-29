@@ -30,21 +30,21 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen> {
   final Future<String?> _inviteCode = FamilyService().getInviteCode();
-  late Future<List<Map<String, dynamic>>> _familyMembersFuture =
-      FamilyService().fetchFamilyMembers();
-  late Future<List<Contact>> _contactsFuture = ContactService().contactsList();
+  late Stream<List<Map<String, dynamic>>> _familyMembersStream =
+      FamilyService().familyMembersStream();
+  late Stream<List<Contact>> _contactsStream = ContactService().contactsStream();
   final GlobalKey<_ChildrenSectionState> _childrenKey =
       GlobalKey<_ChildrenSectionState>();
 
   void _reloadMembers() {
     setState(() {
-      _familyMembersFuture = FamilyService().fetchFamilyMembers();
+      _familyMembersStream = FamilyService().familyMembersStream();
     });
   }
 
   void _reloadContacts() {
     setState(() {
-      _contactsFuture = ContactService().contactsList();
+      _contactsStream = ContactService().contactsStream();
     });
   }
 
@@ -143,8 +143,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
             style: TextStyle(fontSize: 11, color: Color(0x8C031E2A)),
           ),
           const SizedBox(height: 12),
-          FutureBuilder<List<Map<String, dynamic>>>(
-            future: _familyMembersFuture,
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _familyMembersStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -241,8 +241,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          FutureBuilder<List<Contact>>(
-            future: _contactsFuture,
+          StreamBuilder<List<Contact>>(
+            stream: _contactsStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());

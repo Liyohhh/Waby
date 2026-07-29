@@ -7,9 +7,11 @@ import 'package:uuid/uuid.dart';
 import '../core/app_state.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
+import '../models/car.dart';
 import '../models/child.dart';
 import '../models/seat_status.dart';
 import '../services/auth_service.dart';
+import '../services/car_service.dart';
 import '../services/child_service.dart';
 import '../services/device_service.dart';
 import '../services/family_service.dart';
@@ -44,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final String _greetingName = AppState.greetingName.value ?? 'there';
   bool _demoFamily = false;
+  Car? _activeCar;
   int? _lastDismissedAtBattery;
 
   @override
@@ -51,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadUserName();
     _loadDemoFamily();
+    _loadActiveCar();
     _loadLowBatteryBannerState();
   }
 
@@ -66,6 +70,27 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadDemoFamily() async {
     final v = await FamilyService().isDemoFamily();
     if (mounted) setState(() => _demoFamily = v);
+  }
+
+  Future<void> _loadActiveCar() async {
+    try {
+      final activeId = await FamilyService().getActiveCarId();
+      if (activeId == null) {
+        if (mounted) setState(() => _activeCar = null);
+        return;
+      }
+      final cars = await CarService().myCars();
+      Car? match;
+      for (final c in cars) {
+        if (c.id == activeId) {
+          match = c;
+          break;
+        }
+      }
+      if (mounted) setState(() => _activeCar = match);
+    } catch (_) {
+      // Non-fatal — header just won't show a plate badge.
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -339,17 +364,45 @@ class _HomeScreenState extends State<HomeScreen> {
         Positioned(
           left: 210,
           right: -15,
-          top: 95,
+          top: 78,
           bottom: 0,
           child: Center(
-              child: RotatedBox(
-              quarterTurns: 1, // +90° → front of car faces up
-              child: Image.asset(
-                'assets/images/car_pic_on_top.png',
-                height: 85, // controls visual width after rotation
-                fit: BoxFit.contain,
-                errorBuilder: (c, e, s) => const SizedBox(),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RotatedBox(
+                  quarterTurns: 1, // +90° → front of car faces up
+                  child: Image.asset(
+                    'assets/images/car_pic_on_top.png',
+                    height: 62, // smaller, so it clears the wave comfortably
+                    fit: BoxFit.contain,
+                    errorBuilder: (c, e, s) => const SizedBox(),
+                  ),
+                ),
+                if (_activeCar?.plateNumber != null &&
+                    _activeCar!.plateNumber!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: const Color(0xFF031E2A), width: 1),
+                    ),
+                    child: Text(
+                      _activeCar!.plateNumber!.toUpperCase(),
+                      style: const TextStyle(
+                        color: Color(0xFF031E2A),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

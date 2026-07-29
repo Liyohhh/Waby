@@ -354,6 +354,8 @@ class _JoinFamilyDialog extends StatefulWidget {
 class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
   final _codeCtrl = TextEditingController();
   bool _loading = false;
+  int _step = 0; // 0 = enter code, 1 = confirm
+  String? _foundFamilyName;
 
   @override
   void dispose() {
@@ -361,14 +363,40 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
     super.dispose();
   }
 
-  Future<void> _join() async {
+  Future<void> _lookup() async {
     final code = _codeCtrl.text.trim();
     if (code.isEmpty) return;
 
     setState(() => _loading = true);
     try {
-      final familyName = await FamilyService().joinFamily(code);
+      final name = await FamilyService().lookupFamilyByCode(code);
       if (!mounted) return;
+      setState(() {
+        _foundFamilyName = name;
+        _step = 1;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid invite code'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _confirmJoin() async {
+    final code = _codeCtrl.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() => _loading = true);
+    try {
+      await FamilyService().joinFamily(code);
+      if (!mounted) return;
+      final familyName = _foundFamilyName ?? 'your family';
       final navigator = Navigator.of(context);
       navigator.pop();
 
@@ -406,6 +434,41 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (_step == 1) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Join this family?',
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.navy)),
+        content: Text(
+          'You are about to join "$_foundFamilyName". Is this correct?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => setState(() => _step = 0),
+            child: const Text('Back'),
+          ),
+          ElevatedButton(
+            onPressed: _loading ? null : _confirmJoin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _loading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Text('Confirm'),
+          ),
+        ],
+      );
+    }
+
     return AlertDialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -429,7 +492,7 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
             borderSide: BorderSide.none,
           ),
         ),
-        onSubmitted: (_) => _loading ? null : _join(),
+        onSubmitted: (_) => _loading ? null : _lookup(),
       ),
       actions: [
         TextButton(
@@ -437,7 +500,7 @@ class _JoinFamilyDialogState extends State<_JoinFamilyDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: _loading ? null : _join,
+          onPressed: _loading ? null : _lookup,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.navy,
             foregroundColor: Colors.white,

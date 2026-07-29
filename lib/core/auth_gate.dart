@@ -20,6 +20,8 @@ Future<void> routeAfterAuth(BuildContext context) async {
     try {
       final name = await AuthService().getGreetingName();
       AppState.greetingName.value = name;
+      final profile = await AuthService().getProfile();
+      AppState.avatarPath.value = profile?['avatar_path'] as String?;
     } catch (_) {
       // Non-fatal — HomeScreen falls back to its own fetch if this is null.
     }

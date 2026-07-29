@@ -9,6 +9,7 @@ import 'package:vibration/vibration.dart';
 import '../models/child.dart';
 import '../models/seat_status.dart';
 import 'alert_feedback_service.dart';
+import 'car_service.dart';
 import 'child_service.dart';
 import 'live_service.dart';
 import 'push_notification_service.dart';
@@ -66,7 +67,9 @@ class AlertService {
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       unawaited(_tick());
     });
-    unawaited(refreshAlertTimerSetting().then((_) => _loadFamilyId()));
+    unawaited(refreshAlertTimerSetting()
+        .then((_) => _loadFamilyId())
+        .then((_) => _loadActiveCarName()));
   }
   static final AlertService instance = AlertService._internal();
 
@@ -82,6 +85,8 @@ class AlertService {
   int _alertTimerSeconds = 60;
   bool _sheetOpen = false;
   String? _familyId;
+  String? _activeCarName;
+  String? _activeCarPlate;
   String _primaryChildId = 'primary-child';
   String _primaryChildName = 'Your child';
   final Map<String, _PendingAlert> _pending = {};
@@ -117,6 +122,35 @@ class AlertService {
           .eq('id', userId)
           .maybeSingle();
       _familyId = data?['family_id'] as String?;
+    } catch (_) {
+      // Keep previous/null value on failure.
+    }
+  }
+
+  Future<void> _loadActiveCarName() async {
+    try {
+      if (_familyId == null) return;
+      final row = await Supabase.instance.client
+          .from('families')
+          .select('active_car_id')
+          .eq('id', _familyId!)
+          .maybeSingle();
+      final carId = row?['active_car_id'] as String?;
+      if (carId == null) {
+        _activeCarName = null;
+        _activeCarPlate = null;
+        return;
+      }
+      final cars = await CarService().myCars();
+      for (final c in cars) {
+        if (c.id == carId) {
+          _activeCarName = c.name;
+          _activeCarPlate = c.plateNumber;
+          return;
+        }
+      }
+      _activeCarName = null;
+      _activeCarPlate = null;
     } catch (_) {
       // Keep previous/null value on failure.
     }
@@ -504,11 +538,16 @@ class AlertService {
       final familyId = _familyId;
       if (familyId == null) return;
 
+      await _loadActiveCarName();
+
       final response = await Supabase.instance.client.functions.invoke(
         'send-telegram-alert',
         body: {
           'event': _eventNameFor(alert.reason),
-          'message': alert.message,
+          'message': _activeCarName != null && _activeCarName!.isNotEmpty
+              ? '${alert.message} Car: $_activeCarName'
+                  '${_activeCarPlate != null && _activeCarPlate!.isNotEmpty ? " ($_activeCarPlate)" : ""}.'
+              : alert.message,
           'family_id': familyId,
         },
       );

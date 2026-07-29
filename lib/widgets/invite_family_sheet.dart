@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/relations.dart';
 import '../core/theme.dart';
+import '../widgets/phone_number_field.dart';
 import '../widgets/picker_sheet.dart';
 
 /// Slide-up sheet for adding an emergency contact. This does NOT create an
@@ -122,9 +123,7 @@ class _InviteFamilySheetState extends State<InviteFamilySheet> {
                 const SizedBox(height: 16),
                 _fieldLabel('Phone number'),
                 const SizedBox(height: 8),
-                _field(_phoneCtrl,
-                    hint: 'e.g. +60 12 345 6789',
-                    keyboard: TextInputType.phone),
+                PhoneNumberField(controller: _phoneCtrl),
                 const SizedBox(height: 16),
                 _fieldLabel('Relation'),
                 const SizedBox(height: 8),

@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/app_state.dart';
 import '../core/demo_data.dart';
 import 'demo_seed_service.dart';
 import 'family_service.dart';
@@ -161,6 +162,8 @@ class AuthService {
   /// Sign out the current user.
   Future<void> signOut() async {
     await _client.auth.signOut();
+    AppState.greetingName.value = null;
+    AppState.avatarPath.value = null;
   }
 
   /// Currently authenticated user, null if not signed in.
