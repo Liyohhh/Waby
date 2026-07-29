@@ -1887,8 +1887,8 @@ class _ChildEditSheetState extends State<_ChildEditSheet> {
                               if (v == null || v.trim().isEmpty) return null;
                               final val = double.tryParse(v);
                               if (val == null) return 'Enter a valid number';
-                              if (val <= 0 || val > 200) {
-                                return 'Enter a height up to 200 cm';
+                              if (val < 24 || val > 200) {
+                                return 'Enter a height from 24 to 200 cm';
                               }
                               return null;
                             },

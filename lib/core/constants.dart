@@ -1,8 +1,24 @@
 export 'demo_data.dart';
 
 const List<String> kCountryOptions = [
-  'Malaysia', 'Singapore', 'Indonesia', 'Thailand', 'Philippines',
-  'Vietnam', 'Brunei', 'Myanmar', 'Cambodia', 'Laos', 'Australia',
-  'United Kingdom', 'United States', 'Canada', 'Japan', 'South Korea',
-  'China', 'India', 'Saudi Arabia', 'United Arab Emirates',
+  'Australia',
+  'Brunei',
+  'Cambodia',
+  'Canada',
+  'China',
+  'India',
+  'Indonesia',
+  'Japan',
+  'Laos',
+  'Malaysia',
+  'Myanmar',
+  'Philippines',
+  'Saudi Arabia',
+  'Singapore',
+  'South Korea',
+  'Thailand',
+  'United Arab Emirates',
+  'United Kingdom',
+  'United States',
+  'Vietnam',
 ];

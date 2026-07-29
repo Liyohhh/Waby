@@ -233,23 +233,49 @@ class AlertService {
     for (final tracked in _active.values.toList()) {
       if (!tracked.escalates) continue;
 
+      if (tracked.alertType == 'left_behind') {
+        final heatCoOccurring = _active.values.any(
+          (a) => a.alertType == 'heat' && a.childId == tracked.childId,
+        );
+        if (heatCoOccurring) {
+          final elapsedSeconds = now.difference(tracked.startedAt).inSeconds;
+          if (tracked.totalSeconds > elapsedSeconds) {
+            // Heat + left-behind together is the actual hot-car-death
+            // pattern — collapse the remaining grace to zero so tier,
+            // the countdown ring, and telegram auto-fire all treat it
+            // as maxed out immediately instead of waiting out the full
+            // left-behind timer.
+            tracked.totalSeconds = elapsedSeconds;
+            changed = true;
+          }
+        }
+      }
+
       final tier = _tierFor(tracked.reason, tracked.startedAt, tracked.totalSeconds);
       if (tier != tracked.tier) {
         tracked.tier = tier;
         changed = true;
+        // Push the new tier to the UI immediately. Don't let anything
+        // below (sound, haptics) block this — a hung await here previously
+        // froze the alert screen's color/wording on tier 1 forever, even
+        // though sound and the final telegram escalation still fired.
+        _emit();
       }
 
       if (tier != tracked.lastFiredTier && tier >= 2) {
         tracked.lastFiredTier = tier;
         await _emitUserFacingAlert(tracked, notify: true);
         // Distinctive "escalation moment" haptic at each transition.
+        // Fire-and-forget: never await a vibration call from inside the
+        // tick loop, since a plugin-level hang here must not block future
+        // ticks or emits.
         if (await Vibration.hasVibrator()) {
           final burst = tier == 3
               ? Int64List.fromList(
                   [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
                 )
               : Int64List.fromList([0, 80, 60, 80, 60, 80, 60, 200]);
-          await Vibration.vibrate(pattern: burst, repeat: -1);
+          unawaited(Vibration.vibrate(pattern: burst));
         }
       }
 
@@ -308,8 +334,8 @@ class AlertService {
       reason: condition.reason,
       startedAt: startedAt,
       totalSeconds: totalSecondsFor(condition.reason),
-      tier: 1,
-      lastFiredTier: 1,
+      tier: condition.alertType == 'heat' ? 3 : 1,
+      lastFiredTier: condition.alertType == 'heat' ? 3 : 1,
       telegramSent: false,
       lastNotifiedCount: 0,
       message: condition.message,
@@ -334,6 +360,10 @@ class AlertService {
   }
 
   int _tierFor(AlertReason reason, DateTime startedAt, int totalSeconds) {
+    // Heat is an immediate physical danger reading, not a state that needs
+    // time to confirm — treat it as critical the moment it's active rather
+    // than ramping through caution/warning first.
+    if (reason == AlertReason.heat) return 3;
     final elapsed = DateTime.now().difference(startedAt).inSeconds;
     final t2 = (totalSeconds * 0.33).round();
     final t3 = (totalSeconds * 0.66).round();
@@ -735,7 +765,7 @@ class _TrackedAlert {
   final String alertType;
   final AlertReason reason;
   final DateTime startedAt;
-  final int totalSeconds;
+  int totalSeconds;
   int tier;
   int lastFiredTier;
   bool telegramSent;

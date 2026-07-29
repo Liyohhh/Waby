@@ -151,3 +151,74 @@
   - On a heat test alert, the countdown number decreases every second without waiting for a tier transition.
   - The ring progress depletes smoothly in sync with wall-clock remaining time.
   - Countdown keeps moving across yellow → orange → red tier changes for the same `alertId`.
+
+## BUG-010
+- Date: 2026-07-29
+- Area: Alert sheet colour stuck grey while sound escalates
+- Root cause: On tier 2/3 transitions, `_tick()` awaited `Vibration.vibrate(pattern: burst, repeat: -1)`. The infinite-repeat Future never completed, so `_emit()` at the end of `_tick` never ran. Sound still fired (before the hang); the open sheet kept the initial tier-1 grey snapshot. Console only showed a late `[ALERT-UI] stream tick count=0` on dismiss.
+- Fix: `_emit()` immediately when `tracked.tier` changes; escalation haptic is `unawaited(Vibration.vibrate(pattern: burst))` with no `repeat: -1`, so the tick loop cannot hang on the vibration plugin.
+
+## TEST-012
+- Date: 2026-07-29
+- Scope: Left-behind / heat sheet colour tracks tier with sound
+- Result: Pass (device)
+- Verification performed:
+  - Tier 1 (~0–33%): grey header + soft caution sound.
+  - Tier 2 (~33–66%): header/icon/ring/ack button shift to yellow-orange with warning sound (no stuck grey).
+  - Tier 3 (~66–100%): shift to red with critical sound; pill reads CRITICAL.
+  - Acknowledge still dismisses and stops feedback.
+
+## BUG-011
+- Date: 2026-07-29
+- Area: Heat escalation / heat + left-behind co-occurrence
+- Root cause: Heat used the same 33%/66% time ramp as left-behind, so a heat alert started grey/soft and waited before critical. When heat and left-behind both ran, left-behind still waited out its full timer before telegram auto-fire.
+- Fix: `_tierFor` returns tier 3 immediately for heat; `_activate` seeds heat at tier/lastFiredTier 3; `_TrackedAlert.totalSeconds` is mutable; when left-behind co-occurs with heat for the same child, remaining grace collapses to elapsed so tier/countdown/telegram treat it as maxed out.
+
+## TEST-013
+- Date: 2026-07-29
+- Scope: Immediate heat critical + heat/left-behind collapse
+- Verification target:
+  - Heat-only test alert: red/critical sheet + critical sound from first frame (no grey→orange ramp).
+  - Left-behind alone: still grey → yellow-orange → red over the timer thirds.
+  - Heat + left-behind together: left-behind countdown/tier/telegram path collapses immediately (no full left-behind wait).
+
+## BUG-012
+- Date: 2026-07-29
+- Area: Post-login routing for admin users
+- Root cause: `routeAfterAuth` always sent signed-in users through the family-id check to `ExistingOrNewFamilyScreen` / `MainScreen`, so admin accounts never reached `AdminMainScreen` even though the screen existed.
+- Fix: After auth, call `AuthService().getUserRole()`; if `role == 'admin'`, navigate to `AdminMainScreen`, otherwise keep the existing family-picker / main flow.
+
+## TEST-014
+- Date: 2026-07-29
+- Scope: Admin vs caregiver post-login destination
+- Verification target:
+  - Sign in with an admin-role profile → lands on Admin Panel (`AdminMainScreen`).
+  - Sign in with a normal caregiver profile that has a family → lands on `MainScreen`.
+  - Sign in with a normal profile with no family → lands on `ExistingOrNewFamilyScreen`.
+
+## BUG-013
+- Date: 2026-07-29
+- Area: Add/edit child height validation
+- Root cause: Height fields only rejected `<= 0` or `> 200`, so unrealistically small values under infant scale could be saved.
+- Fix: Require height in the range 24–200 cm on both Home add-child and Contacts edit-child forms; error copy: "Enter a height from 24 to 200 cm".
+
+## TEST-015
+- Date: 2026-07-29
+- Scope: Child height minimum 24 cm
+- Verification target:
+  - Add/edit child with height 23 → validation error, cannot save.
+  - Height 24 or 200 → accepts (within other required fields).
+  - Empty height still optional (null allowed).
+
+## BUG-014
+- Date: 2026-07-29
+- Area: Country picker order
+- Root cause: `kCountryOptions` was ordered by region preference (Malaysia first), not A–Z, so the picker was hard to scan.
+- Fix: Sorted `kCountryOptions` alphabetically in `lib/core/constants.dart` (used by register + profile).
+
+## TEST-016
+- Date: 2026-07-29
+- Scope: Country list alphabetical
+- Verification target:
+  - Register and Profile country pickers show Australia … Vietnam in A–Z order.
+  - Existing saved country still selects correctly if it remains in the list.

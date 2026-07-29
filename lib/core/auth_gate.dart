@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../screens/main_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/existing_or_new_family_screen.dart';
+import '../screens/admin_main_screen.dart';
 
 /// Routes a signed-in user to their correct home screen.
 ///
@@ -23,12 +24,17 @@ Future<void> routeAfterAuth(BuildContext context) async {
       // Non-fatal — HomeScreen falls back to its own fetch if this is null.
     }
 
-    final familyId = await FamilyService()
-        .myFamilyId()
-        .timeout(const Duration(seconds: 8));
-    next = familyId == null
-        ? const ExistingOrNewFamilyScreen()
-        : const MainScreen();
+    final role = await AuthService().getUserRole();
+    if (role == 'admin') {
+      next = const AdminMainScreen();
+    } else {
+      final familyId = await FamilyService()
+          .myFamilyId()
+          .timeout(const Duration(seconds: 8));
+      next = familyId == null
+          ? const ExistingOrNewFamilyScreen()
+          : const MainScreen();
+    }
   } catch (_) {
     await AuthService().signOut();
     next = const LoginScreen();
