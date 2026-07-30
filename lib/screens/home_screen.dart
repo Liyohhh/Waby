@@ -256,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
-                      height: 52,
+                      height: 60,
                       child: StreamBuilder<List<Car>>(
                         stream: _carsStream,
                         builder: (context, snap) {
@@ -270,42 +270,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                 final selected = car.id == _activeCar?.id;
                                 final plate = car.plateNumber?.trim() ?? '';
                                 return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.only(right: 10),
                                   child: GestureDetector(
                                     onTap: () => _selectCar(car),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 8),
+                                      padding: const EdgeInsets.fromLTRB(
+                                          10, 10, 14, 10),
                                       decoration: BoxDecoration(
                                         color: selected
                                             ? AppColors.accent
-                                            : AppColors.accent
-                                                .withValues(alpha: 0.12),
+                                            : Colors.white,
                                         borderRadius:
-                                            BorderRadius.circular(22),
-                                        border: Border.all(
-                                          color: selected
-                                              ? AppColors.accent
-                                              : AppColors.accent
-                                                  .withValues(alpha: 0.35),
-                                        ),
+                                            BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: selected
+                                                ? AppColors.accent
+                                                    .withValues(alpha: 0.30)
+                                                : AppColors.navy
+                                                    .withValues(alpha: 0.05),
+                                            blurRadius: selected ? 12 : 10,
+                                            offset: Offset(
+                                                0, selected ? 4 : 3),
+                                          ),
+                                        ],
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Container(
-                                            width: 12,
-                                            height: 12,
+                                            width: 8,
+                                            height: 34,
                                             decoration: BoxDecoration(
-                                              color:
-                                                  carColorFromHex(car.color),
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                  color: Colors.white,
-                                                  width: 1.5),
+                                              color: selected
+                                                  ? Colors.white
+                                                  : carColorFromHex(
+                                                      car.color),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 10),
                                           Column(
                                             mainAxisSize: MainAxisSize.min,
                                             crossAxisAlignment:
@@ -316,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w700,
-                                                  height: 1.15,
+                                                  height: 1.2,
                                                   color: selected
                                                       ? Colors.white
                                                       : AppColors.navy,
@@ -327,25 +332,41 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   plate.toUpperCase(),
                                                   style: TextStyle(
                                                     fontSize: 10,
-                                                    fontWeight: FontWeight.w500,
-                                                    height: 1.15,
+                                                    fontWeight:
+                                                        FontWeight.w500,
+                                                    height: 1.2,
+                                                    letterSpacing: 1,
                                                     color: selected
                                                         ? Colors.white
                                                             .withValues(
-                                                                alpha: 0.85)
-                                                        : AppColors
-                                                            .textSecondary,
+                                                                alpha: 0.8)
+                                                        : const Color(
+                                                            0xFF8A97A6),
                                                   ),
                                                 ),
                                             ],
                                           ),
+                                          if (selected) ...[
+                                            const SizedBox(width: 10),
+                                            Container(
+                                              width: 18,
+                                              height: 18,
+                                              decoration:
+                                                  const BoxDecoration(
+                                                color: Colors.white,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.check,
+                                                  size: 12,
+                                                  color: AppColors.accent),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
                                   ),
                                 );
                               }),
-                              // Add Car pill → Car Profiles page in Settings
                               GestureDetector(
                                 onTap: () async {
                                   await Navigator.of(context).push(
@@ -357,23 +378,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                        color: AppColors.accent),
-                                  ),
+                                      horizontal: 16),
                                   alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEAF0F9),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(Icons.add,
                                           size: 16, color: AppColors.accent),
-                                      SizedBox(width: 4),
-                                      Text('Add Car',
+                                      SizedBox(width: 6),
+                                      Text('Add',
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             color: AppColors.accent,
                                           )),

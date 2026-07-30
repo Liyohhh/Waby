@@ -612,3 +612,16 @@
 - Verification target:
   - Family and Settings headers read larger than Car Profiles / Help / Privacy (which stay at 24).
 
+## BUG-044
+- Date: 2026-07-30
+- Area: Home Your Car compact chips
+- Root cause: Earlier pill styling still felt busy (dot cue / borders); needed a cleaner compact chip with a vertical color bar.
+- Fix: Restyled to height-60 chips with left color bar, soft shadow, accent fill + white check when selected, and solid soft-blue Add chip (no dashed borders).
+
+## TEST-046
+- Date: 2026-07-30
+- Scope: Home compact car chips
+- Verification target:
+  - Chips ~60px tall; color bar shows car color (white when selected).
+  - Active chip accent-blue with white check; Add opens Car Profiles.
+
