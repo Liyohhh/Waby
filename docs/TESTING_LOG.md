@@ -700,3 +700,78 @@
   - Both headings show a small (i) icon; tap opens Got it dialog with explanation.
   - Old Family Members helper line is gone.
 
+## BUG-051
+- Date: 2026-07-30
+- Area: Home Your Car empty after hot restart
+- Root cause: `carsStream()` can emit an empty list on cold start before RLS/realtime settles; Home relied only on that first emission.
+- Fix: Seed `_initialCars` via `myCars()` and pass as StreamBuilder `initialData` so the row paints immediately while the stream still updates live.
+
+## TEST-053
+- Date: 2026-07-30
+- Scope: Home Your Car cold-start seed
+- Verification target:
+  - After hot restart / reopen, Home Your Car row shows the same cars as Car Profiles without manual refresh.
+
+## BUG-052
+- Date: 2026-07-30
+- Area: Family girl child profile avatar color
+- Root cause: Girl Family cards used a pale pink card with a white avatar ring, so the profile circle did not read as matching Home's soft pink.
+- Fix: Girl avatar + ring use `#F5B4CD` (boy uses matching soft blue); detail-sheet avatar aligned the same.
+
+## TEST-054
+- Date: 2026-07-30
+- Scope: Family girl profile pink
+- Verification target:
+  - Girl child on Family shows light-pink profile circle matching the pink card / Home theme.
+  - Boy still soft blue; warning still red.
+
+## BUG-053
+- Date: 2026-07-30
+- Area: Girl child detail sheet theme
+- Root cause: Tapping a girl child opened a detail sheet whose body/stat/info cards stayed blue-white, so Live Status / Temp Analytics / Device Info did not match the pink gender theme.
+- Fix: Soft pink sheet body, pink safe `_statCard` / `_infoRow` accents, and pink `_TempGraph` background when gender is Girl (warning/unsafe stays red).
+
+## TEST-055
+- Date: 2026-07-30
+- Scope: Girl child detail popup pink
+- Verification target:
+  - Open a Girl child on Family → live status / temp graph / device info cards use light pink accents; sheet body stays white.
+  - Boy detail sheet remains soft blue cards; warning states remain red.
+
+## BUG-054
+- Date: 2026-07-30
+- Area: Girl detail sheet over-tinted
+- Root cause: Soft pink was applied to the entire detail-sheet body, not only the cards.
+- Fix: Reverted sheet body to white; kept pink only on Live Status cards, Device Info icon chips, and Temp Analytics card for girls.
+
+## TEST-056
+- Date: 2026-07-30
+- Scope: Girl detail cards only pink
+- Verification target:
+  - Girl detail sheet background is white; only the status/info/temp cards are light pink.
+
+## BUG-055
+- Date: 2026-07-30
+- Area: Telegram escalate missing structured fields
+- Root cause: `_escalate()` only sent event/message/family_id while the Edge Function now builds the rich alert from child/car/temp/location fields.
+- Fix: Fetch latest `live` row and pass `child_name`, `car_name`, `car_plate`, `temperature_c`, GPS fields, and `last_seen` in the invoke body.
+
+## TEST-057
+- Date: 2026-07-30
+- Scope: Rich Telegram heat alert payload
+- Verification target:
+  - Heat escalate Telegram shows header, HIGH SEAT TEMPERATURE, child, car/plate, seat temperature, last update, and location line from structured fields.
+
+## BUG-056
+- Date: 2026-07-30
+- Area: Forgot password / email OTP reset flow
+- Root cause: Login had no password recovery path; users could not reset a forgotten password in-app.
+- Fix: Added AuthService send/verify/update password OTP helpers, ForgotPasswordScreen 3-step UI, and a Login "Forgot password?" link. Requires Supabase Reset Password template to include `{{ .Token }}`.
+
+## TEST-058
+- Date: 2026-07-30
+- Scope: Forgot password OTP end-to-end
+- Verification target:
+  - Login → Forgot password → Send Code → inbox shows 6-digit OTP.
+  - Verify → set new password → returned to Login; sign in with new password works.
+

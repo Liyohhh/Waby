@@ -157,6 +157,21 @@ class AlertService {
     }
   }
 
+  Future<Map<String, dynamic>?> _latestLiveRow() async {
+    try {
+      final row = await Supabase.instance.client
+          .from('live')
+          .select(
+              'temperature, latitude, longitude, gps_accuracy_m, updated_at')
+          .order('updated_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      return row;
+    } catch (_) {
+      return null;
+    }
+  }
+
   int totalSecondsFor(AlertReason reason) {
     if (reason == AlertReason.heat) {
       return (_alertTimerSeconds / 2).ceil().clamp(15, 90);
@@ -541,15 +556,28 @@ class AlertService {
 
       await _loadActiveCarName();
 
+      final live = await _latestLiveRow();
       final response = await Supabase.instance.client.functions.invoke(
         'send-telegram-alert',
         body: {
           'event': _eventNameFor(alert.reason),
-          'message': _activeCarName != null && _activeCarName!.isNotEmpty
-              ? '${alert.message} Car: $_activeCarName'
-                  '${_activeCarPlate != null && _activeCarPlate!.isNotEmpty ? " ($_activeCarPlate)" : ""}.'
-              : alert.message,
           'family_id': familyId,
+          'child_name': alert.childName,
+          if (_activeCarName != null && _activeCarName!.isNotEmpty)
+            'car_name': _activeCarName,
+          if (_activeCarPlate != null && _activeCarPlate!.isNotEmpty)
+            'car_plate': _activeCarPlate,
+          if (alert.reason == AlertReason.heat && live?['temperature'] != null)
+            'temperature_c': (live!['temperature'] as num).toDouble(),
+          if (live?['latitude'] != null)
+            'latitude': (live!['latitude'] as num).toDouble(),
+          if (live?['longitude'] != null)
+            'longitude': (live!['longitude'] as num).toDouble(),
+          if (live?['gps_accuracy_m'] != null)
+            'gps_accuracy_m': (live!['gps_accuracy_m'] as num).toDouble(),
+          if (live?['updated_at'] != null)
+            'last_seen': live!['updated_at'].toString(),
+          'message': alert.message,
         },
       );
       final data = response.data;

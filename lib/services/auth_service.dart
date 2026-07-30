@@ -167,6 +167,35 @@ class AuthService {
     AppState.activeCarId.value = null;
   }
 
+  /// Sends a password-reset email containing a 6-digit OTP code.
+  Future<void> sendPasswordResetCode(String email) async {
+    await _client.auth.resetPasswordForEmail(email.trim());
+  }
+
+  /// Verifies the emailed OTP code for a password recovery. On success
+  /// the user has a temporary authenticated session, which allows
+  /// updating the password in the next step.
+  Future<void> verifyPasswordResetCode({
+    required String email,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email.trim(),
+      token: token.trim(),
+      type: OtpType.recovery,
+    );
+  }
+
+  /// Updates the current user's password (call only after a successful
+  /// verifyPasswordResetCode, which established the recovery session).
+  Future<void> updatePassword(String newPassword) async {
+    await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+    // Sign out so the user logs in fresh with the new password.
+    await signOut();
+  }
+
   /// Currently authenticated user, null if not signed in.
   User? get currentUser => _client.auth.currentUser;
 

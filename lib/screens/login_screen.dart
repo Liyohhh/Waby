@@ -4,6 +4,7 @@ import '../core/auth_gate.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -200,6 +201,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (v) => (v == null || v.length < 6)
                           ? 'Minimum 6 characters'
                           : null,
+                    ),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen()),
+                        ),
+                        child: const Text('Forgot password?',
+                            style: TextStyle(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                      ),
                     ),
 
                     // Error banner

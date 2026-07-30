@@ -917,8 +917,13 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     final avatarBg = warning
         ? const Color(0xFFFBE6E5)
         : isGirl
-            ? const Color(0xFFFCEAF2)
-            : const Color(0xFFD7F1F8);
+            ? const Color(0xFFF5B4CD)
+            : const Color(0xFF7FD0E4);
+    final avatarRing = warning
+        ? Colors.white.withAlpha(160)
+        : isGirl
+            ? const Color(0xFFF5B4CD).withAlpha(120)
+            : const Color(0xFF7FD0E4).withAlpha(120);
     final chipText = warning ? const Color(0xFFC2291D) : AppColors.navy;
     final shadowBase = warning
         ? const Color(0xFFC2291D)
@@ -947,7 +952,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withAlpha(160),
+                color: avatarRing,
               ),
               child: SignedAvatar(
                 photoPath: child.photoPath,
@@ -1184,8 +1189,8 @@ class _ChildDetailSheet extends StatelessWidget {
     final avatarBg = !safe
         ? Colors.white.withAlpha(60)
         : isGirl
-            ? const Color(0xFFFCEAF2)
-            : const Color(0xFFD7F1F8);
+            ? const Color(0xFFF5B4CD)
+            : const Color(0xFF7FD0E4);
     final headerOnColor = safe ? AppColors.navy : Colors.white;
     final headerMuted = safe
         ? AppColors.navy.withAlpha(225)
@@ -1309,6 +1314,7 @@ class _ChildDetailSheet extends StatelessWidget {
                         value: '23°C',
                         sub: 'Normal range',
                         safe: true,
+                        isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1318,6 +1324,7 @@ class _ChildDetailSheet extends StatelessWidget {
                         value: safe ? 'Buckled' : 'Unbuckled',
                         sub: safe ? 'Secured' : 'Not secured',
                         safe: safe,
+                        isGirl: isGirl,
                       )),
                     ],
                   ),
@@ -1331,6 +1338,7 @@ class _ChildDetailSheet extends StatelessWidget {
                         value: safe ? 'Near' : 'Far',
                         sub: safe ? 'Caregiver close' : 'Caregiver away',
                         safe: safe,
+                        isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1340,6 +1348,7 @@ class _ChildDetailSheet extends StatelessWidget {
                         value: '${child.battery}%',
                         sub: child.battery > 20 ? 'Good' : 'Low battery',
                         safe: child.battery > 20,
+                        isGirl: isGirl,
                       )),
                     ],
                   ),
@@ -1356,7 +1365,7 @@ class _ChildDetailSheet extends StatelessWidget {
                           fontSize: 12,
                           color: Color(0x8C031E2A))),
                   const SizedBox(height: 12),
-                  const _TempGraph(),
+                  _TempGraph(isGirl: isGirl),
                   const SizedBox(height: 24),
                   const Text('Device Info',
                       style: TextStyle(
@@ -1365,9 +1374,11 @@ class _ChildDetailSheet extends StatelessWidget {
                           color: Color(0xFF031E2A))),
                   const SizedBox(height: 12),
                   _infoRow(Icons.gps_fixed, 'GPS',
-                      '3.1478° N, 101.6953° E'),
+                      '3.1478° N, 101.6953° E',
+                      isGirl: isGirl),
                   _infoRow(
-                      Icons.sensors, 'Seat sensor', 'Weight detected'),
+                      Icons.sensors, 'Seat sensor', 'Weight detected',
+                      isGirl: isGirl),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -1385,11 +1396,18 @@ class _ChildDetailSheet extends StatelessWidget {
     required String value,
     required String sub,
     required bool safe,
+    bool isGirl = false,
   }) {
-    final bg =
-        safe ? const Color(0xFFE0EEF9) : const Color(0xFFFFE8E8);
-    final iconColor =
-        safe ? const Color(0xFF1F61B2) : const Color(0xFFC2291D);
+    final bg = !safe
+        ? const Color(0xFFFFE8E8)
+        : isGirl
+            ? const Color(0xFFFCEAF2)
+            : const Color(0xFFE0EEF9);
+    final iconColor = !safe
+        ? const Color(0xFFC2291D)
+        : isGirl
+            ? const Color(0xFFD6608A)
+            : const Color(0xFF1F61B2);
     final valueColor =
         safe ? const Color(0xFF031E2A) : const Color(0xFFC2291D);
     return Container(
@@ -1422,7 +1440,8 @@ class _ChildDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) {
+  Widget _infoRow(IconData icon, String label, String value,
+      {bool isGirl = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -1431,11 +1450,16 @@ class _ChildDetailSheet extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFE9F5FE),
+              color: isGirl
+                  ? const Color(0xFFFCEAF2)
+                  : const Color(0xFFE9F5FE),
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                Icon(icon, color: const Color(0xFF1F61B2), size: 18),
+            child: Icon(icon,
+                color: isGirl
+                    ? const Color(0xFFD6608A)
+                    : const Color(0xFF1F61B2),
+                size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1457,7 +1481,9 @@ class _ChildDetailSheet extends StatelessWidget {
 // ── Temperature graph widget (custom painted) ────────────────────────────────
 
 class _TempGraph extends StatelessWidget {
-  const _TempGraph();
+  const _TempGraph({this.isGirl = false});
+
+  final bool isGirl;
 
   // Mock hourly readings for the last 12 hours
   static const _data = <double>[
@@ -1474,7 +1500,7 @@ class _TempGraph extends StatelessWidget {
       height: 160,
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F7FF),
+        color: isGirl ? const Color(0xFFFCEAF2) : const Color(0xFFF0F7FF),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(

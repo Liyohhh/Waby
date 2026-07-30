@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final String _greetingName = AppState.greetingName.value ?? 'there';
   bool _demoFamily = false;
   Car? _activeCar;
+  List<Car> _initialCars = const <Car>[];
   int? _lastDismissedAtBattery;
 
   @override
@@ -58,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserName();
     _loadDemoFamily();
     _loadActiveCar();
+    _loadInitialCars();
     AppState.activeCarId.addListener(_onActiveCarChanged);
     _loadLowBatteryBannerState();
   }
@@ -100,6 +102,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => _activeCar = match);
     } catch (_) {
       // Non-fatal — header just won't show a plate badge.
+    }
+  }
+
+  Future<void> _loadInitialCars() async {
+    try {
+      final cars = await CarService().myCars();
+      if (mounted) setState(() => _initialCars = cars);
+    } catch (_) {
+      // Non-fatal — stream will still populate the row when it connects.
     }
   }
 
@@ -272,6 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 60,
                       child: StreamBuilder<List<Car>>(
                         stream: _carsStream,
+                        initialData: _initialCars,
                         builder: (context, snap) {
                           final cars = snap.data ?? const <Car>[];
                           return ListView(
