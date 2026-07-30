@@ -129,11 +129,12 @@ class AlertService {
 
   Future<void> _loadActiveCarName() async {
     try {
-      if (_familyId == null) return;
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return;
       final row = await Supabase.instance.client
-          .from('families')
+          .from('profiles')
           .select('active_car_id')
-          .eq('id', _familyId!)
+          .eq('id', uid)
           .maybeSingle();
       final carId = row?['active_car_id'] as String?;
       if (carId == null) {
@@ -152,7 +153,7 @@ class AlertService {
       _activeCarName = null;
       _activeCarPlate = null;
     } catch (_) {
-      // Keep previous/null value on failure.
+      // Keep previous/null values on failure.
     }
   }
 

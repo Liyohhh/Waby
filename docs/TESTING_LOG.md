@@ -469,3 +469,55 @@
 - Scope: Home plate badge visual
 - Verification target:
   - Active car with plate shows navy-bordered white badge + accent stripe + Poppins plate text under car.
+
+## BUG-033
+- Date: 2026-07-30
+- Area: Home plate badge Option C restyle
+- Root cause: Previous plate badge (navy border + accent tab) felt cramped against the car and did not match the preferred Option C look.
+- Fix: Replaced with pin + white plate, accent bullet, larger Poppins navy text, accent-tinted shadow, and 8px gap below the car.
+
+## TEST-035
+- Date: 2026-07-30
+- Scope: Home Option C plate badge
+- Verification target:
+  - Active car with plate shows connector pin + white plate with blue dot clearly below the car.
+  - No plate / no active car → badge absent as before.
+
+## BUG-034
+- Date: 2026-07-30
+- Area: Car Profiles header vertical placement
+- Root cause: The Car Profiles wave header sat slightly too low, making the top feel heavy compared with the descriptive text beneath it.
+- Fix: Shifted the `SharedPageHeader` upward on the Car Profiles page without moving the wording block below.
+
+## TEST-036
+- Date: 2026-07-30
+- Scope: Car Profiles header spacing
+- Verification target:
+  - Car Profiles header sits higher on the page while the descriptive wording stays in its existing position.
+
+## BUG-035
+- Date: 2026-07-30
+- Area: Car Profiles number plate requirement
+- Root cause: The Add/Edit Car form treated number plate as optional, which allowed incomplete car profiles.
+- Fix: Made number plate required in the form UI, updated the field label, and block save with a SnackBar when it is empty.
+
+## TEST-037
+- Date: 2026-07-30
+- Scope: Required car number plate
+- Verification target:
+  - Add/Edit Car cannot save with an empty number plate.
+  - Entered number plate saves in uppercase and proceeds normally.
+
+## BUG-036
+- Date: 2026-07-30
+- Area: Per-user active car reads
+- Root cause: Client still read `families.active_car_id`, but active car is now per-user on `profiles.active_car_id` (cars RLS scoped to `created_by`).
+- Fix: `FamilyService.getActiveCarId()` and `AlertService._loadActiveCarName()` now read the caller's profile; `setActiveCar` RPC unchanged.
+
+## TEST-038
+- Date: 2026-07-30
+- Scope: Per-user cars / active car isolation
+- Verification target:
+  - Account A: cars + active plate on Home.
+  - Account B (same family): empty car list; no "which car today?" until B adds a car.
+  - B's active car does not change A's; A still sees A's active car after re-login.

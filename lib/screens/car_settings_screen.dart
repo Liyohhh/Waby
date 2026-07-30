@@ -100,7 +100,10 @@ class _CarSettingsScreenState extends State<CarSettingsScreen> {
         bottom: false,
         child: Column(
           children: [
-            const SharedPageHeader(title: 'Car Profiles'),
+            Transform.translate(
+              offset: const Offset(0, -10),
+              child: const SharedPageHeader(title: 'Car Profiles'),
+            ),
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -261,10 +264,16 @@ class _CarFormSheetState extends State<_CarFormSheet> {
 
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
-    final plate = _plateCtrl.text.trim();
+    final plate = _plateCtrl.text.trim().toUpperCase();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a car name')),
+      );
+      return;
+    }
+    if (plate.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a number plate')),
       );
       return;
     }
@@ -275,13 +284,13 @@ class _CarFormSheetState extends State<_CarFormSheet> {
           id: widget.existing!.id,
           name: name,
           color: _color,
-          plateNumber: plate.isEmpty ? null : plate,
+          plateNumber: plate,
         );
       } else {
         await CarService().addCar(
           name: name,
           color: _color,
-          plateNumber: plate.isEmpty ? null : plate,
+          plateNumber: plate,
         );
       }
       widget.onSaved();
@@ -343,7 +352,7 @@ class _CarFormSheetState extends State<_CarFormSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Number plate (optional)',
+            const Text('Number plate',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             TextField(

@@ -24,20 +24,20 @@ class FamilyService {
     return row?['family_id'] as String?;
   }
 
-  /// The family's currently active car id — null if none set.
+  /// The current user's active car id — null if none set.
   Future<String?> getActiveCarId() async {
-    final fid = await myFamilyId();
-    if (fid == null) return null;
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
     final row = await _db
-        .from('families')
+        .from('profiles')
         .select('active_car_id')
-        .eq('id', fid)
+        .eq('id', uid)
         .maybeSingle();
     return row?['active_car_id'] as String?;
   }
 
-  /// Sets (or clears, if null) the family's active car via the
-  /// set_active_car RPC — direct writes to `families` are blocked by RLS.
+  /// Sets (or clears, if null) the caller's active car via the
+  /// set_active_car RPC — updates profiles.active_car_id server-side.
   Future<void> setActiveCar(String? carId) async {
     await _db.rpc('set_active_car', params: {'p_car_id': carId});
   }
