@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_state.dart';
@@ -102,11 +103,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
-                const Text('Family',
-                    style: TextStyle(
+                Text('Family',
+                    style: GoogleFonts.poppins(
                         color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w600)),
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700)),
               ],
             ),
           ),

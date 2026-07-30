@@ -521,3 +521,94 @@
   - Account A: cars + active plate on Home.
   - Account B (same family): empty car list; no "which car today?" until B adds a car.
   - B's active car does not change A's; A still sees A's active car after re-login.
+
+## BUG-037
+- Date: 2026-07-30
+- Area: Page header title consistency + Car Profiles overlap
+- Root cause: Settings/Family/SharedPageHeader used different title sizes and fonts; Car Profiles also wrapped SharedPageHeader in Transform.translate which caused wave/title overlap.
+- Fix: Standardized all titles to Poppins 24/w700 white; restored plain SharedPageHeader on Car Profiles (no Transform.translate).
+
+## TEST-039
+- Date: 2026-07-30
+- Scope: Unified page header titles
+- Verification target:
+  - Settings, Family, Car Profiles, Help & Support, Privacy & Data titles match (Poppins 24 / w700).
+  - Car Profiles header no longer overlaps the wave.
+
+## BUG-038
+- Date: 2026-07-30
+- Area: Family page Your Car selector
+- Root cause: Active-car picking lived only on Car Profiles / cold-start prompt, so caregivers had no quick switch on Family.
+- Fix: Added compact "Your Car" horizontal chips above Children on Family, with + navigating to Car Profiles; selection uses per-user setActiveCar.
+
+## TEST-040
+- Date: 2026-07-30
+- Scope: Family Your Car section
+- Verification target:
+  - Family shows only the current user's cars as selectable chips.
+  - Tapping a chip sets it active (accent fill).
+  - + opens Car Profiles; returning refreshes active selection.
+
+## BUG-039
+- Date: 2026-07-30
+- Area: Home Your Car section
+- Root cause: Home only showed the active plate in the header, with no way to switch cars without leaving the dashboard.
+- Fix: Added a "Your Car" card row above Your Children; tapping sets active car (updates header plate); Add Car opens Car Profiles.
+
+## TEST-041
+- Date: 2026-07-30
+- Scope: Home Your Car cards
+- Verification target:
+  - Horizontal car cards appear above Your Children on Home.
+  - Tap highlights + sets active; header plate badge updates.
+  - Add Car opens Car Profiles and returns cleanly.
+
+## BUG-040
+- Date: 2026-07-30
+- Area: Home Your Car pill size/style
+- Root cause: Home car pickers were large white cards that felt heavy above Your Children.
+- Fix: Replaced with compact accent pills — selected solid blue fill, unselected soft blue tint; Add Car stays as outline pill.
+
+## TEST-042
+- Date: 2026-07-30
+- Scope: Home car pills
+- Verification target:
+  - Your Car row shows small blue pills; active pill is solid accent with white text.
+  - Add Car outline pill still opens Car Profiles.
+
+## BUG-041
+- Date: 2026-07-30
+- Area: Home car pill two-line layout
+- Root cause: Name and plate sat on one horizontal line, harder to scan.
+- Fix: Stacked name (bold) above plate inside each pill.
+
+## TEST-043
+- Date: 2026-07-30
+- Scope: Home car pill layers
+- Verification target:
+  - Each car pill shows bold name on top and number plate underneath.
+
+## BUG-042
+- Date: 2026-07-30
+- Area: Family page Your Car section removed
+- Root cause: Car picking already lives on Home and Car Profiles; the Family "Your Car" row was redundant.
+- Fix: Removed Family car selector UI and related stream/state/imports from contacts_screen.dart.
+
+## TEST-044
+- Date: 2026-07-30
+- Scope: Family page without car section
+- Verification target:
+  - Family page goes header → children (no Your Car row).
+
+## BUG-043
+- Date: 2026-07-30
+- Area: Family / Settings header title size
+- Root cause: Main tab titles at 24px felt small next to the wave headers.
+- Fix: Increased Family and Settings title fontSize from 24 to 28 (Poppins w700 unchanged).
+
+## TEST-045
+- Date: 2026-07-30
+- Scope: Larger Family/Settings titles
+- Verification target:
+  - Family and Settings headers read larger than Car Profiles / Help / Privacy (which stay at 24).
+

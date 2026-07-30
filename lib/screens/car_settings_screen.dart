@@ -100,10 +100,7 @@ class _CarSettingsScreenState extends State<CarSettingsScreen> {
         bottom: false,
         child: Column(
           children: [
-            Transform.translate(
-              offset: const Offset(0, -10),
-              child: const SharedPageHeader(title: 'Car Profiles'),
-            ),
+            const SharedPageHeader(title: 'Car Profiles'),
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),

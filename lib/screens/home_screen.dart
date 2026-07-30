@@ -24,6 +24,7 @@ import '../widgets/signed_avatar.dart';
 import '../widgets/status_pill.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'car_settings_screen.dart';
 
 /// Waby home dashboard, wired to live Supabase data from the `live` table.
 class HomeScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ChildService _childService = ChildService();
   late final Stream<List<Child>> _childrenStream =
       _childService.myChildrenStream();
+  late final Stream<List<Car>> _carsStream = CarService().carsStream();
 
   final String _greetingName = AppState.greetingName.value ?? 'there';
   bool _demoFamily = false;
@@ -91,6 +93,20 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => _activeCar = match);
     } catch (_) {
       // Non-fatal — header just won't show a plate badge.
+    }
+  }
+
+  Future<void> _selectCar(Car car) async {
+    setState(() => _activeCar = car);
+    try {
+      await FamilyService().setActiveCar(car.id);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not set current car.')),
+        );
+        _loadActiveCar();
+      }
     }
   }
 
@@ -226,6 +242,150 @@ class _HomeScreenState extends State<HomeScreen> {
                       )
                     else
                       const SizedBox.shrink(),
+                    const SizedBox(height: 16),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        'Your Car',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 52,
+                      child: StreamBuilder<List<Car>>(
+                        stream: _carsStream,
+                        builder: (context, snap) {
+                          final cars = snap.data ?? const <Car>[];
+                          return ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                            children: [
+                              ...cars.map((car) {
+                                final selected = car.id == _activeCar?.id;
+                                final plate = car.plateNumber?.trim() ?? '';
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: GestureDetector(
+                                    onTap: () => _selectCar(car),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? AppColors.accent
+                                            : AppColors.accent
+                                                .withValues(alpha: 0.12),
+                                        borderRadius:
+                                            BorderRadius.circular(22),
+                                        border: Border.all(
+                                          color: selected
+                                              ? AppColors.accent
+                                              : AppColors.accent
+                                                  .withValues(alpha: 0.35),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  carColorFromHex(car.color),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                  color: Colors.white,
+                                                  width: 1.5),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                car.name,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.15,
+                                                  color: selected
+                                                      ? Colors.white
+                                                      : AppColors.navy,
+                                                ),
+                                              ),
+                                              if (plate.isNotEmpty)
+                                                Text(
+                                                  plate.toUpperCase(),
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w500,
+                                                    height: 1.15,
+                                                    color: selected
+                                                        ? Colors.white
+                                                            .withValues(
+                                                                alpha: 0.85)
+                                                        : AppColors
+                                                            .textSecondary,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                              // Add Car pill → Car Profiles page in Settings
+                              GestureDetector(
+                                onTap: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const CarSettingsScreen()),
+                                  );
+                                  _loadActiveCar();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(
+                                        color: AppColors.accent),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add,
+                                          size: 16, color: AppColors.accent),
+                                      SizedBox(width: 4),
+                                      Text('Add Car',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.accent,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),

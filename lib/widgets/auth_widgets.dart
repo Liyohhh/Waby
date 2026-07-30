@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 
 /// Red error banner used on login and register screens.
@@ -83,9 +84,9 @@ class SharedPageHeader extends StatelessWidget {
                 ),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: GoogleFonts.poppins(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
