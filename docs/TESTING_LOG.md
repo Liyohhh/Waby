@@ -625,3 +625,16 @@
   - Chips ~60px tall; color bar shows car color (white when selected).
   - Active chip accent-blue with white check; Add opens Car Profiles.
 
+## BUG-045
+- Date: 2026-07-30
+- Area: Unified wave headers (Family / Settings / Car Profiles)
+- Root cause: Family and Settings each had local wave headers with different title size/padding than SharedPageHeader.
+- Fix: Extended SharedPageHeader with showBack + height; routed Settings (showBack: false) and Family (showBack: widget.showBack) through it; kept contacts local _WaveClipper for sheet UI only.
+
+## TEST-047
+- Date: 2026-07-30
+- Scope: Identical SharedPageHeader across pages
+- Verification target:
+  - Settings, Family, Car Profiles share same wave height/curve/title (Poppins 24).
+  - Settings: no back; Car Profiles: back; Family: back only when pushed.
+

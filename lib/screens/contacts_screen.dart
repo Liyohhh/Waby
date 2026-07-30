@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_state.dart';
@@ -16,6 +15,7 @@ import '../services/contact_service.dart';
 import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
+import '../widgets/auth_widgets.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/gender_selector.dart';
 import '../widgets/signed_avatar.dart';
@@ -83,36 +83,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
   // ── Header ────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
-    return Stack(
-      children: [
-        ClipPath(
-          clipper: _WaveClipper(),
-          child: Container(
-            height: 140,
-            width: double.infinity,
-            decoration: const BoxDecoration(gradient: kHeaderGradient),
-          ),
-        ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Row(
-              children: [
-                if (widget.showBack)
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                Text('Family',
-                    style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return SharedPageHeader(
+      title: 'Family',
+      showBack: widget.showBack,
     );
   }
 

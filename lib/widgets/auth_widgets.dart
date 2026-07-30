@@ -54,11 +54,19 @@ class AppWaveClipper extends CustomClipper<Path> {
 /// @deprecated Use [AppWaveClipper] instead.
 class AuthWaveClipper extends AppWaveClipper {}
 
-/// Reusable wave header for inner/detail screens (Privacy, Help, etc.).
-/// Renders the branded gradient wave with a white back button and page title.
+/// Reusable wave header for inner/detail screens and main tabs.
+/// Renders the branded gradient wave with an optional back button and title.
 class SharedPageHeader extends StatelessWidget {
   final String title;
-  const SharedPageHeader({super.key, required this.title});
+  final bool showBack;
+  final double height;
+
+  const SharedPageHeader({
+    super.key,
+    required this.title,
+    this.showBack = true,
+    this.height = 140,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -67,21 +75,27 @@ class SharedPageHeader extends StatelessWidget {
         ClipPath(
           clipper: AppWaveClipper(),
           child: Container(
-            height: 140,
+            height: height,
             width: double.infinity,
             decoration: const BoxDecoration(gradient: kHeaderGradient),
           ),
         ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 10, 20, 0),
+            padding: EdgeInsets.fromLTRB(
+              showBack ? 4 : 20,
+              height >= 140 ? 10 : 4,
+              20,
+              0,
+            ),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white,
-                      size: 22),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
+                if (showBack)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back,
+                        color: Colors.white, size: 22),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 Text(
                   title,
                   style: GoogleFonts.poppins(

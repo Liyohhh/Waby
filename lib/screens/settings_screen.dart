@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/alert_feedback_service.dart';
 import '../services/contact_service.dart';
 import '../services/family_service.dart';
+import '../widgets/auth_widgets.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/invite_family_sheet.dart';
 import '../widgets/signed_avatar.dart';
@@ -302,34 +303,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ── Header (wave — identical to Home & Family) ────────────────────────────
+  // ── Header (shared wave — identical to Family & Car Profiles) ─────────────
 
   Widget _buildHeader() {
-    return Stack(
-      children: [
-        ClipPath(
-          clipper: _WaveClipper(),
-          child: Container(
-            height: 140,
-            width: double.infinity,
-            decoration: const BoxDecoration(gradient: kHeaderGradient),
-          ),
-        ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-            child: Text(
-              'Settings',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    return const SharedPageHeader(title: 'Settings', showBack: false);
   }
 
   // ── Profile card ──────────────────────────────────────────────────────────
@@ -1404,26 +1381,4 @@ class _FamilyManagementSheetState extends State<_FamilyManagementSheet> {
       ),
     );
   }
-}
-
-// ── Wave clipper (identical to Home & Family) ─────────────────────────────
-
-class _WaveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final h = size.height;
-    final w = size.width;
-    final path = Path()
-      ..lineTo(0, h - 10)
-      ..cubicTo(w * 0.12, h - 10, w * 0.20, h - 22, w * 0.32, h - 18)
-      ..cubicTo(w * 0.40, h - 14, w * 0.47, h - 8,  w * 0.54, h - 10)
-      ..cubicTo(w * 0.61, h - 12, w * 0.70, h - 26, w * 0.82, h - 22)
-      ..cubicTo(w * 0.90, h - 18, w * 0.96, h - 12, w,        h - 12)
-      ..lineTo(w, 0)
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
 }
