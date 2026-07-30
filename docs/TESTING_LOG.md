@@ -775,3 +775,17 @@
   - Login → Forgot password → Send Code → inbox shows 6-digit OTP.
   - Verify → set new password → returned to Login; sign in with new password works.
 
+## BUG-057
+- Date: 2026-07-30
+- Area: Home "Your Car" empty after cold/hot start
+- Root cause: StreamBuilder only applies `initialData` on first subscribe (when `_initialCars` is still empty). Updating `_initialCars` later via `setState` does not re-seed the snapshot; an empty realtime emission then leaves the row blank even after `myCars()` succeeds.
+- Fix: Prefer non-empty stream data, else fall back to `_initialCars`; refresh the seed when returning from Car Profiles.
+
+## TEST-059
+- Date: 2026-07-30
+- Scope: Home Your Car seed fallback
+- Verification target:
+  - Hot restart with existing cars: Your Car chips appear (not empty) even if realtime briefly emits [].
+  - Add chip → Car Profiles → back: chips refresh via `_loadInitialCars()`.
+  - `flutter analyze lib/screens/home_screen.dart` clean.
+
