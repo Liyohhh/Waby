@@ -95,6 +95,28 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   // ── Family Members section — read-only, managed in Settings ───────────────
 
+  void _showSectionInfo(BuildContext context, String title, String body) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.navy)),
+        content: Text(body,
+            style: const TextStyle(fontSize: 13, height: 1.4)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFamilyMembersSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -102,19 +124,25 @@ class _ContactsScreenState extends State<ContactsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text('Family Members',
+            children: [
+              const Text('Family Members',
                   style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF031E2A))),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _showSectionInfo(
+                  context,
+                  'Family Members',
+                  'Family members are people who share your Waby family and '
+                      'can see your children and devices in the app. To add or '
+                      'remove members, go to Settings → Family Management.',
+                ),
+                child: Icon(Icons.info_outline,
+                    size: 16, color: AppColors.accent.withValues(alpha: 0.8)),
+              ),
             ],
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'To add or remove members, go to Settings → Family Management.',
-            style: TextStyle(fontSize: 11, color: Color(0x8C031E2A)),
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<Map<String, dynamic>>>(
@@ -206,13 +234,30 @@ class _ContactsScreenState extends State<ContactsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Emergency Contacts',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF031E2A),
-            ),
+          Row(
+            children: [
+              const Text(
+                'Emergency Contacts',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF031E2A),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _showSectionInfo(
+                  context,
+                  'Emergency Contacts',
+                  'Emergency contacts are notified via Telegram if an alert '
+                      'escalates and no one responds in the app. They don\'t '
+                      'need a Waby account. To add or remove contacts, go to '
+                      'Settings → Family Management.',
+                ),
+                child: Icon(Icons.info_outline,
+                    size: 16, color: AppColors.accent.withValues(alpha: 0.8)),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<Contact>>(

@@ -58,7 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserName();
     _loadDemoFamily();
     _loadActiveCar();
+    AppState.activeCarId.addListener(_onActiveCarChanged);
     _loadLowBatteryBannerState();
+  }
+
+  @override
+  void dispose() {
+    AppState.activeCarId.removeListener(_onActiveCarChanged);
+    super.dispose();
   }
 
   Future<void> _loadLowBatteryBannerState() async {
@@ -96,10 +103,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _onActiveCarChanged() {
+    // Active car changed elsewhere (e.g. startup prompt) — re-sync.
+    _loadActiveCar();
+  }
+
   Future<void> _selectCar(Car car) async {
     setState(() => _activeCar = car);
     try {
       await FamilyService().setActiveCar(car.id);
+      AppState.activeCarId.value = car.id;
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -164,6 +164,7 @@ class AuthService {
     await _client.auth.signOut();
     AppState.greetingName.value = null;
     AppState.avatarPath.value = null;
+    AppState.activeCarId.value = null;
   }
 
   /// Currently authenticated user, null if not signed in.

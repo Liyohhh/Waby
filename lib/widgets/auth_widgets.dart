@@ -65,7 +65,7 @@ class SharedPageHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.showBack = true,
-    this.height = 140,
+    this.height = 112,
   });
 
   @override
@@ -84,7 +84,7 @@ class SharedPageHeader extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               showBack ? 4 : 20,
-              height >= 140 ? 10 : 4,
+              20,
               20,
               0,
             ),

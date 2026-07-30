@@ -65,6 +65,10 @@ class _MainScreenState extends State<MainScreen> {
       if (!mounted) return;
 
       if (active != null) {
+        AppState.activeCarId.value = active.id;
+      }
+
+      if (active != null) {
         final keepUsing = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -163,6 +167,7 @@ class _MainScreenState extends State<MainScreen> {
     );
     if (chosen != null) {
       await FamilyService().setActiveCar(chosen.id);
+      AppState.activeCarId.value = chosen.id;
     }
   }
 

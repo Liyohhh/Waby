@@ -638,3 +638,65 @@
   - Settings, Family, Car Profiles share same wave height/curve/title (Poppins 24).
   - Settings: no back; Car Profiles: back; Family: back only when pushed.
 
+## BUG-046
+- Date: 2026-07-30
+- Area: SharedPageHeader wave height too tall
+- Root cause: Default header height stayed at 140 after title unification, so the wave still looked full-height.
+- Fix: Default height 140→112 and title top padding set to flat 6.
+
+## TEST-048
+- Date: 2026-07-30
+- Scope: Shorter shared wave header
+- Verification target:
+  - After hot restart, Settings / Family / Car Profiles / Help / Privacy show a visibly shorter blue wave with title still readable.
+
+## BUG-047
+- Date: 2026-07-30
+- Area: SharedPageHeader title vertical position
+- Root cause: After shortening the wave to 112, title top padding of 6 sat the wording too high.
+- Fix: Increased title top padding from 6 to 14.
+
+## TEST-049
+- Date: 2026-07-30
+- Scope: Header title lower on wave
+- Verification target:
+  - Shared header titles sit lower / nearer the wave body while remaining fully visible.
+
+## BUG-048
+- Date: 2026-07-30
+- Area: SharedPageHeader title nudged lower again
+- Root cause: Title still sat slightly high after padding 14.
+- Fix: Increased title top padding from 14 to 20.
+
+## TEST-050
+- Date: 2026-07-30
+- Scope: Header title further down
+- Verification target:
+  - Titles sit a bit lower still on the shorter wave without clipping.
+
+## BUG-049
+- Date: 2026-07-30
+- Area: Home active car stale after "Which car today?"
+- Root cause: MainScreen set the DB active car on startup prompt, but Home only loaded `_activeCar` once in initState and never refreshed.
+- Fix: Added `AppState.activeCarId` notifier; MainScreen publishes on prompt/pick; Home listens and reloads; Home selector also publishes; cleared on signOut.
+
+## TEST-051
+- Date: 2026-07-30
+- Scope: Active car sync after startup prompt
+- Verification target:
+  - Restart app → Change car in "Which car today?" → Home chip highlight and header plate update immediately.
+  - Yes keeps existing car and Home still shows that car/plate.
+
+## BUG-050
+- Date: 2026-07-30
+- Area: Family section helper text → info icons
+- Root cause: Inline helper under Family Members cluttered the section; Emergency Contacts had no explanation at all.
+- Fix: Replaced/added small info icons next to both headings that open shared `_showSectionInfo` dialogs.
+
+## TEST-052
+- Date: 2026-07-30
+- Scope: Family Members / Emergency Contacts info icons
+- Verification target:
+  - Both headings show a small (i) icon; tap opens Got it dialog with explanation.
+  - Old Family Members helper line is gone.
+
