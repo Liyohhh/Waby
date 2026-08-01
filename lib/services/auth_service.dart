@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_state.dart';
 import '../core/demo_data.dart';
+import 'alert_service.dart';
 import 'demo_seed_service.dart';
 import 'family_service.dart';
 
@@ -165,6 +166,7 @@ class AuthService {
     AppState.greetingName.value = null;
     AppState.avatarPath.value = null;
     AppState.activeCarId.value = null;
+    AlertService.instance.resetForUserChange();
   }
 
   /// Sends a password-reset email containing a 6-digit OTP code.

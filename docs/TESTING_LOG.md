@@ -789,3 +789,17 @@
   - Add chip → Car Profiles → back: chips refresh via `_loadInitialCars()`.
   - `flutter analyze lib/screens/home_screen.dart` clean.
 
+## BUG-058
+- Date: 2026-07-30
+- Area: AlertService stale family_id after account switch
+- Root cause: Singleton cached `_familyId` (and active car name/plate) once and only reloaded when null, so sign-out → different sign-in without killing the app kept the previous user's family for Telegram / alert_events.
+- Fix: `resetForUserChange()` on sign-out; track `_familyIdLoadedForUser` and reload family id whenever the signed-in user differs before insert/escalate.
+
+## TEST-060
+- Date: 2026-07-30
+- Scope: Cross-account alert family routing
+- Verification target:
+  - Sign in as Family X → sign out (no kill) → sign in as Family Y → trigger alert → Telegram only to Y contacts.
+  - Switch back to X → alert routes to X only.
+  - `flutter analyze` clean on alert_service + auth_service.
+
