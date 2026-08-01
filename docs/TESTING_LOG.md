@@ -775,3 +775,58 @@
   - Login → Forgot password → Send Code → inbox shows 6-digit OTP.
   - Verify → set new password → returned to Login; sign in with new password works.
 
+## BUG-057
+- Date: 2026-07-30
+- Area: Home "Your Car" empty after cold/hot start
+- Root cause: StreamBuilder only applies `initialData` on first subscribe (when `_initialCars` is still empty). Updating `_initialCars` later via `setState` does not re-seed the snapshot; an empty realtime emission then leaves the row blank even after `myCars()` succeeds.
+- Fix: Prefer non-empty stream data, else fall back to `_initialCars`; refresh the seed when returning from Car Profiles.
+
+## TEST-059
+- Date: 2026-07-30
+- Scope: Home Your Car seed fallback
+- Verification target:
+  - Hot restart with existing cars: Your Car chips appear (not empty) even if realtime briefly emits [].
+  - Add chip → Car Profiles → back: chips refresh via `_loadInitialCars()`.
+  - `flutter analyze lib/screens/home_screen.dart` clean.
+
+## BUG-058
+- Date: 2026-07-30
+- Area: AlertService stale family_id after account switch
+- Root cause: Singleton cached `_familyId` (and active car name/plate) once and only reloaded when null, so sign-out → different sign-in without killing the app kept the previous user's family for Telegram / alert_events.
+- Fix: `resetForUserChange()` on sign-out; track `_familyIdLoadedForUser` and reload family id whenever the signed-in user differs before insert/escalate.
+
+## TEST-060
+- Date: 2026-07-30
+- Scope: Cross-account alert family routing
+- Verification target:
+  - Sign in as Family X → sign out (no kill) → sign in as Family Y → trigger alert → Telegram only to Y contacts.
+  - Switch back to X → alert routes to X only.
+  - `flutter analyze` clean on alert_service + auth_service.
+
+## BUG-059
+- Date: 2026-08-01
+- Area: Admin mode / tab index leak across account switch
+- Root cause: `signOut()` cleared greeting/avatar/activeCar but left `AppState.isAdminMode` and `mainTabIndex`, so the next account could inherit admin-mode alert overrides and a non-Home tab.
+- Fix: Reset `isAdminMode` to false and `mainTabIndex` to 0 in `signOut()` alongside existing AppState / AlertService clears.
+
+## TEST-061
+- Date: 2026-08-01
+- Scope: Sign-out clears admin mode and Home tab
+- Verification target:
+  - Enable admin mode on account A → sign out → sign into account B → B is non-admin and starts on Home.
+  - `flutter analyze lib/services/auth_service.dart` clean.
+
+## BUG-060
+- Date: 2026-08-01
+- Area: ESP32 firmware (`Project_1_draft_v2.ino`) buckle inversion + single FSR + temp threshold + live PATCH schema
+- Root cause: Buckle used `== HIGH` while comment said LOW=buckled; only FSR pin 34 was read; `TEMP_THRESHOLD` was 40°C vs documented 30°C; no Wi-Fi/Supabase live push matching Flutter `live` columns.
+- Fix: Buckle `== LOW`; three FSR pins (32/33/34) any-above-threshold presence; temp threshold 30°C; Wi-Fi (15s timeout) + `sendLiveUpdate()` PATCH to `live?id=eq.1` with `temperature`/`present`/`buckled`/`distance_near`/`battery`/`latitude`/`longitude`/`gps_accuracy_m`.
+
+## TEST-062
+- Date: 2026-08-01
+- Scope: ESP32 live PATCH (real schema) + sensor logic
+- Verification target:
+  - Fill WIFI_*/SUPABASE_ANON_KEY → flash → OLED shows WiFi Connected or WiFi FAILED then continues.
+  - Serial shows Supabase PATCH HTTP 204/200; Flutter LiveService on `id=1` reflects present/buckled/temp.
+  - Buckle closed → LOCKED; weight on any FSR → PRESENT; temp > 30°C with presence → HIGH TEMP ALERT.
+

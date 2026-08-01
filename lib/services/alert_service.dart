@@ -85,6 +85,7 @@ class AlertService {
   int _alertTimerSeconds = 60;
   bool _sheetOpen = false;
   String? _familyId;
+  String? _familyIdLoadedForUser;
   String? _activeCarName;
   String? _activeCarPlate;
   String _primaryChildId = 'primary-child';
@@ -95,6 +96,15 @@ class AlertService {
 
   bool get sheetOpen => _sheetOpen;
   void setSheetOpen(bool value) => _sheetOpen = value;
+
+  /// Clears cached per-user state. Call on sign-out so the next user's
+  /// alerts resolve their OWN family/car, not the previous user's.
+  void resetForUserChange() {
+    _familyId = null;
+    _familyIdLoadedForUser = null;
+    _activeCarName = null;
+    _activeCarPlate = null;
+  }
 
   Future<void> refreshAlertTimerSetting() async {
     try {
@@ -115,15 +125,20 @@ class AlertService {
   Future<void> _loadFamilyId() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) {
+        _familyId = null;
+        _familyIdLoadedForUser = null;
+        return;
+      }
       final data = await Supabase.instance.client
           .from('profiles')
           .select('family_id')
           .eq('id', userId)
           .maybeSingle();
       _familyId = data?['family_id'] as String?;
+      _familyIdLoadedForUser = userId;
     } catch (_) {
-      // Keep previous/null value on failure.
+      // Keep previous value on transient failure.
     }
   }
 
@@ -480,7 +495,8 @@ class AlertService {
   }
 
   Future<void> _insertAlertEvent(_TrackedAlert alert) async {
-    if (_familyId == null) {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (_familyId == null || _familyIdLoadedForUser != currentUserId) {
       await _loadFamilyId();
     }
     final familyId = _familyId;
@@ -548,7 +564,8 @@ class AlertService {
 
   Future<void> _escalate(_TrackedAlert alert) async {
     try {
-      if (_familyId == null) {
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (_familyId == null || _familyIdLoadedForUser != currentUserId) {
         await _loadFamilyId();
       }
       final familyId = _familyId;

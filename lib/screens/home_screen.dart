@@ -285,7 +285,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         stream: _carsStream,
                         initialData: _initialCars,
                         builder: (context, snap) {
-                          final cars = snap.data ?? const <Car>[];
+                          // Prefer a non-empty stream emission, but fall back to
+                          // the myCars() seed. StreamBuilder only applies
+                          // initialData on first subscribe (when _initialCars is
+                          // still empty), and realtime can emit [] on cold start
+                          // — without this fallback the Your Car row stays empty.
+                          final streamed = snap.data;
+                          final cars = (streamed != null && streamed.isNotEmpty)
+                              ? streamed
+                              : _initialCars;
                           return ListView(
                             scrollDirection: Axis.horizontal,
                             padding:
@@ -400,6 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             const CarSettingsScreen()),
                                   );
                                   _loadActiveCar();
+                                  _loadInitialCars();
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
