@@ -12,6 +12,7 @@ class SeatStatus {
   final bool distanceNear;
   final int battery;
   final DateTime? updatedAt;
+  final String? placeName;
 
   const SeatStatus({
     required this.temperature,
@@ -20,6 +21,7 @@ class SeatStatus {
     required this.distanceNear,
     required this.battery,
     this.updatedAt,
+    this.placeName,
   });
 
   factory SeatStatus.empty() => const SeatStatus(
@@ -36,6 +38,7 @@ class SeatStatus {
         updatedAt: map['updated_at'] != null
             ? DateTime.tryParse(map['updated_at'].toString())
             : null,
+        placeName: map['place_name'] as String?,
       );
 
   // Severity depends on WHICH indicator fails, not how many. Warning wins over caution.

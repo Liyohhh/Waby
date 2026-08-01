@@ -177,7 +177,7 @@ class AlertService {
       final row = await Supabase.instance.client
           .from('live')
           .select(
-              'temperature, latitude, longitude, gps_accuracy_m, updated_at')
+              'temperature, latitude, longitude, gps_accuracy_m, place_name, updated_at')
           .order('updated_at', ascending: false)
           .limit(1)
           .maybeSingle();
@@ -592,6 +592,9 @@ class AlertService {
             'longitude': (live!['longitude'] as num).toDouble(),
           if (live?['gps_accuracy_m'] != null)
             'gps_accuracy_m': (live!['gps_accuracy_m'] as num).toDouble(),
+          if (live?['place_name'] != null &&
+              (live!['place_name'] as String).isNotEmpty)
+            'place_name': live['place_name'],
           if (live?['updated_at'] != null)
             'last_seen': live!['updated_at'].toString(),
           'message': alert.message,

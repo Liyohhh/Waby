@@ -725,6 +725,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: Color(0xFF0063BA),
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800)),
+                            if (status.placeName != null &&
+                                status.placeName!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.location_on_outlined,
+                                        size: 12,
+                                        color: AppColors.textSecondary),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      status.placeName!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             Text("$firstName's car",
                                 style: const TextStyle(
                                     color: Color(0xFF031E2A), fontSize: 14)),

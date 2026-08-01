@@ -830,3 +830,58 @@
   - Serial shows Supabase PATCH HTTP 204/200; Flutter LiveService on `id=1` reflects present/buckled/temp.
   - Buckle closed → LOCKED; weight on any FSR → PRESENT; temp > 30°C with presence → HIGH TEMP ALERT.
 
+## BUG-061
+- Date: 2026-08-02
+- Area: ESP32 OLED did not show per-pad FSR pressure
+- Root cause: Only combined presence was shown; individual FSR1/2/3 values were serial-only, so hardware checks could not tell which pads detect.
+- Fix: OLED line `F1:.. F2:.. F3:..` with `*` when above threshold; Serial also prints Y/N detect per pad.
+
+## TEST-063
+- Date: 2026-08-02
+- Scope: Three FSR pad visibility on OLED/Serial
+- Verification target:
+  - Press each pad alone → that FSR shows `*` / Y and others stay below threshold.
+  - Re-upload sketch after change.
+
+## BUG-062
+- Date: 2026-08-02
+- Area: ESP32 v3 sketch missing power/RGB when Wi-Fi/live was added
+- Root cause: Wi-Fi/Supabase rewrite lived only in a slim v2 sketch and dropped power-button deep sleep, RGB status LEDs, and modular readSensors/updateDisplay from the full hardware firmware.
+- Fix: Merged full feature set into `Project_1_draft_v3.ino` — power button, RGB, 3 FSR (`FSR: L R B` on OLED), buckle LOW=locked, temp 30°C, Wi-Fi + `sendLiveUpdate()` to `live?id=eq.1`.
+
+## TEST-064
+- Date: 2026-08-02
+- Scope: Merged v3 firmware
+- Verification target:
+  - OLED shows `FSR: x y z`; RGB green only when seated+buckled+cool.
+  - Hold power 2s → deep sleep; short wake via button.
+  - With Wi-Fi + anon key filled: Serial `Supabase PATCH HTTP 204` and Flutter live row updates.
+
+## BUG-063
+- Date: 2026-08-02
+- Area: Family children cards used hardcoded battery 88 / demo-only warning
+- Root cause: `_ChildrenSectionState._toProfile` ignored `LiveService` and fell back to `battery: 88` and seed-only warning, unlike Home.
+- Fix: Nested `StreamBuilder<SeatStatus>` on `_liveStream`; `_toProfile(c, rawLive)` uses `rawLive.battery` and live `severity == warning` when not demo-seeded.
+
+## TEST-065
+- Date: 2026-08-02
+- Scope: Family page children live battery/warning
+- Verification target:
+  - Family → Children card battery matches Home / `live.battery`.
+  - Heat/left-behind on live row → warning styling on Family child card (non-demo).
+  - `flutter analyze lib/screens/contacts_screen.dart` clean.
+
+## BUG-064
+- Date: 2026-08-02
+- Area: place_name not surfaced in app / Telegram escalate
+- Root cause: ESP32 wrote `place_name` to `live` but SeatStatus/Home/AlertService ignored it.
+- Fix: Parse `placeName` on SeatStatus; show under Home header temp; pass `place_name` in `_escalate` Telegram payload (select includes column).
+
+## TEST-066
+- Date: 2026-08-02
+- Scope: place_name end-to-end
+- Verification target:
+  - With GPS place on `live.place_name`, Home shows location icon + name under °C.
+  - Escalate includes place_name when non-empty.
+  - `flutter analyze` clean on seat_status, alert_service, home_screen.
+

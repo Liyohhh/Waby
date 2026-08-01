@@ -15,6 +15,7 @@ import '../services/contact_service.dart';
 import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
+import '../services/live_service.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/gender_selector.dart';
@@ -771,7 +772,9 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   final ChildService _childService = ChildService();
   final FamilyService _familyService = FamilyService();
   final AuthService _auth = AuthService();
+  final LiveService _liveService = LiveService();
   late Stream<List<Child>> _childrenStream = _childService.myChildrenStream();
+  late final Stream<SeatStatus> _liveStream = _liveService.liveStream();
 
   void reload() {
     setState(() {
@@ -795,7 +798,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     if (mounted) setState(() => _demoFamily = v);
   }
 
-  _ChildProfile _toProfile(Child c) {
+  _ChildProfile _toProfile(Child c, SeatStatus rawLive) {
     if (_localOverrides.containsKey(c.id)) {
       final o = _localOverrides[c.id]!;
       return _ChildProfile(
@@ -821,8 +824,9 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       deviceId: c.deviceId,
       name: c.name,
       dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
-      battery: seed?.battery ?? 88,
-      isWarning: seed?.status == SeatSeverity.warning,
+      battery: seed?.battery ?? rawLive.battery,
+      isWarning: seed?.status == SeatSeverity.warning ||
+          (seed == null && rawLive.severity == SeatSeverity.warning),
       gender: c.gender ?? seed?.gender,
       weightKg: c.weightKg,
       heightCm: c.heightCm,
@@ -843,58 +847,65 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF031E2A))),
           const SizedBox(height: 12),
-          StreamBuilder<List<Child>>(
-            stream: _childrenStream,
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.accent),
-                  ),
-                );
-              }
-              if (snap.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        const Text(
-                          "Couldn't load children.",
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 13),
+          StreamBuilder<SeatStatus>(
+            stream: _liveStream,
+            builder: (context, liveSnap) {
+              final rawLive = liveSnap.data ?? SeatStatus.empty();
+              return StreamBuilder<List<Child>>(
+                stream: _childrenStream,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child:
+                            CircularProgressIndicator(color: AppColors.accent),
+                      ),
+                    );
+                  }
+                  if (snap.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            const Text(
+                              "Couldn't load children.",
+                              style: TextStyle(
+                                  color: AppColors.textSecondary, fontSize: 13),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: reload,
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: reload,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-              final children = snap.data ?? [];
-              if (children.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'No children yet. Add a device from Home to register a child.',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                );
-              }
-              return Column(
-                children: List.generate(children.length, (i) {
-                  final profile = _toProfile(children[i]);
-                  return Padding(
-                    padding: EdgeInsets.only(
-                        bottom: i < children.length - 1 ? 8 : 0),
-                    child: _childCard(context, profile),
+                      ),
+                    );
+                  }
+                  final children = snap.data ?? [];
+                  if (children.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'No children yet. Add a device from Home to register a child.',
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: List.generate(children.length, (i) {
+                      final profile = _toProfile(children[i], rawLive);
+                      return Padding(
+                        padding: EdgeInsets.only(
+                            bottom: i < children.length - 1 ? 8 : 0),
+                        child: _childCard(context, profile),
+                      );
+                    }),
                   );
-                }),
+                },
               );
             },
           ),
