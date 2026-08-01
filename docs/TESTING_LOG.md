@@ -816,3 +816,17 @@
   - Enable admin mode on account A → sign out → sign into account B → B is non-admin and starts on Home.
   - `flutter analyze lib/services/auth_service.dart` clean.
 
+## BUG-060
+- Date: 2026-08-01
+- Area: ESP32 firmware (`Project_1_draft_v2.ino`) buckle inversion + single FSR + temp threshold + live PATCH schema
+- Root cause: Buckle used `== HIGH` while comment said LOW=buckled; only FSR pin 34 was read; `TEMP_THRESHOLD` was 40°C vs documented 30°C; no Wi-Fi/Supabase live push matching Flutter `live` columns.
+- Fix: Buckle `== LOW`; three FSR pins (32/33/34) any-above-threshold presence; temp threshold 30°C; Wi-Fi (15s timeout) + `sendLiveUpdate()` PATCH to `live?id=eq.1` with `temperature`/`present`/`buckled`/`distance_near`/`battery`/`latitude`/`longitude`/`gps_accuracy_m`.
+
+## TEST-062
+- Date: 2026-08-01
+- Scope: ESP32 live PATCH (real schema) + sensor logic
+- Verification target:
+  - Fill WIFI_*/SUPABASE_ANON_KEY → flash → OLED shows WiFi Connected or WiFi FAILED then continues.
+  - Serial shows Supabase PATCH HTTP 204/200; Flutter LiveService on `id=1` reflects present/buckled/temp.
+  - Buckle closed → LOCKED; weight on any FSR → PRESENT; temp > 30°C with presence → HIGH TEMP ALERT.
+
