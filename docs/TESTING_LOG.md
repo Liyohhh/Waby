@@ -803,3 +803,16 @@
   - Switch back to X → alert routes to X only.
   - `flutter analyze` clean on alert_service + auth_service.
 
+## BUG-059
+- Date: 2026-08-01
+- Area: Admin mode / tab index leak across account switch
+- Root cause: `signOut()` cleared greeting/avatar/activeCar but left `AppState.isAdminMode` and `mainTabIndex`, so the next account could inherit admin-mode alert overrides and a non-Home tab.
+- Fix: Reset `isAdminMode` to false and `mainTabIndex` to 0 in `signOut()` alongside existing AppState / AlertService clears.
+
+## TEST-061
+- Date: 2026-08-01
+- Scope: Sign-out clears admin mode and Home tab
+- Verification target:
+  - Enable admin mode on account A → sign out → sign into account B → B is non-admin and starts on Home.
+  - `flutter analyze lib/services/auth_service.dart` clean.
+

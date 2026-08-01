@@ -166,6 +166,8 @@ class AuthService {
     AppState.greetingName.value = null;
     AppState.avatarPath.value = null;
     AppState.activeCarId.value = null;
+    AppState.isAdminMode.value = false;
+    AppState.mainTabIndex.value = 0;
     AlertService.instance.resetForUserChange();
   }
 
