@@ -898,3 +898,17 @@
   - Profile → first card shows Email between Full Name and Nickname; not editable.
   - Matches the signed-in Supabase user email.
 
+## BUG-066
+- Date: 2026-08-02
+- Area: Family child detail Live Status used hardcoded/always-safe values
+- Root cause: Detail sheet used `safe = !isWarning` for Buckle/Distance and literal `23°C`; non-demo `isWarning` was false when seed was null before live wiring, and temperature/buckled/distanceNear were not on `_ChildProfile`.
+- Fix: `_ChildProfile` carries live `temperature`/`buckled`/`distanceNear`; detail `_statCard`s use those fields; override path still refreshes sensors from `rawLive`.
+
+## TEST-068
+- Date: 2026-08-02
+- Scope: Family child detail live indicators
+- Verification target:
+  - Open child detail → Temperature/Buckle/Distance/Battery match `live` row (and Home).
+  - Heat → temp card unsafe; unbuckled → buckle unsafe; far → distance unsafe.
+  - `flutter analyze lib/screens/contacts_screen.dart` clean.
+

@@ -741,6 +741,9 @@ class _ChildProfile {
     required this.dob,
     required this.battery,
     required this.isWarning,
+    required this.temperature,
+    required this.buckled,
+    required this.distanceNear,
     this.gender,
     this.weightKg,
     this.heightCm,
@@ -753,6 +756,9 @@ class _ChildProfile {
   DateTime dob;
   int battery;
   bool isWarning;
+  double temperature;
+  bool buckled;
+  bool distanceNear;
   String? gender;
   double? weightKg;
   double? heightCm;
@@ -799,6 +805,18 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 
   _ChildProfile _toProfile(Child c, SeatStatus rawLive) {
+    final useDemo = DemoAccount.useDemoDisplay(
+      isDemoUser: _auth.isDemoUser,
+      isDemoFamily: _demoFamily,
+    );
+    final seed = useDemo ? DemoAccount.childSeedFor(c.name) : null;
+    final temperature = seed != null ? 23.0 : rawLive.temperature;
+    final buckled = seed?.buckled ?? rawLive.buckled;
+    final distanceNear = seed?.near ?? rawLive.distanceNear;
+    final battery = seed?.battery ?? rawLive.battery;
+    final isWarning = seed?.status == SeatSeverity.warning ||
+        (seed == null && rawLive.severity == SeatSeverity.warning);
+
     if (_localOverrides.containsKey(c.id)) {
       final o = _localOverrides[c.id]!;
       return _ChildProfile(
@@ -806,27 +824,27 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         deviceId: c.deviceId,
         name: o.name,
         dob: o.dob,
-        battery: o.battery,
-        isWarning: o.isWarning,
+        battery: battery,
+        isWarning: isWarning,
+        temperature: temperature,
+        buckled: buckled,
+        distanceNear: distanceNear,
         gender: o.gender,
         weightKg: o.weightKg,
         heightCm: o.heightCm,
         photoPath: o.photoPath ?? c.photoPath,
       );
     }
-    final useDemo = DemoAccount.useDemoDisplay(
-      isDemoUser: _auth.isDemoUser,
-      isDemoFamily: _demoFamily,
-    );
-    final seed = useDemo ? DemoAccount.childSeedFor(c.name) : null;
     return _ChildProfile(
       id: c.id,
       deviceId: c.deviceId,
       name: c.name,
       dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
-      battery: seed?.battery ?? rawLive.battery,
-      isWarning: seed?.status == SeatSeverity.warning ||
-          (seed == null && rawLive.severity == SeatSeverity.warning),
+      battery: battery,
+      isWarning: isWarning,
+      temperature: temperature,
+      buckled: buckled,
+      distanceNear: distanceNear,
       gender: c.gender ?? seed?.gender,
       weightKg: c.weightKg,
       heightCm: c.heightCm,
@@ -1322,9 +1340,11 @@ class _ChildDetailSheet extends StatelessWidget {
                           child: _statCard(
                         icon: Icons.thermostat,
                         label: 'Temperature',
-                        value: '23°C',
-                        sub: 'Normal range',
-                        safe: true,
+                        value: '${child.temperature.toStringAsFixed(0)}°C',
+                        sub: child.temperature > 30
+                            ? 'High temperature'
+                            : 'Normal range',
+                        safe: child.temperature <= 30,
                         isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),
@@ -1332,9 +1352,9 @@ class _ChildDetailSheet extends StatelessWidget {
                           child: _statCard(
                         icon: Icons.link,
                         label: 'Buckle',
-                        value: safe ? 'Buckled' : 'Unbuckled',
-                        sub: safe ? 'Secured' : 'Not secured',
-                        safe: safe,
+                        value: child.buckled ? 'Buckled' : 'Unbuckled',
+                        sub: child.buckled ? 'Secured' : 'Not secured',
+                        safe: child.buckled,
                         isGirl: isGirl,
                       )),
                     ],
@@ -1346,9 +1366,11 @@ class _ChildDetailSheet extends StatelessWidget {
                           child: _statCard(
                         icon: Icons.location_on,
                         label: 'Distance',
-                        value: safe ? 'Near' : 'Far',
-                        sub: safe ? 'Caregiver close' : 'Caregiver away',
-                        safe: safe,
+                        value: child.distanceNear ? 'Near' : 'Far',
+                        sub: child.distanceNear
+                            ? 'Caregiver close'
+                            : 'Caregiver away',
+                        safe: child.distanceNear,
                         isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),
