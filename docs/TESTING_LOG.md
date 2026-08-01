@@ -885,3 +885,16 @@
   - Escalate includes place_name when non-empty.
   - `flutter analyze` clean on seat_status, alert_service, home_screen.
 
+## BUG-065
+- Date: 2026-08-02
+- Area: Profile screen had no visible signed-in email
+- Root cause: First profile card only showed name/nickname/phone, so users could not confirm which account they were in.
+- Fix: Read-only Email row after Full Name using `_auth.currentUser?.email`.
+
+## TEST-067
+- Date: 2026-08-02
+- Scope: Profile read-only email
+- Verification target:
+  - Profile → first card shows Email between Full Name and Nickname; not editable.
+  - Matches the signed-in Supabase user email.
+

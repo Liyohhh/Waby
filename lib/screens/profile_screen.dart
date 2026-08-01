@@ -266,6 +266,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             : null,
                       ),
                       _divider(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _iconBubble(Icons.email_outlined),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Email',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _auth.currentUser?.email ?? '—',
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _divider(),
                       _fieldRow(
                         label: 'Nickname',
                         icon: Icons.badge_outlined,
