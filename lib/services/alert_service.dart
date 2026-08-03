@@ -194,7 +194,14 @@ class AlertService {
     return _alertTimerSeconds;
   }
 
-  static const Duration heatDebounce = Duration(seconds: 15);
+  // Heat must persist for this long before the alert fires (not just be
+  // momentarily read). Cabin temperature research shows real hot-car danger
+  // develops over minutes, not seconds, so this window only needs to be long
+  // enough to reject a transient sensor glitch/spike — 30s is ~30 consecutive
+  // above-threshold pushes at the firmware's ~1s push rate, while still being
+  // a small fraction of the multi-minute timescale over which real heat risk
+  // actually builds.
+  static const Duration heatDebounce = Duration(seconds: 30);
   static const Duration leftBehindGrace = Duration(minutes: 2);
 
   Duration _graceFor(AlertReason reason) {

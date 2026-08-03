@@ -933,32 +933,24 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 
   Widget _childCard(BuildContext context, _ChildProfile child) {
-    final warning = child.isWarning;
     final isGirl = child.gender == 'Girl';
+    final tempHot = child.temperature > 30;
 
-    // Same gender palette as Home `_ChildCard`: soft blue / soft pink,
-    // with warning red always winning as the safety signal.
-    final bgColor = warning
-        ? const Color(0xFFFBE6E5)
-        : isGirl
-            ? const Color(0xFFFCEAF2)
-            : const Color(0xFFD7F1F8);
-    final avatarBg = warning
-        ? const Color(0xFFFBE6E5)
-        : isGirl
-            ? const Color(0xFFF5B4CD)
-            : const Color(0xFF7FD0E4);
-    final avatarRing = warning
-        ? Colors.white.withAlpha(160)
-        : isGirl
-            ? const Color(0xFFF5B4CD).withAlpha(120)
-            : const Color(0xFF7FD0E4).withAlpha(120);
-    final chipText = warning ? const Color(0xFFC2291D) : AppColors.navy;
-    final shadowBase = warning
-        ? const Color(0xFFC2291D)
-        : isGirl
-            ? const Color(0xFFF5B4CD)
-            : const Color(0xFF7FD0E4);
+    // Keep gender palette even in heat/left-behind — warning shows via
+    // status wording elsewhere; only TEMP text goes red on this card.
+    final bgColor = isGirl
+        ? const Color(0xFFFCEAF2)
+        : const Color(0xFFD7F1F8);
+    final avatarBg = isGirl
+        ? const Color(0xFFF5B4CD)
+        : const Color(0xFF7FD0E4);
+    final avatarRing = isGirl
+        ? const Color(0xFFF5B4CD).withAlpha(120)
+        : const Color(0xFF7FD0E4).withAlpha(120);
+    final chipText = AppColors.navy;
+    final shadowBase = isGirl
+        ? const Color(0xFFF5B4CD)
+        : const Color(0xFF7FD0E4);
 
     return GestureDetector(
       onTap: () => _showChildDetail(context, child),
@@ -1020,15 +1012,57 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                           color: Colors.white.withAlpha(220),
                           borderRadius: BorderRadius.circular(20),
                         ),
+                        child: Text(
+                          child.isWarning
+                              ? 'WARNING'
+                              : (child.temperature > 30 ||
+                                      !child.buckled ||
+                                      !child.distanceNear)
+                                  ? 'CAUTION'
+                                  : 'SAFE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: child.isWarning
+                                ? AppColors.warning
+                                : (child.temperature > 30 ||
+                                        !child.buckled ||
+                                        !child.distanceNear)
+                                    ? const Color(0xFFE6A817)
+                                    : AppColors.safe,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${child.temperature.toStringAsFixed(0)}°C',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: tempHot
+                              ? AppColors.warning
+                              : AppColors.navy.withAlpha(225),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(220),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              warning
+                              child.battery <= 20
                                   ? Icons.battery_alert_rounded
                                   : Icons.battery_full_rounded,
                               size: 13,
-                              color: chipText,
+                              color: child.battery <= 20
+                                  ? AppColors.warning
+                                  : chipText,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -1036,7 +1070,9 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: chipText,
+                                color: child.battery <= 20
+                                    ? AppColors.warning
+                                    : chipText,
                               ),
                             ),
                           ],
@@ -1205,25 +1241,19 @@ class _ChildDetailSheet extends StatelessWidget {
     final isGirl = child.gender == 'Girl';
     final statusColor =
         safe ? const Color(0xFF56B337) : const Color(0xFFC2291D);
-    final headerTop = !safe
-        ? const Color(0xFFC2291D)
-        : isGirl
-            ? const Color(0xFFF5B4CD)
-            : const Color(0xFF7FD0E4);
-    final headerBot = !safe
-        ? const Color(0xFFE05555)
-        : isGirl
-            ? const Color(0xFFFCEAF2)
-            : const Color(0xFFD7F1F8);
-    final avatarBg = !safe
-        ? Colors.white.withAlpha(60)
-        : isGirl
-            ? const Color(0xFFF5B4CD)
-            : const Color(0xFF7FD0E4);
-    final headerOnColor = safe ? AppColors.navy : Colors.white;
-    final headerMuted = safe
-        ? AppColors.navy.withAlpha(225)
-        : Colors.white70;
+    // Keep gender header colors even when warning — only the SAFE/WARNING
+    // chip and TEMP wording turn red for heat.
+    final headerTop = isGirl
+        ? const Color(0xFFF5B4CD)
+        : const Color(0xFF7FD0E4);
+    final headerBot = isGirl
+        ? const Color(0xFFFCEAF2)
+        : const Color(0xFFD7F1F8);
+    final avatarBg = isGirl
+        ? const Color(0xFFF5B4CD)
+        : const Color(0xFF7FD0E4);
+    final headerOnColor = AppColors.navy;
+    final headerMuted = AppColors.navy.withAlpha(225);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.72,

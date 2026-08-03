@@ -912,3 +912,32 @@
   - Heat → temp card unsafe; unbuckled → buckle unsafe; far → distance unsafe.
   - `flutter analyze lib/screens/contacts_screen.dart` clean.
 
+## BUG-067
+- Date: 2026-08-03
+- Area: Heat warning recolored child cards red on Home/Family
+- Root cause: Warning state overrode gender pastel header/background; caregivers lost gender cues when temp was high.
+- Fix: Keep boy/girl card colors always; status chip still shows WARNING; Home header °C (and Family list °C) turn red when temp > 30°C.
+
+## TEST-069
+- Date: 2026-08-03
+- Scope: Gender card colors retained under heat
+- Verification target:
+  - Heat on live → Home child card stays blue/pink; badge says WARNING (red).
+  - Home big temperature number turns red above 30°C.
+  - Family child list stays gender color; shows WARNING + red °C when hot.
+  - `flutter analyze` clean on home_screen + contacts_screen.
+
+## BUG-068
+- Date: 2026-08-03
+- Area: Heat alert debounce (`lib/services/alert_service.dart`)
+- Root cause: `heatDebounce` was 15s — a brief sensor spike (e.g. a couple of seconds above 30°C from DHT11 noise or a momentary read) could count toward triggering a full heat alert without the temperature actually being sustained.
+- Fix: Raised `heatDebounce` to 30s. Vehicular-heatstroke research shows real cabin heat risk builds over minutes (≈11°C rise per 10 min), so 30s stays a small fraction of that curve while requiring ~30 consecutive above-threshold pushes (at the firmware's ~1s push rate) before the alert can activate — filtering transient noise without meaningfully delaying a real event.
+
+## TEST-070
+- Date: 2026-08-03
+- Scope: Heat debounce duration
+- Verification target:
+  - Simulate temperature > 30°C for <30s (e.g. edit `live.temperature` briefly via Supabase, then revert) → no alert screen, no sound, no Telegram.
+  - Simulate temperature > 30°C sustained ≥30s → alert activates at tier 3 (critical) as before.
+  - `flutter analyze lib/services/alert_service.dart` clean.
+

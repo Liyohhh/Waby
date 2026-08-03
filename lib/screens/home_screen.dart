@@ -714,15 +714,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.thermostat,
-                            color: Color(0xFF0063BA), size: 64),
+                        Icon(Icons.thermostat,
+                            color: status.temperature > 30
+                                ? AppColors.warning
+                                : const Color(0xFF0063BA),
+                            size: 64),
                         const SizedBox(width: 4),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text('${status.temperature.toStringAsFixed(0)}°C',
-                                style: const TextStyle(
-                                    color: Color(0xFF0063BA),
+                                style: TextStyle(
+                                    color: status.temperature > 30
+                                        ? AppColors.warning
+                                        : const Color(0xFF0063BA),
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800)),
                             if (status.placeName != null &&
@@ -1567,41 +1572,30 @@ class _ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final warning = present && status == _CardStatus.warning;
     final isGirl = gender == 'Girl';
 
-    // Gender is purely decorative on the card's own background — it never
-    // touches the SAFE/CAUTION/WARNING pill or the Buckled/Near/Battery
-    // pills below, and a warning state always wins over the gender theme
-    // since that red is a safety signal, not decoration.
-    final headerGradient = warning
+    // Gender owns the card background always — heat/left-behind only
+    // update the SAFE/CAUTION/WARNING chip (and TEMP text elsewhere), not the card color.
+    final headerGradient = isGirl
         ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFE0685F), Color(0xFFC2291D)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // Soft pastel pink — lighter than EC82AC while keeping
+            // navy DOB/details (alpha 225) readable on the header.
+            colors: [Color(0xFFF5B4CD), Color(0xFFFCEAF2)],
+            stops: [0.31, 0.88],
           )
-        : isGirl
-            ? const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                // Soft pastel pink — lighter than EC82AC while keeping
-                // navy DOB/details (alpha 225) readable on the header.
-                colors: [Color(0xFFF5B4CD), Color(0xFFFCEAF2)],
-                stops: [0.31, 0.88],
-              )
-            : const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                // Soft pastel blue — lighter take on the header gradient.
-                colors: [Color(0xFF7FD0E4), Color(0xFFD7F1F8)],
-                stops: [0.31, 0.88],
-              );
+        : const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // Soft pastel blue — lighter take on the header gradient.
+            colors: [Color(0xFF7FD0E4), Color(0xFFD7F1F8)],
+            stops: [0.31, 0.88],
+          );
 
-    final shadowColor = (warning
-            ? const Color(0xFFC2291D)
-            : isGirl
-                ? const Color(0xFFF5B4CD)
-                : const Color(0xFF7FD0E4))
+    final shadowColor = (isGirl
+            ? const Color(0xFFF5B4CD)
+            : const Color(0xFF7FD0E4))
         .withAlpha(36);
 
     return Container(
