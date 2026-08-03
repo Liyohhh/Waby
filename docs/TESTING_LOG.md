@@ -941,3 +941,77 @@
   - Simulate temperature > 30°C sustained ≥30s → alert activates at tier 3 (critical) as before.
   - `flutter analyze lib/services/alert_service.dart` clean.
 
+## BUG-069
+- Date: 2026-08-03
+- Area: Buckle reminder re-fired immediately after acknowledge / swipe-away
+- Root cause: Acknowledging a buckle alert cleared it but the next live tick re-activated the same condition with no snooze; swiping the sheet away also re-prompted on the next emission.
+- Fix: 5-minute `_buckleSnoozedUntil` after acknowledge (cleared on rebuckle); MainScreen throttles buckle-only sheet re-prompts to 60s.
+
+## TEST-071
+- Date: 2026-08-03
+- Scope: Buckle acknowledge snooze + sheet re-prompt throttle
+- Verification target:
+  - Unbuckled present+near → buckle sheet → Acknowledge → no re-alert for 5 min while still unbuckled.
+  - Rebuckle then unbuckle again → new buckle alert allowed.
+  - Swipe sheet away without acknowledge → sheet may return after ≥60s, not instantly.
+  - `flutter analyze` clean on alert_service + main_screen.
+
+## BUG-070
+- Date: 2026-08-03
+- Area: Buckle reminder fired while parked (diaper change, etc.)
+- Root cause: Buckle condition only checked present + unbuckled + distanceNear; no notion of whether the car was moving.
+- Fix: Firmware publishes `car_moving` from GPS speed (>2 km/h, fail-safe true without fix); SeatStatus parses it; buckle alert requires `carMoving`.
+
+## TEST-072
+- Date: 2026-08-03
+- Scope: Buckle gated on car_moving
+- Verification target:
+  - Parked (`car_moving=false`) + present + unbuckled → no buckle alert sheet.
+  - Moving (`car_moving=true`) + present + unbuckled + near → buckle reminder as before.
+  - Missing `car_moving` column/null → defaults true (still alerts).
+  - Re-flash v3 firmware; ensure Supabase `live.car_moving` boolean exists.
+  - `flutter analyze` clean on seat_status + alert_service.
+
+## BUG-071
+- Date: 2026-08-03
+- Area: Startup car dialog overlapped alert sheet; Acknowledge untappable
+- Root cause: `_onAlerts` and `_maybeAskAboutCar` both ran on first frame, stacking two modals so the car dialog blocked taps on Acknowledge. Sheet also relied only on stream sync to pop after ack.
+- Fix: Gate alerts until car prompt finishes (`_startupReadyForAlerts`); then show pending alerts. Acknowledge removes locally and pops immediately.
+
+## TEST-073
+- Date: 2026-08-03
+- Scope: Startup car → then alert sequencing
+- Verification target:
+  - Cold open with cars + active buckle condition → "Which car today?" first; after Yes/pick, Home visible, then alert sheet.
+  - Acknowledge dismisses buckle sheet (does not stay stuck under another dialog).
+  - `flutter analyze` clean on main_screen + alert_bottom_sheet.
+
+## BUG-072
+- Date: 2026-08-03
+- Area: Acknowledge worked once then failed after reopen
+- Root cause: Acknowledge + empty stream both called `Navigator.pop()`, stacking a double-pop that could leave a stuck barrier/`sheetOpen`. Buckle snooze was in-memory only, so reopen immediately re-alerted and felt like dismiss failed.
+- Fix: Single `_closeSheet()` path with `_closing` guard; reset `sheetOpen` on MainScreen init; persist buckle snooze in SharedPreferences across restarts.
+
+## TEST-074
+- Date: 2026-08-03
+- Scope: Acknowledge reliable across reopen
+- Verification target:
+  - Acknowledge buckle → sheet closes; reopen within 5 min → no buckle sheet (snooze persisted).
+  - After snooze expires / rebuckle+unbuckle → sheet shows again and Acknowledge still dismisses.
+  - `flutter analyze` clean on alert_service, alert_bottom_sheet, main_screen.
+
+## BUG-073
+- Date: 2026-08-03
+- Area: Family list clutter + sparse header + floating nav gap
+- Root cause: Child cards showed caution/temp/battery chips; Family used default SharedPageHeader spacing; bottom nav had 14px bottom margin leaving a large gap.
+- Fix: Child cards show name+age only; Family-specific taller header with lower title + pull content up; nav SafeArea with 4px bottom inset and tighter label metrics.
+
+## TEST-075
+- Date: 2026-08-03
+- Scope: Family / nav visual cleanup
+- Verification target:
+  - Family child cards: no SAFE/CAUTION/TEMP/battery chips.
+  - Family title sits lower in wave; less empty gap before Children.
+  - Bottom nav closer to screen edge (smaller gap).
+  - `flutter analyze` clean on contacts_screen, main_screen, auth_widgets.
+

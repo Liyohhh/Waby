@@ -69,6 +69,7 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
   late StreamSubscription<List<ActiveAlert>> _sub;
   List<ActiveAlert> _alerts = [];
   int _currentIndex = 0;
+  bool _closing = false;
 
   ActiveAlert get _currentAlert => _alerts[_currentIndex];
 
@@ -91,10 +92,17 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
     super.dispose();
   }
 
+  void _closeSheet() {
+    if (_closing || !mounted) return;
+    _closing = true;
+    unawaited(_sub.cancel());
+    Navigator.of(context).pop();
+  }
+
   void _syncAlerts(List<ActiveAlert> next) {
-    if (!mounted) return;
+    if (!mounted || _closing) return;
     if (next.isEmpty) {
-      Navigator.of(context).pop();
+      _closeSheet();
       return;
     }
 
@@ -116,7 +124,7 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_pageController.hasClients) return;
+      if (!mounted || _closing || !_pageController.hasClients) return;
 
       if (_alerts.length > previousLength) {
         _pageController.animateToPage(
@@ -131,8 +139,12 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
   }
 
   Future<void> _acknowledgeCurrent() async {
-    final current = _currentAlert;
-    await AlertService.instance.acknowledgeAlert(current.alertId);
+    if (_closing || _alerts.isEmpty) return;
+    final alertId = _currentAlert.alertId;
+    // Close first so a second empty emit cannot double-pop the route stack
+    // (that left Acknowledge untappable on the next app open).
+    _closeSheet();
+    await AlertService.instance.acknowledgeAlert(alertId);
   }
 
   void _handlePageChanged(int index) {

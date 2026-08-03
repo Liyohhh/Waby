@@ -66,14 +66,15 @@ class _ContactsScreenState extends State<ContactsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
+              const SizedBox(height: 14),
               _buildChildrenSection(context),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildFamilyMembersSection(context),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildEmergencyContactsSection(context),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildJoinCodeCard(),
-              const SizedBox(height: 100),
+              const SizedBox(height: 88),
             ],
           ),
         ),
@@ -84,9 +85,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
   // ── Header ────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
+    // Family gets its own taller wave + lower title than Settings/other tabs.
     return SharedPageHeader(
       title: 'Family',
       showBack: widget.showBack,
+      height: 148,
+      titleTopPadding: 44,
     );
   }
 
@@ -934,10 +938,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
 
   Widget _childCard(BuildContext context, _ChildProfile child) {
     final isGirl = child.gender == 'Girl';
-    final tempHot = child.temperature > 30;
 
-    // Keep gender palette even in heat/left-behind — warning shows via
-    // status wording elsewhere; only TEMP text goes red on this card.
     final bgColor = isGirl
         ? const Color(0xFFFCEAF2)
         : const Color(0xFFD7F1F8);
@@ -947,7 +948,6 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     final avatarRing = isGirl
         ? const Color(0xFFF5B4CD).withAlpha(120)
         : const Color(0xFF7FD0E4).withAlpha(120);
-    final chipText = AppColors.navy;
     final shadowBase = isGirl
         ? const Color(0xFFF5B4CD)
         : const Color(0xFF7FD0E4);
@@ -993,92 +993,14 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.navy)),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        child.ageLabel,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.navy.withAlpha(225),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(220),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          child.isWarning
-                              ? 'WARNING'
-                              : (child.temperature > 30 ||
-                                      !child.buckled ||
-                                      !child.distanceNear)
-                                  ? 'CAUTION'
-                                  : 'SAFE',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: child.isWarning
-                                ? AppColors.warning
-                                : (child.temperature > 30 ||
-                                        !child.buckled ||
-                                        !child.distanceNear)
-                                    ? const Color(0xFFE6A817)
-                                    : AppColors.safe,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${child.temperature.toStringAsFixed(0)}°C',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: tempHot
-                              ? AppColors.warning
-                              : AppColors.navy.withAlpha(225),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(220),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              child.battery <= 20
-                                  ? Icons.battery_alert_rounded
-                                  : Icons.battery_full_rounded,
-                              size: 13,
-                              color: child.battery <= 20
-                                  ? AppColors.warning
-                                  : chipText,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${child.battery}%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: child.battery <= 20
-                                    ? AppColors.warning
-                                    : chipText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 4),
+                  Text(
+                    child.ageLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy.withAlpha(225),
+                    ),
                   ),
                 ],
               ),

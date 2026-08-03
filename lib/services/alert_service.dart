@@ -69,7 +69,8 @@ class AlertService {
     });
     unawaited(refreshAlertTimerSetting()
         .then((_) => _loadFamilyId())
-        .then((_) => _loadActiveCarName()));
+        .then((_) => _loadActiveCarName())
+        .then((_) => _loadBuckleSnoozes()));
   }
   static final AlertService instance = AlertService._internal();
 
@@ -93,6 +94,12 @@ class AlertService {
   final Map<String, _PendingAlert> _pending = {};
   final Map<String, _TrackedAlert> _active = {};
   final Set<String> _autoFired = <String>{};
+  // Keyed by childId. After a caregiver acknowledges an ongoing buckle
+  // reminder, suppress re-alerting for this window (e.g. a quick diaper
+  // change) instead of instantly re-firing on the next live tick.
+  final Map<String, DateTime> _buckleSnoozedUntil = {};
+  static const Duration buckleAckSnooze = Duration(minutes: 5);
+  static const _buckleSnoozePrefsKey = 'waby_buckle_snooze_until';
 
   bool get sheetOpen => _sheetOpen;
   void setSheetOpen(bool value) => _sheetOpen = value;
@@ -104,6 +111,8 @@ class AlertService {
     _familyIdLoadedForUser = null;
     _activeCarName = null;
     _activeCarPlate = null;
+    _buckleSnoozedUntil.clear();
+    unawaited(_persistBuckleSnoozes());
   }
 
   Future<void> refreshAlertTimerSetting() async {
@@ -253,6 +262,12 @@ class AlertService {
       final alert = _active[id]!;
       if (!visibleTypes.contains(alert.alertType)) {
         _resolveAlert(alert.alertId);
+        if (alert.alertType == 'buckle') {
+          // Rebuckled — any future unbuckle is a fresh episode, not a
+          // continuation of one the caregiver already acknowledged.
+          _buckleSnoozedUntil.remove(alert.childId);
+          unawaited(_persistBuckleSnoozes());
+        }
       }
     }
 
@@ -273,6 +288,13 @@ class AlertService {
           ..childId = condition.childId
           ..childName = condition.childName;
         continue;
+      }
+
+      if (condition.alertType == 'buckle') {
+        final snoozedUntil = _buckleSnoozedUntil[condition.childId];
+        if (snoozedUntil != null && now.isBefore(snoozedUntil)) {
+          continue; // Acknowledged recently — same episode, stay quiet.
+        }
       }
 
       final grace = _graceFor(condition.reason);
@@ -374,7 +396,50 @@ class AlertService {
     if (changed) _emit();
   }
 
+  Future<void> _loadBuckleSnoozes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_buckleSnoozePrefsKey);
+      if (raw == null || raw.isEmpty) return;
+      final now = DateTime.now();
+      for (final entry in raw.split('|')) {
+        final parts = entry.split('=');
+        if (parts.length != 2) continue;
+        final until = DateTime.tryParse(parts[1]);
+        if (until != null && until.isAfter(now)) {
+          _buckleSnoozedUntil[parts[0]] = until;
+        }
+      }
+    } catch (_) {
+      // Non-fatal — snooze just won't survive restart.
+    }
+  }
+
+  Future<void> _persistBuckleSnoozes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+      _buckleSnoozedUntil.removeWhere((_, until) => !until.isAfter(now));
+      if (_buckleSnoozedUntil.isEmpty) {
+        await prefs.remove(_buckleSnoozePrefsKey);
+        return;
+      }
+      final encoded = _buckleSnoozedUntil.entries
+          .map((e) => '${e.key}=${e.value.toIso8601String()}')
+          .join('|');
+      await prefs.setString(_buckleSnoozePrefsKey, encoded);
+    } catch (_) {
+      // Non-fatal.
+    }
+  }
+
   Future<void> acknowledgeAlert(String alertId) async {
+    final alert = _active[alertId];
+    if (alert != null && alert.alertType == 'buckle') {
+      _buckleSnoozedUntil[alert.childId] =
+          DateTime.now().add(buckleAckSnooze);
+      unawaited(_persistBuckleSnoozes());
+    }
     _resolveAlert(alertId);
     _emit();
   }
@@ -656,7 +721,12 @@ class AlertService {
     final childId = _primaryChildId;
     final childName = _primaryChildName;
 
-    if (status.present && !status.buckled && status.distanceNear) {
+    if (status.present &&
+        !status.buckled &&
+        status.distanceNear &&
+        status.carMoving) {
+      // Gated on carMoving so a parked-car unbuckle (diaper change, etc.)
+      // doesn't trigger a reminder.
       conditions.add(_AlertCondition(
         childId: childId,
         childName: childName,

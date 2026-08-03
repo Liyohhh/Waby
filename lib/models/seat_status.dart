@@ -13,6 +13,7 @@ class SeatStatus {
   final int battery;
   final DateTime? updatedAt;
   final String? placeName;
+  final bool carMoving;
 
   const SeatStatus({
     required this.temperature,
@@ -22,6 +23,7 @@ class SeatStatus {
     required this.battery,
     this.updatedAt,
     this.placeName,
+    this.carMoving = true,
   });
 
   factory SeatStatus.empty() => const SeatStatus(
@@ -39,6 +41,9 @@ class SeatStatus {
             ? DateTime.tryParse(map['updated_at'].toString())
             : null,
         placeName: map['place_name'] as String?,
+        // Default true (fail-safe: alert) if the column is missing/null,
+        // e.g. before the firmware sends it.
+        carMoving: map['car_moving'] as bool? ?? true,
       );
 
   // Severity depends on WHICH indicator fails, not how many. Warning wins over caution.

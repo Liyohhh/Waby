@@ -60,12 +60,15 @@ class SharedPageHeader extends StatelessWidget {
   final String title;
   final bool showBack;
   final double height;
+  /// Extra top inset for the title row (below the status bar).
+  final double titleTopPadding;
 
   const SharedPageHeader({
     super.key,
     required this.title,
     this.showBack = true,
     this.height = 112,
+    this.titleTopPadding = 20,
   });
 
   @override
@@ -81,10 +84,11 @@ class SharedPageHeader extends StatelessWidget {
           ),
         ),
         SafeArea(
+          bottom: false,
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               showBack ? 4 : 20,
-              20,
+              titleTopPadding,
               20,
               0,
             ),

@@ -25,6 +25,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   RealtimeChannel? _profileChannel;
   StreamSubscription<List<ActiveAlert>>? _alertSub;
+  // Throttle re-prompting for a swiped-away (unacknowledged) buckle alert
+  // so it nags periodically instead of on literally the next live tick.
+  final Map<String, DateTime> _lastBucklePromptAt = {};
+  static const Duration _buckleRepromptInterval = Duration(seconds: 60);
+  // Hold alert sheets until the "Which car today?" flow finishes so the two
+  // modals never stack and block Acknowledge taps.
+  bool _startupReadyForAlerts = false;
 
   final List<Widget> _pages = [
     const HomeScreen(),
@@ -35,9 +42,25 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // Clear any sticky sheet flag from a prior session (singleton survives
+    // process resume) so Acknowledge / re-show stay reliable.
+    AlertService.instance.setSheetOpen(false);
     _watchMyProfile();
     _alertSub = AlertService.instance.activeAlertsStream.listen(_onAlerts);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAskAboutCar());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runStartupSequence());
+  }
+
+  Future<void> _runStartupSequence() async {
+    await _maybeAskAboutCar();
+    if (!mounted) return;
+    // Let the car dialog finish dismissing and Home settle, then alert.
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    _startupReadyForAlerts = true;
+    final pending = AlertService.instance.activeAlerts;
+    if (pending.isNotEmpty) {
+      _onAlerts(pending);
+    }
   }
 
   @override
@@ -172,7 +195,17 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onAlerts(List<ActiveAlert> alerts) {
+    if (!_startupReadyForAlerts) return;
     if (alerts.isEmpty || AlertService.instance.sheetOpen || !mounted) return;
+    final onlyBuckle = alerts.every((a) => a.alertType == 'buckle');
+    if (onlyBuckle) {
+      final now = DateTime.now();
+      final last = _lastBucklePromptAt[alerts.first.alertId];
+      if (last != null && now.difference(last) < _buckleRepromptInterval) {
+        return;
+      }
+      _lastBucklePromptAt[alerts.first.alertId] = now;
+    }
     showAlertBottomSheet(context, initial: alerts);
   }
 
@@ -234,47 +267,64 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: Colors.transparent,
           extendBody: true,
           body: IndexedStack(index: index, children: _pages),
-          bottomNavigationBar: Container(
-            margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            decoration: BoxDecoration(
-              color: AppColors.navy,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1A000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
+          bottomNavigationBar: SafeArea(
+            top: false,
+            minimum: EdgeInsets.zero,
+            child: Padding(
+              // Sit above the home indicator with a bit of lift so the pill
+              // doesn't hug the very bottom edge.
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.navy,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A000000),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: BottomNavigationBar(
-              currentIndex: index,
-              onTap: (i) => AppState.mainTabIndex.value = i,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              type: BottomNavigationBarType.fixed,
-              iconSize: 28,
-              selectedItemColor: Colors.white,
-              unselectedItemColor: Colors.white.withValues(alpha: 0.70),
-              selectedFontSize: 12,
-              unselectedFontSize: 12,
-              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-              items: const [
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined),
-                    activeIcon: Icon(Icons.home),
-                    label: 'Home'),
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.groups_outlined),
-                    activeIcon: Icon(Icons.groups),
-                    label: 'Family'),
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.settings_outlined),
-                    activeIcon: Icon(Icons.settings),
-                    label: 'Settings'),
-              ],
+                clipBehavior: Clip.antiAlias,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    splashColor: Colors.white24,
+                    highlightColor: Colors.transparent,
+                  ),
+                  child: BottomNavigationBar(
+                    currentIndex: index,
+                    onTap: (i) => AppState.mainTabIndex.value = i,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    type: BottomNavigationBarType.fixed,
+                    enableFeedback: true,
+                    iconSize: 26,
+                    selectedItemColor: Colors.white,
+                    unselectedItemColor: Colors.white.withValues(alpha: 0.70),
+                    selectedFontSize: 11,
+                    unselectedFontSize: 11,
+                    selectedLabelStyle:
+                        const TextStyle(fontWeight: FontWeight.w700, height: 1.1),
+                    unselectedLabelStyle:
+                        const TextStyle(fontWeight: FontWeight.w500, height: 1.1),
+                    items: const [
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.home_outlined),
+                          activeIcon: Icon(Icons.home),
+                          label: 'Home'),
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.groups_outlined),
+                          activeIcon: Icon(Icons.groups),
+                          label: 'Family'),
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.settings_outlined),
+                          activeIcon: Icon(Icons.settings),
+                          label: 'Settings'),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         );
