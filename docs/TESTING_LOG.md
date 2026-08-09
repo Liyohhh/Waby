@@ -1015,3 +1015,58 @@
   - Bottom nav closer to screen edge (smaller gap).
   - `flutter analyze` clean on contacts_screen, main_screen, auth_widgets.
 
+## BUG-074
+- Date: 2026-08-09
+- Area: ESP32 firmware (`Project_1_draft_v3.ino`) DHT11 oversampling → temp flicker + heat debounce reset
+- Root cause: `readSensors()` ran every loop (~200–300 ms) but DHT11 cannot be sampled faster than ~1 Hz; failed reads returned NaN and firmware pushed `temperature: 0`, so the live temp bounced between real value and 0/"Error" and the app's 30s heat debounce kept resetting.
+- Fix: Throttle DHT reads to once every 2 s (`DHT_READ_INTERVAL_MS`); on failed/too-soon reads hold last good `temperature`/`tempValid` instead of zeroing; recompute `highTemp` from held value.
+
+## TEST-076
+- Date: 2026-08-09
+- Scope: DHT11 throttle + last-good temp hold
+- Verification target:
+  - Serial `Temp:` line updates smoothly every ~2 s with no "Error"/0 flicker between valid reads.
+  - Supabase `live.temperature` holds steady instead of bouncing to 0.
+
+## BUG-075
+- Date: 2026-08-09
+- Area: Heat-alarm false-positive at Malaysian ambient (~30–32°C)
+- Root cause: Heat threshold was hardcoded at 30°C in app (`seat_status`, `alert_service`) and firmware (`TEMP_THRESHOLD`), so ambient KL temps triggered tier-3 critical heat alarms at rest.
+- Fix: Single `kHeatThresholdC = 38.0` in `lib/core/constants.dart`; seat severity/reason and alert conditions use it; firmware `TEMP_THRESHOLD` set to 38.0; test-alert detail bumped to 41.0°C. Debounce unchanged.
+
+## TEST-077
+- Date: 2026-08-09
+- Scope: Heat threshold 38°C (app + firmware)
+- Verification target:
+  - At ambient ~30–32°C no heat alarm fires.
+  - Warming the DHT11 above 38°C for ≥30 s fires the tier-3 heat alert.
+  - OLED shows "HIGH TEMP!" at the same point.
+  - `flutter analyze lib/models/seat_status.dart lib/services/alert_service.dart` clean.
+
+## BUG-076
+- Date: 2026-08-09
+- Area: ESP32 firmware (`Project_1_draft_v3.ino`) presence flicker near detection line
+- Root cause: Presence used a single `PRESS_DETECT_PCT = 15` threshold with no hysteresis/debounce, so weight near the line toggled `babyPresent` every read; each flip made the Flutter app resolve+recreate alerts (flickering sheets, resetting timers/tiers).
+- Fix: Schmitt hysteresis (`SEAT_ENTER_PCT` 18 / `SEAT_CLEAR_PCT` 10) plus `PRESENCE_CONFIRM` (4) consecutive confirming reads before flipping; strongest pad drives the decision.
+
+## TEST-078
+- Date: 2026-08-09
+- Scope: Presence hysteresis + debounce
+- Verification target:
+  - With a weight resting near the detection line, Serial `Baby:` holds steady at SEATED or EMPTY instead of flapping between reads.
+  - Lifting the weight fully clears to EMPTY within ~1 s.
+  - App alert sheet no longer flickers open/closed.
+
+## BUG-077
+- Date: 2026-08-09
+- Area: Project documentation + doc-sync rules
+- Root cause: Living docs for database, API, and design system were missing; project-overview still described Firebase; design-system rule had drifted header gradient hexes vs `theme.dart`.
+- Fix: Added project documentation: DATABASE, API, DESIGN_SYSTEM, and doc-sync rules. Updated `PRD.md` (Last updated 2026-08-09) and `.cursor/rules/project-overview.mdc` / `design-system.mdc` to match Supabase + `theme.dart`.
+
+## TEST-079
+- Date: 2026-08-09
+- Scope: Docs and rules established
+- Verification target:
+  - `docs/DATABASE.md`, `docs/API.md`, `docs/DESIGN_SYSTEM.md` present; sync rules under `.cursor/rules/*-sync.mdc`.
+  - `flutter analyze` clean (no Dart regressions from doc-only work).
+

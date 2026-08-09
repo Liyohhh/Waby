@@ -7,32 +7,35 @@ alwaysApply: false
 # Waby — Design System
 
 Brand: **Waby**. Logo is a butterfly (navy wings + a blue dot). Friendly, rounded, calm.
-`lib/core/theme.dart` is the source of truth — use `AppColors` constants, never raw hex in widgets.
 
-## Colours (exact)
+**Full reference:** `docs/DESIGN_SYSTEM.md`.  
+**Token source of truth:** `lib/core/theme.dart` — use `AppColors` / `kHeaderGradient`, never raw hex in widgets. When tokens or shared widgets change, update `docs/DESIGN_SYSTEM.md` in the same change.
+
+## Colours (exact — from `theme.dart`)
 - Primary navy `#0F2D54` — main buttons, headings.
 - Logo wings / darkest text `#0D1117`.
-- Wave-header gradient `#4696B7` → `#4C9DBC`.
+- Wave-header gradient `#008FB4` → `#7AD0E4` (`kHeaderGradient`, stops 0.31 / 0.88).
 - Accent blue `#3B74BC` — links, info pills.
 - Value blue `#5187C6` — big stat numbers.
 - Logo dot / bright accent `#2AAEE0`.
 - Soft light blue `#8ECEE1` — bottom nav, soft accents.
 - Field background `#F7F3F3`.
 - Safe child card `#E0E8F2`; warning child card `#FBE6E5`; plain cards `#FFFFFF`.
-- Status: SAFE green `#56B337`; WARNING / critical red `#C2291D`.
+- Status: SAFE green `#56B337`; caution amber `#F0C040`; WARNING / critical red `#C2291D`.
+- Alert ramp: soft `#8A9199` → caution `#F0A020` → critical `#C2291D`.
 
 ## Typography
 Poppins (via `google_fonts`). Big bold headings, bold coloured values, grey secondary text.
 
 ## Recurring components
-- **Wave header** — gradient banner with a white wavy bottom edge + page title.
-- **Status pill** — rounded badge, green SAFE / red WARNING.
+- **Wave header** (`SharedPageHeader`) — `kHeaderGradient` + white wavy bottom edge + page title.
+- **Status pill** — `StatusPill` / `StatusTone` (good/bad/neutral).
 - **Info pill** — blue rounded chip with icon + label (Latched, Near, 88%).
-- **Child card** — avatar + name + DOB/weight + status badge + row of info pills; background tinted by status (blue safe / pink warning).
-- **Metric card** — white rounded card with icon, "LIVE" chip, label, big blue value, subtitle (2×2 grid on detail page).
-- **Primary button** — full-width navy, ~16px radius, bold white text, often a right arrow.
+- **Child card** — avatar + name + DOB/weight + status; tinted by gender/status (safe / warning cards).
+- **Metric card** — white rounded card with icon, "LIVE" chip, label, big blue value, subtitle.
+- **Primary button** — full-width navy, ~16px radius, bold white text.
 - **Bottom nav** — rounded light-blue bar, 3 tabs (Home / Family / Setting).
-- **Alert screen** — full-screen colour gradient (red for temp/danger), big icon, bold title, subtitle, navy Acknowledge button.
+- **Alert bottom sheet** — escalation colours from `alertSoft` / `alertCaution` / `alertCritical`.
 
 ## Icons
-Mostly Material Icons (`Icons.home`, `Icons.link`, `Icons.thermostat`, battery, gps). Use the exported PNG assets for the baby, gender, and family glyphs.
+Mostly Material Icons. Use exported PNG assets for baby, gender, and family glyphs.

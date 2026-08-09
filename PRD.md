@@ -10,7 +10,7 @@
 | **Package** | Pubspec name `waby`; launcher / display name **Waby** on Android, iOS, web, desktop |
 | **Repo note** | Folder may still be `seatcare_app`; **all user-facing branding is Waby** (no “SeatCare” in UI or launcher) |
 | **Document status** | Reflects the current implemented app (not aspirational backlog only) |
-| **Last updated** | 2026-07-27 |
+| **Last updated** | 2026-08-09 |
 
 ---
 
@@ -48,7 +48,7 @@ Every year, children are injured or die after being left alone in vehicles, ofte
 - App control of on-seat LED/buzzer (those are firmware-side).
 - Email-based emergency alerts (implementation is **Telegram** via `@WabyBabyBot`).
 - Fully wired admin multi-user dashboard (screens exist as mock; main auth flow does not route there).
-- Playing bundled alert MP3s yet (assets registered; Audible Warning toggle remains local UI until wired).
+- Settings toggles that gate audible/vibration feedback (sounds already play on active alerts via `AlertFeedbackService`).
 
 ---
 
@@ -79,17 +79,21 @@ Every year, children are injured or die after being left alone in vehicles, ofte
 ```
 ESP32 (Wi‑Fi sensors + local LED/buzzer)
         │
-        ▼
-Supabase (Auth, Postgres + Realtime, Storage, Edge Functions)
+        ▼  REST PATCH live?id=eq.1 (~1 Hz)
+Supabase project pvafygrloelptlmnhfog
+  (Auth, Postgres + Realtime, Storage, Edge Functions)
         │
-        ├── live          → LiveService → Home UI + AlertService
-        ├── children / devices / contacts / profiles / families / logs
+        ├── live              → LiveService → Home UI + AlertService
+        ├── children / devices / contacts / cars / profiles / families
+        ├── logs / alert_events
         ├── Storage bucket: avatars
-        └── Edge Functions: send-telegram-alert, delete-account
+        └── Edge Functions: send-telegram-alert, telegram-webhook, delete-account
         │
         ▼
-Flutter app (StreamBuilders, local notifications, AlertScreen)
+Flutter app (StreamBuilders, local notifications, alert bottom sheet)
 ```
+
+Schema detail: `docs/DATABASE.md`. Integration contract: `docs/API.md`.
 
 ### 5.1 Tech stack
 
@@ -190,7 +194,7 @@ assets/
 | LIVE-3 | Empty seat (`!present`) shows calm “SEAT EMPTY” / no baby — not red warning | Must |
 | LIVE-4 | Severity priority: left-behind > heat > buckle caution > low battery > safe | Must |
 
-**Live fields**
+**Live fields** (single row `id = 1`; see `docs/DATABASE.md`)
 
 | Field | DB key | Meaning |
 |-------|--------|---------|
@@ -199,7 +203,11 @@ assets/
 | buckled | `buckled` | Buckle latched |
 | distanceNear | `distance_near` | Caregiver near seat |
 | battery | `battery` | Device battery % |
-| updatedAt | `updated_at` | Last update |
+| carMoving | `car_moving` | Vehicle motion (GPS) |
+| latitude / longitude | `latitude` / `longitude` | GPS fix |
+| gpsAccuracyM | `gps_accuracy_m` | Accuracy estimate |
+| placeName | `place_name` | Reverse-geocode label |
+| updatedAt | `updated_at` | Last update (trigger) |
 
 ### 6.6 Alert & escalation (authoritative)
 
@@ -209,7 +217,7 @@ assets/
 |-----------|----------|-------------|-------|
 | `!present` | Safe / empty UI | `none` | No left-behind / heat / buckle alarms |
 | `present && !distanceNear` | Warning | `leftBehind` | **Highest priority**; buckle irrelevant |
-| `present && temperature > 30°C` | Warning | `heat` | Heat alarm |
+| `present && temperature > kHeatThresholdC` (38.0°C) | Warning | `heat` | Heat alarm (`lib/core/constants.dart`; firmware `TEMP_THRESHOLD` must match) |
 | `present && !buckled && distanceNear` | Caution | `buckleReminder` | Gentle only |
 | `battery < 20` | Caution | `lowBattery` | Home banner only; not part of the modal critical path |
 
@@ -217,7 +225,7 @@ assets/
 
 | Condition | Grace |
 |-----------|-------|
-| Heat | 15 seconds |
+| Heat | **30 seconds** (`AlertService.heatDebounce`) |
 | Left-behind | 2 minutes |
 | Buckle / low battery | None (buckle one-shot only; low battery banner only) |
 
@@ -228,14 +236,14 @@ assets/
 
 #### Critical stages
 
-| Stage | Timing | Colour / sound | Behaviour |
-|-------|--------|----------------|-----------|
-| 1 | First ~33% of the escalation window | Yellow + caution chime | Initial in-app alert after grace; sheet opens locked for heat/left-behind |
-| 2 | ~33%–66% | Orange + warning tone | Escalated in-app alert, louder sound, push notification, haptic burst |
-| 3 | ~66%–100% | Red + critical siren | Final in-app urgency; countdown label becomes "NOTIFYING FAMILY IN" |
-| Telegram | End of window (100%) | — | Edge Function / server fallback fires Telegram; store `lastNotifiedCount` |
+| Stage | Timing | Colour / sound (`AppColors`) | Behaviour |
+|-------|--------|------------------------------|-----------|
+| 1 | First ~33% of the escalation window | `alertSoft` `#8A9199` + caution chime | Initial in-app alert after grace; sheet opens locked for heat/left-behind |
+| 2 | ~33%–66% | `alertCaution` `#F0A020` + warning tone | Escalated in-app alert, louder sound, push notification, haptic burst |
+| 3 | ~66%–100% | `alertCritical` `#C2291D` + critical siren | Final in-app urgency; countdown label becomes "NOTIFYING FAMILY IN" |
+| Telegram | End of window (100%) | — | `send-telegram-alert` / `check_alert_escalations` fires Telegram; store `lastNotifiedCount` |
 
-This three-tier escalation is modelled on standard alarm-management practice from safety-critical domains (ISA-18.2, IEC 62682) — reminder, warning, critical — mapped to universally recognised yellow / orange / red visual cues. Alarm fatigue is a real risk in monitoring systems; a graded escalation ensures the loudest, most disruptive state is reserved for the genuine emergency, not the first hint of a problem. Buckle reminders stay caution-only and never enter this ladder.
+This three-tier escalation follows graded alarm practice (reminder → warning → critical). Buckle reminders stay caution-only (`alertSoft`) and never enter the Telegram ladder. Visual tokens: `docs/DESIGN_SYSTEM.md`.
 
 **Telegram event names:** `left_behind`, `heat_alarm`, `buckle_reminder`, `low_battery`.
 
@@ -295,37 +303,40 @@ This three-tier escalation is modelled on standard alarm-management practice fro
 |-----------------|---------|---------------|
 | FSR (weight/presence) | `present` | Empty → idle; occupied → evaluate other rules |
 | Auto-detect buckle | `buckled` | Caution when present + near + unbuckled |
-| DHT11 temperature | `temperature` | Warning when present && > 30°C |
+| DHT11 temperature | `temperature` | Warning when present && > **38.0°C** (`kHeatThresholdC`) |
 | Caregiver proximity | `distance_near` | Far + present → left-behind |
 | Battery | `battery` | Caution when < 20% |
-| GPS NEO-6M | (firmware / future L3 enrichment) | Child detail currently shows **mock** coords in UI |
+| GPS NEO-6M | `latitude`, `longitude`, `gps_accuracy_m`, `place_name`, `car_moving` | Pushed on `live`; included in Telegram escalate payload |
 | LED + buzzer | On-device alarm | Firmware; app does not drive them |
 
 ---
 
 ## 8. Data model (Supabase)
 
-> Inferred from the Flutter client. RLS scopes rows to the caller’s family.
+> Authoritative detail: **`docs/DATABASE.md`**. Project ref: `pvafygrloelptlmnhfog`. RLS scopes family rows to the caller’s family.
 
-### 8.1 Tables
+### 8.1 Tables (summary)
 
 | Table | Purpose | Notable columns |
 |-------|---------|-----------------|
-| `profiles` | Caregiver account profile | `full_name`, `nickname`, `phone`, `relation`, `country`, `email`, `family_id`, `avatar_path`, `alert_timer_seconds`, `role` |
-| `families` | Family unit | `invite_code`, `created_by`, name via RPC |
-| `devices` | Seat devices | `name`, `photo_path`, `user_id`, `family_id` |
-| `children` | Child profiles | `device_id`, `name`, `dob`, `weight_kg`, `height_cm`, `photo_path` |
+| `profiles` | Caregiver account | `family_id`, `nickname`, `phone`, `relation`, `country`, `role`, `active_car_id`, `alert_timer_seconds`, plus `full_name` / `email` / `avatar_path` |
+| `families` | Family unit | `name`, `invite_code`, `created_by` |
+| `devices` | Seat devices | `name`, `photo_path`, `user_id`, `family_id` (`stamp_family_id`) |
+| `children` | Child profiles | `device_id`, `name`, `dob`, `gender` (Boy/Girl), `weight_kg`, `height_cm`, `photo_path` |
 | `contacts` | Emergency contacts | `name`, `phone`, `relation`, `link_code`, `telegram_chat_id`, `family_id` |
-| `live` | Current sensor snapshot | `id` (=1), `temperature`, `present`, `buckled`, `distance_near`, `battery`, `updated_at` |
-| `logs` | Alert event evidence | `event`, `value` (+ timestamps / family via RLS) |
+| `cars` | Family vehicles | `name`, `plate_number`, `color`; Realtime publication |
+| `live` | Sensor snapshot | Single row `id = 1` including GPS / `place_name` / `car_moving` |
+| `logs` | Append-only evidence | `event`, `value`, `created_at` |
+| `alert_events` | Escalation records | `family_id`, `child_id`, `alert_type`, timers, `escalated_at` / `resolved_at` |
 
 ### 8.2 Storage
 - Bucket: `avatars` (private)
 - Signed URL expiry: ~3600s in client
 
 ### 8.3 Edge functions & RPCs
-- Functions: `send-telegram-alert`, `delete-account`
-- RPCs: `create_family`, `join_family`, `remove_family_member`, `leave_family`
+- Functions: `send-telegram-alert`, `telegram-webhook`, `delete-account`
+- RPCs: `current_family_id`, `create_family`, `lookup_family_by_code`, `join_family`, `set_active_car`, `leave_family`, `remove_family_member`
+- Cron: `check_alert_escalations()` every 30s (`FOR UPDATE SKIP LOCKED`)
 
 ### 8.4 Known limitation
 `live` is **global single-row** for the demo/project. Multi-device independent telemetry is out of current scope.
@@ -370,7 +381,7 @@ Bottom nav (3 tabs): **Home** · **Family** · **Settings**
 |------|------|
 | Brand | Waby butterfly (navy wings + blue dot); calm, rounded, friendly |
 | Typography | Poppins via `google_fonts` |
-| Colour source | `lib/core/theme.dart` — Primary navy `#0F2D54`, accent `#3B74BC`, wave header `#008FB4`→`#7AD0E4`, SAFE `#56B337`, CAUTION `#F2A33C`, WARNING `#C2291D` |
+| Colour source | `lib/core/theme.dart` / `docs/DESIGN_SYSTEM.md` — navy `#0F2D54`, accent `#3B74BC`, wave `#008FB4`→`#7AD0E4`, SAFE `#56B337`, caution `#F0C040`, alert ramp `#8A9199` / `#F0A020` / `#C2291D` |
 | Surfaces | Page grey `#F4F6F9` on Settings / Profile / Privacy / Help; white cards radius 16 with soft shadow |
 | Patterns | Wave headers, status pills, child cards tinted by severity, navy primary buttons, section labels in navy Poppins w600 / 13 |
 | Alert UI | Full-screen critical treatment; large responsive countdown ring (~78% width, clamp 260–320); non-poppable until Acknowledge |
@@ -399,10 +410,10 @@ These are **product acceptance tests**, not suggestions:
 
 1. No presence → no left-behind / heat / buckle critical path.
 2. Presence + caregiver far → left-behind warning **regardless of buckle**.
-3. Presence + temperature > 30°C → heat warning.
+3. Presence + temperature > **38.0°C** → heat warning (after 30s debounce).
 4. Presence + near + unbuckled → buckle **caution** only (no Telegram ladder).
 5. Battery < 20% → caution only.
-6. Critical path: grace → initial alert → escalated alert at 50% → Telegram.
+6. Critical path: grace → tier 1 (~33%) → tier 2 (~66%) → Telegram at 100%.
 7. Acknowledge clears current escalation but does not disable future detection.
 8. Logging/Telegram errors are non-fatal.
 9. UI-only settings must not silently disable danger detection unless a future PRD revision explicitly wires and documents that behaviour.
@@ -429,13 +440,11 @@ These are **product acceptance tests**, not suggestions:
 | Device pairing | Simulated delay (~1.5s); no real BT/Wi‑Fi handshake in app |
 | Live telemetry | Single `live` row (`id = 1`) shared across UI |
 | Far-distance slider | Local UI only |
-| Vibration / Audible Warning toggles | Local UI only |
-| Alert sound assets | `assets/sounds/alert_{caution,critical,warning}.mp3` registered in pubspec; **not yet played** by AlertService |
-| Child detail temperature / GPS / graph | Partially mock (e.g. fixed temp/coords; graph illustrative) |
+| Vibration / Audible Warning toggles | Local preference UI; sounds play via `AlertFeedbackService` on active alerts |
+| Child detail temperature / GPS / graph | Partially mock (e.g. graph illustrative); live GPS also on `live` row |
 | Admin screens | Present but not in main auth routing |
 | Privacy copy | May still mention email-style alerts; runtime is Telegram |
-| Firmware | Separate from this repo |
-| Cursor project-overview rule | May still mention Firebase; prefer this PRD + README for stack |
+| Firmware | Separate sketch (`Project_1_draft_v3.ino`); not in this repo |
 
 ---
 
@@ -445,9 +454,8 @@ Not required for current delivery, but natural next steps:
 
 - Per-device `live` rows keyed by `device_id`
 - Real pairing / device claiming with ESP32 identity
-- Wire Audible Warning / Vibration to play `assets/sounds/` (and/or firmware) intentionally
+- Wire Settings Audible Warning / Vibration toggles to gate `AlertFeedbackService`
 - Wire distance preference toggles to firmware or alert service intentionally
-- Include GPS coordinates in Telegram payload
 - Multi-child independent alert contexts
 - Production admin tooling and audit trails
 - iOS release hardening parity with Android
@@ -473,9 +481,8 @@ Not required for current delivery, but natural next steps:
 
 | Field | Value |
 |-------|-------|
-| Source of truth | Implemented Flutter app + Supabase client usage |
-| Related brand rules | `.cursor/rules/design-system.mdc`, `lib/core/theme.dart` |
-| Historical note | `.cursor/rules/project-overview.mdc` may still mention Firebase; prefer this PRD + README for stack |
+| Source of truth | Implemented Flutter app + Supabase (`docs/DATABASE.md`, `docs/API.md`) |
+| Related brand docs | `docs/DESIGN_SYSTEM.md`, `lib/core/theme.dart`, `.cursor/rules/design-system.mdc` |
 | Owner | Project author (solo FYP) |
 | Revision | 2026-07-27 — branding Waby launcher-wide; Settings card UX; avatar/nickname sync; sound assets registered |
 

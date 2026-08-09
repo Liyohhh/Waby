@@ -1,0 +1,21 @@
+---
+description: Keep docs/DATABASE.md and docs/API.md updated when Supabase schema, RLS, RPCs, or Edge Functions change.
+globs: supabase/**
+alwaysApply: false
+---
+
+# Database documentation sync
+
+When a change under `supabase/` (or an equivalent dashboard SQL change reflected in this repo) affects:
+
+- tables / columns / checks / triggers
+- RLS policies
+- security-definer RPCs
+- Edge Functions
+- cron jobs (e.g. `check_alert_escalations`)
+
+update **`docs/DATABASE.md`** and **`docs/API.md`** in the **same change**.
+
+- Keep the Mermaid ERD and table-by-table sections accurate.
+- Note that the authoritative schema is Supabase project `pvafygrloelptlmnhfog`; the ERD is maintained by hand.
+- Do not invent columns — source from migrations, client usage, or confirmed dashboard schema.

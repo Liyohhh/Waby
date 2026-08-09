@@ -1,0 +1,17 @@
+---
+description: Keep PRD.md current when user-facing features or the alert ladder change materially.
+globs: lib/**,*.ino,supabase/**
+alwaysApply: false
+---
+
+# PRD documentation sync
+
+`PRD.md` (repo root) is the **master product requirements document**. Do not create a competing PRD file.
+
+When a user-facing feature, detection rule, escalation ladder, data-model summary, or demo path changes materially:
+
+1. Update the relevant section(s) of **`PRD.md`**.
+2. Bump the **Last updated** date in the header table.
+3. Point detailed schema / API / design specifics at `docs/DATABASE.md`, `docs/API.md`, and `docs/DESIGN_SYSTEM.md` rather than duplicating long tables.
+
+Keep safety invariants (presence / left-behind / heat / buckle) accurate to the implemented code (`SeatStatus`, `AlertService`, firmware thresholds).

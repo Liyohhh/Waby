@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants.dart';
+
 enum SeatSeverity { safe, caution, warning }
 
 enum AlertReason { none, leftBehind, heat, buckleReminder, lowBattery }
@@ -48,20 +50,18 @@ class SeatStatus {
 
   // Severity depends on WHICH indicator fails, not how many. Warning wins over caution.
   SeatSeverity get severity {
-    const tempThreshold = 30.0;   // °C
     const lowBattery = 20;        // %
     if (present && !distanceNear) return SeatSeverity.warning;              // left-behind
-    if (present && temperature > tempThreshold) return SeatSeverity.warning; // heat
+    if (present && temperature > kHeatThresholdC) return SeatSeverity.warning; // heat
     if (present && !buckled && distanceNear) return SeatSeverity.caution;    // buckle reminder
     if (battery < lowBattery) return SeatSeverity.caution;                   // low battery
     return SeatSeverity.safe;
   }
 
   AlertReason get reason {
-    const tempThreshold = 30.0;
     const lowBatteryPct = 20;
     if (present && !distanceNear) return AlertReason.leftBehind;
-    if (present && temperature > tempThreshold) return AlertReason.heat;
+    if (present && temperature > kHeatThresholdC) return AlertReason.heat;
     if (present && !buckled && distanceNear) return AlertReason.buckleReminder;
     if (battery < lowBatteryPct) return AlertReason.lowBattery;
     return AlertReason.none;

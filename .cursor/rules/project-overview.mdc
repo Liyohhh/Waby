@@ -5,32 +5,35 @@ alwaysApply: true
 
 # Waby — Project Overview
 
-Waby is a **smart baby car seat safety system** built as a final-year project (solo developer, ~2-week build deadline — prioritise working functionality over visual polish). It monitors an infant in a car seat and sends escalating alerts to prevent child endangerment.
+Waby is a **smart baby car seat safety system** built as a final-year project (solo developer — prioritise working safety functionality over visual polish). It monitors an infant in a car seat and sends escalating alerts to prevent child endangerment.
 
 ## Stack
-- **App:** Flutter (Dart, null-safe).
-- **Firmware:** ESP32 (Arduino / C++).
-- **Backend / API / database:** Firebase Realtime Database (free Spark plan).
-- **Data flow:** ESP32 → WiFi → Firebase; the Flutter app reads live data from Firebase. Avoid local-pairing wording in the UI because the real data path is network-backed.
+- **App:** Flutter (Dart, null-safe). Package / brand name **Waby**.
+- **Firmware:** ESP32 (Arduino / C++) — `Project_1_draft_v3.ino` (outside this repo).
+- **Backend:** Supabase project `pvafygrloelptlmnhfog` (Auth, Postgres, Realtime, Storage, Edge Functions).
+- **Data flow:** ESP32 → WiFi → REST `PATCH /rest/v1/live?id=eq.1` → Supabase `live` table; the Flutter app reads via Supabase Realtime (`LiveService.liveStream()` + `StreamBuilder`). Avoid local-pairing wording in the UI because the real data path is network-backed.
 
 ## Hardware sensors
 FSR (presence/weight), auto-detect buckle, DHT11 (temperature), GPS NEO-6M, ESP32. Outputs: LED indicators + buzzer for alarms.
 
-## Firebase structure
-- `seatcare/live/` — current sensor readings (temperature, presence, buckled, distance, status).
-- `seatcare/contacts/` — next-of-kin records (this is the CRUD feature: add / edit / delete).
-- `seatcare/logs/` — one entry per alarm event (used as the "real detection data" test evidence).
+## Supabase tables (see `docs/DATABASE.md`)
+- `live` — single shared telemetry row (`id = 1`).
+- `contacts` — next-of-kin / Telegram recipients (CRUD).
+- `logs` — append-only alert evidence.
+- `alert_events` — family-scoped escalation records (+ `check_alert_escalations` cron).
+- Also: `profiles`, `families`, `children`, `cars`, `devices`.
 
 ## Alert logic (authoritative — do not silence danger cases)
 - No weight → idle, no alarms.
 - Weight + NOT buckled + caregiver near → **buckle reminder** (gentle).
 - Weight + caregiver FAR → **left-behind alarm**, regardless of buckle state.
-- Weight + temperature over threshold → **heat alarm**.
-- Escalation: L1 phone notification → L2 loud on-device alarm → L3 notify next-of-kin with GPS.
+- Weight + temperature over **`kHeatThresholdC` (38.0°C)** for ≥30s → **heat alarm**.
+- Escalation: L1 in-app / soft → L2 louder + push → L3 Telegram to next-of-kin with GPS.
 
 ## Conventions
 - Folder structure: `core/`, `models/`, `screens/`, `services/`, `widgets/`.
-- Use `StreamBuilder` for live Firebase data.
-- All colours/fonts come from `lib/core/theme.dart` — never hard-code colours in widgets.
+- Use `StreamBuilder` for live Supabase data.
+- All colours/fonts come from `lib/core/theme.dart` — never hard-code colours in widgets (`docs/DESIGN_SYSTEM.md`).
 - Keep business logic in `services/`, not in widgets.
-- The app is being renamed from "SeatCare" to **Waby** — use Waby in all user-facing text.
+- Master product doc: `PRD.md`. Integration: `docs/API.md`.
+- User-facing brand is **Waby** everywhere.

@@ -1,0 +1,15 @@
+---
+description: Keep docs/API.md updated when service calls, Edge Function payloads, or firmware sendLiveUpdate() change.
+globs: lib/services/**,supabase/functions/**,*.ino
+alwaysApply: false
+---
+
+# API documentation sync
+
+When any of the following change, update **`docs/API.md`** in the **same change**:
+
+- Flutter service calls to Supabase (Realtime streams, RPC params, table inserts/updates)
+- Edge Function request/response payloads (`send-telegram-alert`, `telegram-webhook`, `delete-account`, …)
+- Firmware `sendLiveUpdate()` JSON body, headers, URL, or cadence in `Project_1_draft_v3.ino`
+
+Source field lists from the actual code (`LiveService`, `AlertService._escalate`, `FamilyService`, firmware sketch). Call out the `Prefer: return=minimal` → HTTP 204 gotcha if PATCH behaviour changes.

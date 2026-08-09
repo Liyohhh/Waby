@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vibration/vibration.dart';
 
+import '../core/constants.dart';
 import '../models/child.dart';
 import '../models/seat_status.dart';
 import 'alert_feedback_service.dart';
@@ -737,7 +738,7 @@ class AlertService {
         detail: '$childName · Buckle unlatched',
       ));
     }
-    if (status.present && status.temperature > 30) {
+    if (status.present && status.temperature > kHeatThresholdC) {
       conditions.add(_AlertCondition(
         childId: childId,
         childName: childName,
@@ -818,7 +819,7 @@ class AlertService {
             alertType: 'heat',
             severity: AlertSeverity.critical,
             message: 'Seat temperature has exceeded a safe level.',
-            detail: "$childName's seat — 34.0°C",
+            detail: "$childName's seat — 41.0°C",
           ),
           now,
           logToServer: false,

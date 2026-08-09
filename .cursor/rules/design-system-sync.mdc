@@ -1,0 +1,13 @@
+---
+description: Keep docs/DESIGN_SYSTEM.md updated when theme tokens or shared widgets change.
+globs: lib/core/theme.dart,lib/widgets/**
+alwaysApply: false
+---
+
+# Design system documentation sync
+
+When `lib/core/theme.dart` tokens (`AppColors`, `kHeaderGradient`, `AppTheme`) or shared widgets under `lib/widgets/` change, update **`docs/DESIGN_SYSTEM.md`** in the **same change**.
+
+- Hex values and gradient stops must match `theme.dart` exactly.
+- Also reconcile `.cursor/rules/design-system.mdc` colour list with `theme.dart` (build-time UI rule; it references `docs/DESIGN_SYSTEM.md`).
+- Document new recurring components if they become shared patterns.
