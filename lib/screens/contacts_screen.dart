@@ -9,7 +9,6 @@ import '../core/theme.dart';
 import '../models/child.dart';
 import '../models/contact.dart';
 import '../models/seat_status.dart';
-import '../services/auth_service.dart';
 import '../services/child_service.dart';
 import '../services/contact_service.dart';
 import '../services/device_service.dart';
@@ -89,8 +88,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     return SharedPageHeader(
       title: 'Family',
       showBack: widget.showBack,
-      height: 148,
-      titleTopPadding: 44,
     );
   }
 
@@ -780,8 +777,6 @@ class _ChildrenSection extends StatefulWidget {
 
 class _ChildrenSectionState extends State<_ChildrenSection> {
   final ChildService _childService = ChildService();
-  final FamilyService _familyService = FamilyService();
-  final AuthService _auth = AuthService();
   final LiveService _liveService = LiveService();
   late Stream<List<Child>> _childrenStream = _childService.myChildrenStream();
   late final Stream<SeatStatus> _liveStream = _liveService.liveStream();
@@ -792,34 +787,15 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
     });
   }
 
-  bool _demoFamily = false;
-
   // Local overrides until stream reflects edits (name/dob/weight/height).
   final Map<String, _ChildProfile> _localOverrides = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _loadDemoFamily();
-  }
-
-  Future<void> _loadDemoFamily() async {
-    final v = await _familyService.isDemoFamily();
-    if (mounted) setState(() => _demoFamily = v);
-  }
-
   _ChildProfile _toProfile(Child c, SeatStatus rawLive) {
-    final useDemo = DemoAccount.useDemoDisplay(
-      isDemoUser: _auth.isDemoUser,
-      isDemoFamily: _demoFamily,
-    );
-    final seed = useDemo ? DemoAccount.childSeedFor(c.name) : null;
-    final temperature = seed != null ? 23.0 : rawLive.temperature;
-    final buckled = seed?.buckled ?? rawLive.buckled;
-    final distanceNear = seed?.near ?? rawLive.distanceNear;
-    final battery = seed?.battery ?? rawLive.battery;
-    final isWarning = seed?.status == SeatSeverity.warning ||
-        (seed == null && rawLive.severity == SeatSeverity.warning);
+    final temperature = rawLive.temperature;
+    final buckled = rawLive.buckled;
+    final distanceNear = rawLive.distanceNear;
+    final battery = rawLive.battery;
+    final isWarning = rawLive.severity == SeatSeverity.warning;
 
     if (_localOverrides.containsKey(c.id)) {
       final o = _localOverrides[c.id]!;
@@ -843,13 +819,13 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       id: c.id,
       deviceId: c.deviceId,
       name: c.name,
-      dob: c.dob ?? seed?.dob ?? DateTime(2024, 1, 1),
+      dob: c.dob ?? DateTime(2024, 1, 1),
       battery: battery,
       isWarning: isWarning,
       temperature: temperature,
       buckled: buckled,
       distanceNear: distanceNear,
-      gender: c.gender ?? seed?.gender,
+      gender: c.gender,
       weightKg: c.weightKg,
       heightCm: c.heightCm,
       photoPath: c.photoPath,
@@ -1293,10 +1269,10 @@ class _ChildDetailSheet extends StatelessWidget {
                         icon: Icons.thermostat,
                         label: 'Temperature',
                         value: '${child.temperature.toStringAsFixed(0)}°C',
-                        sub: child.temperature > 30
+                        sub: child.temperature > kHeatThresholdC
                             ? 'High temperature'
                             : 'Normal range',
-                        safe: child.temperature <= 30,
+                        safe: child.temperature <= kHeatThresholdC,
                         isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),

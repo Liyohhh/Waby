@@ -112,8 +112,8 @@ Used by `SharedPageHeader` and other wave headers.
 `lib/widgets/auth_widgets.dart` — `SharedPageHeader`.
 
 - Full-width `kHeaderGradient` clipped with `AppWaveClipper` (white wavy bottom edge).
-- White Poppins title (24 / w700); optional back button.
-- Default height 112.
+- White Poppins title (24 / w700), vertically centered in the wave (below the status bar, above the dip); optional back button.
+- Default height 128.
 
 ### Status pill
 

@@ -92,6 +92,7 @@ class AlertService {
   String? _activeCarPlate;
   String _primaryChildId = 'primary-child';
   String _primaryChildName = 'Your child';
+  bool _hasPrimaryChild = false;
   final Map<String, _PendingAlert> _pending = {};
   final Map<String, _TrackedAlert> _active = {};
   final Set<String> _autoFired = <String>{};
@@ -112,6 +113,7 @@ class AlertService {
     _familyIdLoadedForUser = null;
     _activeCarName = null;
     _activeCarPlate = null;
+    _hasPrimaryChild = false;
     _buckleSnoozedUntil.clear();
     unawaited(_persistBuckleSnoozes());
   }
@@ -228,7 +230,16 @@ class AlertService {
   }
 
   void _onChildren(List<Child> children) {
-    if (children.isEmpty) return;
+    if (children.isEmpty) {
+      _hasPrimaryChild = false;
+      _pending.clear();
+      for (final id in _active.keys.toList()) {
+        _resolveAlert(id);
+      }
+      _emit();
+      return;
+    }
+    _hasPrimaryChild = true;
     _primaryChildId = children.first.id;
     _primaryChildName = children.first.name;
 
@@ -365,12 +376,20 @@ class AlertService {
         // tick loop, since a plugin-level hang here must not block future
         // ticks or emits.
         if (await Vibration.hasVibrator()) {
-          final burst = tier == 3
-              ? Int64List.fromList(
-                  [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
-                )
-              : Int64List.fromList([0, 80, 60, 80, 60, 80, 60, 200]);
-          unawaited(Vibration.vibrate(pattern: burst));
+          final buckleReminder = tracked.alertType == 'buckle';
+          var allowVibration = true;
+          if (buckleReminder) {
+            final prefs = await SharedPreferences.getInstance();
+            allowVibration = prefs.getBool(kVibrationPrefKey) ?? true;
+          }
+          if (allowVibration) {
+            final burst = tier == 3
+                ? Int64List.fromList(
+                    [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
+                  )
+                : Int64List.fromList([0, 80, 60, 80, 60, 80, 60, 200]);
+            unawaited(Vibration.vibrate(pattern: burst));
+          }
         }
       }
 
@@ -719,6 +738,7 @@ class AlertService {
 
   List<_AlertCondition> _conditionsFor(SeatStatus status, DateTime now) {
     final conditions = <_AlertCondition>[];
+    if (!_hasPrimaryChild) return conditions;
     final childId = _primaryChildId;
     final childName = _primaryChildName;
 

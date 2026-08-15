@@ -156,6 +156,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       (v) async {
                         setState(() => _vibration = v);
                         await _setReminderPreference(kVibrationPrefKey, v);
+                        if (v) {
+                          await AlertFeedbackService.instance.previewVibration();
+                        } else {
+                          await AlertFeedbackService.instance.cancelVibration();
+                        }
                       },
                     ),
                     _divider(),

@@ -32,7 +32,8 @@ Companion: `docs/DATABASE.md` (tables, RLS, RPCs).
 | `buckled` | Always | Buckle LOW = locked |
 | `distance_near` | Always | Currently hardcoded `true` (proximity placeholder) |
 | `car_moving` | Always | GPS speed above motion threshold |
-| `battery` | Always | Calibrated 0–100 % |
+| `battery` | Always | 0–100 % from firmware |
+| `battery_voltage` | Always | Pack voltage (requires `live.battery_voltage` column) |
 | `latitude` | Always | `0.0` if no GPS fix |
 | `longitude` | Always | `0.0` if no GPS fix |
 | `gps_accuracy_m` | If `gps.hdop.isValid()` | `hdop.value() / 100.0` |

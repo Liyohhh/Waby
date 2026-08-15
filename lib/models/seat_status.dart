@@ -34,19 +34,57 @@ class SeatStatus {
       );
 
   factory SeatStatus.fromMap(Map<String, dynamic> map) => SeatStatus(
-        temperature: (map['temperature'] as num?)?.toDouble() ?? 0,
-        present: map['present'] as bool? ?? false,
-        buckled: map['buckled'] as bool? ?? false,
-        distanceNear: map['distance_near'] as bool? ?? false,
-        battery: (map['battery'] as num?)?.toInt() ?? 0,
+        temperature: _asDouble(map['temperature']),
+        present: _asBool(map['present']),
+        buckled: _asBool(map['buckled']),
+        distanceNear: _asBool(map['distance_near']),
+        battery: _readBatteryPercent(map),
         updatedAt: map['updated_at'] != null
             ? DateTime.tryParse(map['updated_at'].toString())
             : null,
         placeName: map['place_name'] as String?,
         // Default true (fail-safe: alert) if the column is missing/null,
         // e.g. before the firmware sends it.
-        carMoving: map['car_moving'] as bool? ?? true,
+        carMoving: _asBool(map['car_moving'], true),
       );
+
+  /// Firmware sends `battery` as an int and `battery_voltage` as a float.
+  /// PostgREST `numeric` columns often arrive as strings — never drop those to 0.
+  static int _readBatteryPercent(Map<String, dynamic> map) {
+    final pct = _asInt(map['battery']);
+    if (pct > 0) return pct.clamp(0, 100);
+    final volts = _asDouble(map['battery_voltage']);
+    if (volts <= 0) return pct.clamp(0, 100);
+    // Same map as firmware voltageToPercentage (3.0 V empty → 4.2 V full).
+    if (volts <= 3.0) return 0;
+    if (volts >= 4.2) return 100;
+    return (((volts - 3.0) / 1.2) * 100).round().clamp(0, 100);
+  }
+
+  static double _asDouble(dynamic value, [double fallback = 0]) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  static int _asInt(dynamic value, [int fallback = 0]) {
+    if (value is num) return value.round();
+    if (value is String) {
+      return int.tryParse(value) ?? double.tryParse(value)?.round() ?? fallback;
+    }
+    return fallback;
+  }
+
+  static bool _asBool(dynamic value, [bool fallback = false]) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.toLowerCase();
+      if (v == 'true' || v == 't' || v == '1') return true;
+      if (v == 'false' || v == 'f' || v == '0') return false;
+    }
+    return fallback;
+  }
 
   // Severity depends on WHICH indicator fails, not how many. Warning wins over caution.
   SeatSeverity get severity {

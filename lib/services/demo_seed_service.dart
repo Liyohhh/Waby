@@ -18,7 +18,6 @@ class DemoSeedService {
     await _ensureFamily();
     await _ensureProfile();
     await _ensureChildren(uid);
-    await _ensureLive();
     await _ensureContacts();
   }
 
@@ -59,20 +58,6 @@ class DemoSeedService {
           heightCm: seed.heightCm,
         );
       }
-    } catch (_) {}
-  }
-
-  Future<void> _ensureLive() async {
-    try {
-      await _db.from('live').upsert({
-        'id': 1,
-        'temperature': DemoAccount.headerLive.temperature,
-        'present': DemoAccount.headerLive.present,
-        'buckled': DemoAccount.headerLive.buckled,
-        'distance_near': DemoAccount.headerLive.distanceNear,
-        'battery': DemoAccount.headerLive.battery,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
     } catch (_) {}
   }
 

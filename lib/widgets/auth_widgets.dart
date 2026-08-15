@@ -61,18 +61,44 @@ class SharedPageHeader extends StatelessWidget {
   final bool showBack;
   final double height;
   /// Extra top inset for the title row (below the status bar).
+  /// Ignored when [centerTitle] is true.
   final double titleTopPadding;
+  /// Vertically center the title in the wave (below the status bar, above the dip).
+  final bool centerTitle;
 
   const SharedPageHeader({
     super.key,
     required this.title,
     this.showBack = true,
-    this.height = 112,
+    this.height = 128,
     this.titleTopPadding = 20,
+    this.centerTitle = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final titleRow = Padding(
+      padding: EdgeInsets.fromLTRB(showBack ? 4 : 20, 0, 20, 0),
+      child: Row(
+        children: [
+          if (showBack)
+            IconButton(
+              icon: const Icon(Icons.arrow_back,
+                  color: Colors.white, size: 22),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+
     return Stack(
       children: [
         ClipPath(
@@ -83,32 +109,20 @@ class SharedPageHeader extends StatelessWidget {
             decoration: const BoxDecoration(gradient: kHeaderGradient),
           ),
         ),
-        SafeArea(
-          bottom: false,
+        SizedBox(
+          height: height,
+          width: double.infinity,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              showBack ? 4 : 20,
-              titleTopPadding,
-              20,
-              0,
-            ),
-            child: Row(
-              children: [
-                if (showBack)
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 22),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            // Keep the title out of the wavy bottom edge (~22px dip).
+            padding: const EdgeInsets.only(bottom: 22),
+            child: SafeArea(
+              bottom: false,
+              child: centerTitle
+                  ? Align(alignment: Alignment.centerLeft, child: titleRow)
+                  : Padding(
+                      padding: EdgeInsets.only(top: titleTopPadding),
+                      child: titleRow,
+                    ),
             ),
           ),
         ),

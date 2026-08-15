@@ -131,6 +131,7 @@ erDiagram
 | `buckled` | bool | Buckle latched |
 | `distance_near` | bool | Caregiver near seat |
 | `battery` | int | Device battery % |
+| `battery_voltage` | numeric | Pack voltage from firmware (optional) |
 | `car_moving` | bool | GPS-derived motion flag |
 | `latitude` | numeric | GPS latitude |
 | `longitude` | numeric | GPS longitude |

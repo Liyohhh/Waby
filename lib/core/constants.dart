@@ -1,9 +1,8 @@
 export 'demo_data.dart';
 
-/// Heat-alarm threshold in °C. Above KL ambient (~30–32°C) so the seat doesn't
-/// alarm at rest, still reachable in a demo (warm air on the DHT11). Firmware
-/// TEMP_THRESHOLD in Project_1_draft_v3.ino must match this value.
-const double kHeatThresholdC = 38.0;
+/// Heat-alarm threshold in °C. Must match firmware TEMP_THRESHOLD
+/// in Project_1_draft_v3.ino (currently 30.0).
+const double kHeatThresholdC = 30.0;
 
 const List<String> kGenderOptions = ['Boy', 'Girl'];
 

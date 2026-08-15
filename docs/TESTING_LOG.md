@@ -1070,3 +1070,137 @@
   - `docs/DATABASE.md`, `docs/API.md`, `docs/DESIGN_SYSTEM.md` present; sync rules under `.cursor/rules/*-sync.mdc`.
   - `flutter analyze` clean (no Dart regressions from doc-only work).
 
+## BUG-078
+- Date: 2026-08-09
+- Area: ESP32 firmware (`Project_1_draft_v3.ino`) FSR baseline calibrated after WiFi / wrong if seat loaded
+- Root cause: Empty-seat baseline was learned on a timer inside `updateFsrBaselines()` that only started on the first `loop()` after `connectWiFi()` (up to 15 s). The OLED "Keep seat EMPTY / calibrating FSR…" prompt vanished long before calibration, so a loaded seat during WiFi could poison the baseline for the whole session.
+- Fix: `calibrateFsrBaselines()` runs ~3 s in `setup()` while the prompt is visible, before WiFi; Serial `'c'` re-baselines mid-session on an empty seat.
+
+## TEST-080
+- Date: 2026-08-09
+- Scope: Explicit FSR calibration in setup + Serial recalibrate
+- Verification target:
+  - On boot the "Keep seat EMPTY" prompt stays visible for the full ~3 s calibration.
+  - Serial `FSR baselines L/R/B:` prints before "Connecting WiFi".
+  - Loading the seat after boot reliably reads SEATED.
+  - Typing `c` on an empty seat re-baselines and prints new values.
+
+## BUG-079
+- Date: 2026-08-09
+- Area: ESP32 firmware (`Project_1_draft_v3.ino`) buckle contact bounce clears app snooze
+- Root cause: `buckleLocked` flipped on a single `digitalRead`, so bounce/intermittent contact toggled buckled between reads; each phantom re-buckle cleared the app's 5-minute buckle-acknowledge snooze.
+- Fix: Require `BUCKLE_CONFIRM` (4) consecutive consistent reads before changing `buckleLocked`.
+
+## TEST-081
+- Date: 2026-08-09
+- Scope: Buckle switch debounce
+- Verification target:
+  - Wiggling or lightly jostling the buckle no longer flips Serial `Buckle:` on single reads.
+  - A real latch/unlatch still registers within ~1 s.
+  - In the app, acknowledging a buckle reminder keeps it snoozed for the full window instead of re-firing after a phantom re-buckle.
+
+## BUG-080
+- Date: 2026-08-09
+- Area: ESP32 firmware (`Project_1_draft_v3.ino`) noisy single-sample battery ADC
+- Root cause: `voltageRaw = analogRead(VOLTAGE_PIN)` used one unaveraged sample, so ADC noise jumped `batteryPct` and flickered the app's low-battery banner.
+- Fix: `readVoltageSmoothed()` discards the first sample after mux switch then averages 16 reads (same pattern as FSR); `readSensors()` uses it. `rawToBatteryPercent` / `VOLTAGE_RAW_MIN/MAX` unchanged.
+
+## TEST-082
+- Date: 2026-08-09
+- Scope: Smoothed battery ADC read
+- Verification target:
+  - With a steady battery, Serial Battery Raw / battery % holds within a narrow band instead of jumping several percent between reads.
+
+## BUG-081
+- Date: 2026-08-15
+- Area: App Home/Family ignored ESP32 live telemetry
+- Root cause: Demo overlay painted fixed Jason SAFE / Alysha WARNING cards instead of `live` row `id=1`; demo login also upserted fake live values; app heat threshold was 38°C while firmware `TEMP_THRESHOLD` is 30.0. Firmware also PATCHes `battery_voltage`, which PostgREST rejects if the column is missing (whole update fails).
+- Fix: Home and Family child cards use `LiveService` status only; demo seed no longer writes `live`; `kHeatThresholdC` set to 30.0 to match firmware; migration adds `live.battery_voltage`. Firmware sketch was not changed.
+
+## TEST-083
+- Date: 2026-08-15
+- Scope: App follows hardware live row
+- Verification target:
+  - After hot restart, Home temperature / presence / buckle match the OLED (not frozen demo SAFE/WARNING).
+  - Unbuckle on hardware → app buckle pill / caution updates.
+  - Seat empty → app shows empty/safe, not a leftover WARNING child card.
+  - Run `alter table public.live add column if not exists battery_voltage numeric;` in Supabase if Serial PATCH is 400.
+
+## BUG-083
+- Date: 2026-08-15
+- Area: App battery pill showed 0% while ESP32 OLED showed ~44%
+- Root cause: `SeatStatus.fromMap` used `as num?` for `battery`. PostgREST often delivers `numeric` as a string, which failed the cast and fell through to 0. Firmware also sends `battery_voltage`, which the app ignored.
+- Fix: Parse `battery` from num or string; if percent is 0, derive it from `battery_voltage` using the firmware 3.0–4.2 V map. Sketch not changed.
+
+## TEST-085
+- Date: 2026-08-15
+- Scope: Live battery % matches hardware
+- Verification target:
+  - Hot restart with seat pushing ~44% → Home battery pill shows ~44%, not 0%.
+  - Serial `Supabase PATCH HTTP` is 204/200 (if 400, add `live.battery_voltage` in Supabase).
+
+## BUG-084
+- Date: 2026-08-15
+- Area: Home buckle pill did not track hardware LOCKED/UNLOCKED
+- Root cause: Buckle/battery pills were hidden when `present` was false, so a stale `live.buckled=true` only showed after a seated read. Live stream also waited for the next Realtime event instead of reading the current `live` row. Firmware already PATCHes `buckled` from `buckleLocked` (LOW = locked).
+- Fix: Child card always shows Buckled/Unbuckled from `live.buckled`; `LiveService` seeds with a REST read of `live` id=1 then follows Realtime. Sketch not changed.
+
+## TEST-086
+- Date: 2026-08-15
+- Scope: Buckle pill follows ESP32 OLED
+- Verification target:
+  - OLED `Buckle: LOCKED` → app pill **Buckled**; `UNLOCKED` → **Unbuckled**, including when Baby is EMPTY.
+  - Serial PATCH 204/200 while toggling the buckle.
+
+## BUG-082
+- Date: 2026-08-15
+- Area: Unbuckle popup with no child registered
+- Root cause: `AlertService` defaulted to placeholder child `"Your child"` / `primary-child`. `_onChildren` returned early when the children list was empty, so `_conditionsFor` still fired buckle (and other seat) alerts from live telemetry.
+- Fix: Track `_hasPrimaryChild`; skip live alert conditions until a real child exists; clear pending/active alerts when the last child is removed. Settings test alerts unchanged.
+
+## TEST-084
+- Date: 2026-08-15
+- Scope: No buckle sheet without a child
+- Verification target:
+  - Home with no device/child, seat present + unbuckled → no unbuckle popup.
+  - After Add Device / child, same unbuckle → buckle reminder shows.
+  - Delete last child while a buckle sheet is open → sheet/alerts clear.
+
+## BUG-086
+- Date: 2026-08-15
+- Area: Family / Settings wave header titles sat too high or too low
+- Root cause: Settings used a top-padded title under SafeArea; Family used a taller wave (`height: 148`) plus `titleTopPadding: 44`, so the word sat near an edge instead of in the middle of the wave.
+- Fix: `SharedPageHeader` vertically centers the title in the wave (status bar above, ~22px wave dip below). Family uses the same header as Settings.
+
+## TEST-088
+- Date: 2026-08-15
+- Scope: Family and Settings wave titles
+- Verification target:
+  - "Family" and "Settings" sit in the vertical middle of the teal wave, not hugging the status bar or the wavy bottom edge.
+
+## BUG-085
+- Date: 2026-08-15
+- Area: Home place name sat under the temperature, crowding the car label / Add Device area
+- Root cause: `placeName` (e.g. "Unknown place") was rendered between the °C value and "$name's car".
+- Fix: Move the location line above the thermostat / temperature block.
+
+## TEST-087
+- Date: 2026-08-15
+- Scope: Home place label position
+- Verification target:
+  - Location (including "Unknown place") sits above the big °C reading, not under it or near Add Device.
+
+## BUG-087
+- Date: 2026-08-15
+- Area: Settings Vibration toggle saved a pref but never moved the motor
+- Root cause: On/off only wrote `settings_vibration`. No `Vibration.vibrate` on enable, no `cancel` on disable. Alert `stop()` also left any pattern running.
+- Fix: Turning Vibration on plays a 180ms preview pulse; turning it off cancels vibration. `AlertFeedbackService.stop()` cancels the motor too. Buckle escalation haptics respect the pref; heat/left-behind still always vibrate.
+
+## TEST-089
+- Date: 2026-08-15
+- Scope: Settings Vibration switch
+- Verification target:
+  - Toggle Vibration ON → phone buzzes once.
+  - Toggle OFF → motor stops (no pulse).
+  - Caution buckle reminder vibrates only when the switch is on.
+

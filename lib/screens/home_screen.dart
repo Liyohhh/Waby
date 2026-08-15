@@ -48,7 +48,6 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Stream<List<Car>> _carsStream = CarService().carsStream();
 
   final String _greetingName = AppState.greetingName.value ?? 'there';
-  bool _demoFamily = false;
   Car? _activeCar;
   List<Car> _initialCars = const <Car>[];
   int? _lastDismissedAtBattery;
@@ -57,7 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserName();
-    _loadDemoFamily();
     _loadActiveCar();
     _loadInitialCars();
     AppState.activeCarId.addListener(_onActiveCarChanged);
@@ -77,11 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastDismissedAtBattery =
           prefs.getInt(_kLowBatteryBannerDismissedAtKey);
     });
-  }
-
-  Future<void> _loadDemoFamily() async {
-    final v = await FamilyService().isDemoFamily();
-    if (mounted) setState(() => _demoFamily = v);
   }
 
   Future<void> _loadActiveCar() async {
@@ -213,20 +206,13 @@ class _HomeScreenState extends State<HomeScreen> {
             stream: _liveStream,
             builder: (context, liveSnap) {
               final rawLive = liveSnap.data ?? SeatStatus.empty();
-              final useDemo = DemoAccount.useDemoDisplay(
-                isDemoUser: _auth.isDemoUser,
-                isDemoFamily: _demoFamily,
-              );
-              final headerStatus = useDemo
-                  ? (rawLive.temperature > 0 ? rawLive : DemoAccount.headerLive)
-                  : rawLive;
+              // Always show the ESP32 `live` row — demo seeds must not hide hardware.
+              final headerStatus = rawLive;
               final batteryEntries = children
                   .map((child) {
-                    final seed =
-                        useDemo ? DemoAccount.childSeedFor(child.name) : null;
                     return (
                       name: child.name,
-                      battery: seed?.battery ?? rawLive.battery,
+                      battery: rawLive.battery,
                     );
                   })
                   .where((entry) => entry.battery < 20)
@@ -471,22 +457,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             for (final c in children) ...[
                               Builder(builder: (_) {
-                                final seed = useDemo
-                                    ? DemoAccount.childSeedFor(c.name)
-                                    : null;
                                 return _ChildCard(
                                   name: c.name,
                                   dob: _formatDob(c.dob),
                                   details:
-                                      _formatDetails(seed?.gender ?? c.gender, c.weightKg, c.heightCm),
-                                  status: _mapSeverity(
-                                      seed?.status ?? rawLive.severity),
-                                  present: seed?.present ?? rawLive.present,
-                                  buckled: seed?.buckled ?? rawLive.buckled,
-                                  near: seed?.near ?? rawLive.distanceNear,
-                                  battery: seed?.battery ?? rawLive.battery,
+                                      _formatDetails(c.gender, c.weightKg, c.heightCm),
+                                  status: _mapSeverity(rawLive.severity),
+                                  present: rawLive.present,
+                                  buckled: rawLive.buckled,
+                                  near: rawLive.distanceNear,
+                                  battery: rawLive.battery,
                                   photoPath: c.photoPath,
-                                  gender: seed?.gender ?? c.gender,
+                                  gender: c.gender,
                                 );
                               }),
                               const SizedBox(height: 16),
@@ -711,11 +693,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (status.placeName != null &&
+                        status.placeName!.isNotEmpty)
+                      SizedBox(
+                        width: leftWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined,
+                                  size: 14,
+                                  color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  status.placeName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.thermostat,
-                            color: status.temperature > 30
+                            color: status.temperature > kHeatThresholdC
                                 ? AppColors.warning
                                 : const Color(0xFF0063BA),
                             size: 64),
@@ -725,32 +735,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Text('${status.temperature.toStringAsFixed(0)}°C',
                                 style: TextStyle(
-                                    color: status.temperature > 30
+                                    color: status.temperature > kHeatThresholdC
                                         ? AppColors.warning
                                         : const Color(0xFF0063BA),
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800)),
-                            if (status.placeName != null &&
-                                status.placeName!.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.location_on_outlined,
-                                        size: 12,
-                                        color: AppColors.textSecondary),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      status.placeName!,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             Text("$firstName's car",
                                 style: const TextStyle(
                                     color: Color(0xFF031E2A), fontSize: 14)),
@@ -1720,44 +1709,51 @@ class _ChildCard extends StatelessWidget {
             // ── White body (status indicators stay high-contrast) ──
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-              child: !present
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.child_care_outlined,
-                            size: 18, color: AppColors.textSecondary),
-                        SizedBox(width: 6),
-                        Text('No baby detected',
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 13)),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                            child: StatusPill(
-                          icon: buckled ? Icons.link : Icons.link_off,
-                          label: buckled ? 'Buckled' : 'Unbuckled',
-                          tone: _buckleTone,
-                        )),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: StatusPill(
-                          icon: near ? Icons.location_on : Icons.location_off,
-                          label: near ? 'Near' : 'Far',
-                          tone: _nearTone,
-                        )),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: StatusPill(
-                          icon: battery <= 20
-                              ? Icons.battery_alert
-                              : Icons.battery_full,
-                          label: '$battery%',
-                          tone: _batteryTone,
-                        )),
-                      ],
+              child: Column(
+                children: [
+                  if (!present)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.child_care_outlined,
+                              size: 18, color: AppColors.textSecondary),
+                          SizedBox(width: 6),
+                          Text('No baby detected',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary, fontSize: 13)),
+                        ],
+                      ),
                     ),
+                  Row(
+                    children: [
+                      Expanded(
+                          child: StatusPill(
+                        icon: buckled ? Icons.link : Icons.link_off,
+                        label: buckled ? 'Buckled' : 'Unbuckled',
+                        tone: _buckleTone,
+                      )),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: StatusPill(
+                        icon: near ? Icons.location_on : Icons.location_off,
+                        label: near ? 'Near' : 'Far',
+                        tone: _nearTone,
+                      )),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: StatusPill(
+                        icon: battery <= 20
+                            ? Icons.battery_alert
+                            : Icons.battery_full,
+                        label: '$battery%',
+                        tone: _batteryTone,
+                      )),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

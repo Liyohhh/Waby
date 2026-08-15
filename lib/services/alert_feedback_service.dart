@@ -85,8 +85,23 @@ class AlertFeedbackService {
     }
   }
 
+  /// Short pulse so the Settings toggle can prove the motor works.
+  Future<void> previewVibration() async {
+    try {
+      if (!await Vibration.hasVibrator()) return;
+      await Vibration.vibrate(duration: 180);
+    } catch (_) {}
+  }
+
+  Future<void> cancelVibration() async {
+    try {
+      await Vibration.cancel();
+    } catch (_) {}
+  }
+
   /// Stop looping audio (idempotent).
   Future<void> stop() async {
+    await cancelVibration();
     if (!_playing) {
       try {
         await _player.stop();

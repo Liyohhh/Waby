@@ -1,0 +1,18 @@
+---
+description: Do not edit ESP32 firmware unless the user explicitly asks. If they do, keep a backup of the original first.
+alwaysApply: true
+---
+
+# Firmware lock
+
+The ESP32 sketch lives outside this repo:
+
+`C:\Users\chenu\OneDrive\Desktop\PROJECT 2\arduino ide\Project_1_draft_v3\Project_1_draft_v3.ino`
+
+**Do not modify that file (or any `.ino`) unless the user explicitly asks in that message.**
+
+If they do ask for a firmware edit:
+
+1. Copy the current sketch to a sibling backup first, e.g. `Project_1_draft_v3.ino.bak` or a timestamped copy, so the original is preserved.
+2. Change only what they asked for.
+3. Do not "improve" unrelated firmware while in the file.

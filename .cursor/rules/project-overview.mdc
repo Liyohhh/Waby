@@ -27,7 +27,7 @@ FSR (presence/weight), auto-detect buckle, DHT11 (temperature), GPS NEO-6M, ESP3
 - No weight → idle, no alarms.
 - Weight + NOT buckled + caregiver near → **buckle reminder** (gentle).
 - Weight + caregiver FAR → **left-behind alarm**, regardless of buckle state.
-- Weight + temperature over **`kHeatThresholdC` (38.0°C)** for ≥30s → **heat alarm**.
+- Weight + temperature over **`kHeatThresholdC` (30.0°C)** for ≥30s → **heat alarm**.
 - Escalation: L1 in-app / soft → L2 louder + push → L3 Telegram to next-of-kin with GPS.
 
 ## Conventions
