@@ -1204,3 +1204,16 @@
   - Toggle OFF → motor stops (no pulse).
   - Caution buckle reminder vibrates only when the switch is on.
 
+## BUG-088
+- Date: 2026-08-15
+- Area: `SeatStatus` battery parsing vs firmware
+- Root cause: Voltage was used to override `battery` when percent parsed as 0; `battery_voltage` was not exposed. Firmware already sends a valid 0–100 `battery` plus volts.
+- Fix: `battery` is the authoritative percent (`num.tryParse` on int/num/String, no `as num?`). `batteryVoltage` is a nullable double for display only (string-tolerant). No voltage→percent fallback. Schema and firmware unchanged.
+
+## TEST-090
+- Date: 2026-08-15
+- Scope: Battery percent from live `battery` column
+- Verification target:
+  - Live `battery` 44 (int or string) → Home shows 44%, even if `battery_voltage` is a string like `"3.72"`.
+  - `flutter analyze` clean on `lib/models/seat_status.dart`.
+

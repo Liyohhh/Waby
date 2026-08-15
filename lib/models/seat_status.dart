@@ -13,6 +13,7 @@ class SeatStatus {
   final bool buckled;
   final bool distanceNear;
   final int battery;
+  final double? batteryVoltage;
   final DateTime? updatedAt;
   final String? placeName;
   final bool carMoving;
@@ -23,6 +24,7 @@ class SeatStatus {
     required this.buckled,
     required this.distanceNear,
     required this.battery,
+    this.batteryVoltage,
     this.updatedAt,
     this.placeName,
     this.carMoving = true,
@@ -38,7 +40,8 @@ class SeatStatus {
         present: _asBool(map['present']),
         buckled: _asBool(map['buckled']),
         distanceNear: _asBool(map['distance_near']),
-        battery: _readBatteryPercent(map),
+        battery: _readBatteryPercent(map['battery']),
+        batteryVoltage: _asNullableDouble(map['battery_voltage']),
         updatedAt: map['updated_at'] != null
             ? DateTime.tryParse(map['updated_at'].toString())
             : null,
@@ -48,31 +51,23 @@ class SeatStatus {
         carMoving: _asBool(map['car_moving'], true),
       );
 
-  /// Firmware sends `battery` as an int and `battery_voltage` as a float.
-  /// PostgREST `numeric` columns often arrive as strings — never drop those to 0.
-  static int _readBatteryPercent(Map<String, dynamic> map) {
-    final pct = _asInt(map['battery']);
-    if (pct > 0) return pct.clamp(0, 100);
-    final volts = _asDouble(map['battery_voltage']);
-    if (volts <= 0) return pct.clamp(0, 100);
-    // Same map as firmware voltageToPercentage (3.0 V empty → 4.2 V full).
-    if (volts <= 3.0) return 0;
-    if (volts >= 4.2) return 100;
-    return (((volts - 3.0) / 1.2) * 100).round().clamp(0, 100);
+  /// Firmware always PATCHes `battery` as a 0–100 int. Postgres/`numeric`
+  /// (and some Realtime payloads) may deliver it as a string — parse, never
+  /// `as num?`. Voltage is display-only and must not replace this percent.
+  static int _readBatteryPercent(dynamic value) {
+    if (value == null) return 0;
+    final parsed = num.tryParse(value.toString())?.round();
+    if (parsed == null) return 0;
+    return parsed.clamp(0, 100);
+  }
+
+  static double? _asNullableDouble(dynamic value) {
+    if (value == null) return null;
+    return num.tryParse(value.toString())?.toDouble();
   }
 
   static double _asDouble(dynamic value, [double fallback = 0]) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? fallback;
-    return fallback;
-  }
-
-  static int _asInt(dynamic value, [int fallback = 0]) {
-    if (value is num) return value.round();
-    if (value is String) {
-      return int.tryParse(value) ?? double.tryParse(value)?.round() ?? fallback;
-    }
-    return fallback;
+    return _asNullableDouble(value) ?? fallback;
   }
 
   static bool _asBool(dynamic value, [bool fallback = false]) {
