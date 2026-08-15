@@ -558,9 +558,9 @@ class _HomeScreenState extends State<HomeScreen> {
         //    left+right pins the car to the right half; Center handles
         //    horizontal centering regardless of image aspect ratio.
         Positioned(
-          left: 210,
-          right: -15,
-          top: 78,
+          left: 228,
+          right: -8,
+          top: 92,
           bottom: 0,
           child: Center(
             child: Column(
@@ -700,16 +700,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(Icons.location_on_outlined,
                                   size: 14,
                                   color: AppColors.textSecondary),
                               const SizedBox(width: 4),
-                              Expanded(
+                              Flexible(
                                 child: Text(
                                   status.placeName!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,

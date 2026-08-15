@@ -4,7 +4,7 @@
 |---|---|
 | **Supabase project** | `pvafygrloelptlmnhfog` |
 | **Surfaces** | Firmware REST · Edge Functions · App Realtime / RPC |
-| **Last updated** | 2026-08-09 |
+| **Last updated** | 2026-08-15 |
 
 Companion: `docs/DATABASE.md` (tables, RLS, RPCs).
 
@@ -101,6 +101,19 @@ from('live').stream(primaryKey: ['id']).eq('id', 1)
 
 Consumed by Home UI and `AlertService` (presence, heat, buckle, battery, GPS fields).
 
+### Temperature history — `temperature_samples`
+
+**Source:** trigger `trg_log_live_temperature` on `live` (≤1 insert/minute) plus `TemperatureHistoryService.recordIfDue` as a client fallback.
+
+```
+from('temperature_samples')
+  .select('recorded_at, temperature')
+  .gte('recorded_at', now - 12h)
+  .order('recorded_at')
+```
+
+Family → Children → Temperature Analytics buckets these into 12 hourly averages. Requires migration `20260815_temperature_samples.sql`.
+
 ### Alert persistence
 
 | Table | Client action |
@@ -129,6 +142,7 @@ Documented in `docs/DATABASE.md`. Client entry points in `FamilyService`:
 | `CarService` | `cars` |
 | `DeviceService` / child services | `devices`, `children` |
 | Profile / Settings | `profiles` |
+| `TemperatureHistoryService` | `temperature_samples` |
 
 ---
 

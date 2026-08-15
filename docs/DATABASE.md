@@ -5,7 +5,7 @@
 | **Backend** | Supabase Postgres (project `pvafygrloelptlmnhfog`) |
 | **Client** | Flutter via `supabase_flutter` |
 | **Authority** | Live schema in Supabase is authoritative; this ERD is maintained by hand |
-| **Last updated** | 2026-08-09 |
+| **Last updated** | 2026-08-15 |
 
 ---
 
@@ -23,6 +23,7 @@ erDiagram
   devices ||--o| children : "device_id"
   profiles }o--o| cars : "active_car_id"
   children ||--o{ alert_events : "child_id"
+  live ||--o{ temperature_samples : "trigger samples temp"
 
   live {
     int id PK
@@ -37,6 +38,12 @@ erDiagram
     numeric gps_accuracy_m
     text place_name
     timestamptz updated_at
+  }
+
+  temperature_samples {
+    uuid id PK
+    timestamptz recorded_at
+    numeric temperature
   }
 
   logs {
@@ -140,6 +147,22 @@ erDiagram
 | `updated_at` | timestamptz | Auto-stamped via trigger on write |
 
 **RLS:** Authenticated app users may **UPDATE** only the row where `id = 1`. ESP32 writes are intended via the **service role** (bypasses RLS). Multi-device live rows are out of scope.
+
+---
+
+### `temperature_samples` — 12-hour DHT history
+
+`live` is a single overwriting row, so temperature analytics cannot be read from `live` alone. A trigger on `live` INSERT/UPDATE of `temperature` inserts at most **one sample per minute** and prunes rows older than 13 hours.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `recorded_at` | timestamptz | Sample time (default `now()`) |
+| `temperature` | numeric | Seat °C from the `live` PATCH |
+
+**RLS:** Authenticated users may **SELECT** and **INSERT**. The trigger runs as `security definer` so ESP32 PATCHes still record history when the app is closed.
+
+**Deploy:** run `supabase/migrations/20260815_temperature_samples.sql` in the Supabase SQL editor if the CLI is not linked.
 
 ---
 

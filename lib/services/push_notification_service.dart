@@ -76,31 +76,36 @@ class PushNotificationService {
     required String title,
     required String body,
     int? notificationId,
+    bool playSound = true,
   }) async {
     await init();
 
     late final AndroidNotificationDetails androidDetails;
     switch (severity) {
       case AlertSeverity.caution:
-        androidDetails = const AndroidNotificationDetails(
+        androidDetails = AndroidNotificationDetails(
           _kChannelCaution,
           'Waby Caution Alerts',
           channelDescription: 'Lower-severity Waby caution alerts',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
           category: AndroidNotificationCategory.status,
+          playSound: playSound,
+          enableVibration: playSound,
         );
       case AlertSeverity.warning:
-        androidDetails = const AndroidNotificationDetails(
+        androidDetails = AndroidNotificationDetails(
           _kChannelWarning,
           'Waby Warning Alerts',
           channelDescription: 'High-severity Waby warning alerts',
           importance: Importance.high,
           priority: Priority.high,
           category: AndroidNotificationCategory.alarm,
+          playSound: playSound,
+          enableVibration: playSound,
         );
       case AlertSeverity.critical:
-        androidDetails = const AndroidNotificationDetails(
+        androidDetails = AndroidNotificationDetails(
           _kChannelCritical,
           'Waby Critical Alerts',
           channelDescription: 'Critical Waby alerts that may wake the screen',
@@ -108,6 +113,8 @@ class PushNotificationService {
           priority: Priority.max,
           category: AndroidNotificationCategory.alarm,
           fullScreenIntent: true,
+          playSound: playSound,
+          enableVibration: playSound,
         );
     }
 

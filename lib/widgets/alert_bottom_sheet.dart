@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import '../services/alert_feedback_service.dart';
 import '../services/alert_service.dart';
-import '../services/push_notification_service.dart';
 
 class _AlertSheetWaveClipper extends CustomClipper<Path> {
   @override
@@ -87,7 +86,6 @@ class _AlertBottomSheetState extends State<AlertBottomSheet> {
     _sub.cancel();
     _pageController.dispose();
     unawaited(AlertFeedbackService.instance.stop());
-    unawaited(PushNotificationService.instance.cancelAll());
     AlertService.instance.setSheetOpen(false);
     super.dispose();
   }
@@ -646,6 +644,8 @@ class _AlertPageContent extends StatelessWidget {
                     totalSeconds: alert.totalSeconds,
                     color: color ?? stageColor,
                     severity: alert.severity,
+                    telegramSent: alert.telegramSent,
+                    lastNotifiedCount: alert.lastNotifiedCount,
                   ),
                 ],
               ),
@@ -788,6 +788,8 @@ class _CountdownRing extends StatefulWidget {
     required this.totalSeconds,
     required this.color,
     required this.severity,
+    this.telegramSent = false,
+    this.lastNotifiedCount = 0,
   });
 
   final String alertId;
@@ -795,6 +797,8 @@ class _CountdownRing extends StatefulWidget {
   final int totalSeconds;
   final Color color;
   final AlertSeverity severity;
+  final bool telegramSent;
+  final int lastNotifiedCount;
 
   @override
   State<_CountdownRing> createState() => _CountdownRingState();
@@ -833,15 +837,24 @@ class _CountdownRingState extends State<_CountdownRing> {
         widget.totalSeconds <= 0 ? 0.0 : remaining / widget.totalSeconds;
     final secs = remaining.ceil();
     final underMinute = secs < 60;
-    final value = underMinute
-        ? '$secs'
-        : '${(secs ~/ 60).toString().padLeft(2, '0')}:'
-            '${(secs % 60).toString().padLeft(2, '0')}';
+    final notified = widget.telegramSent || secs <= 0;
+    final value = notified ? '✓' : (underMinute
+            ? '$secs'
+            : '${(secs ~/ 60).toString().padLeft(2, '0')}:'
+                '${(secs % 60).toString().padLeft(2, '0')}');
     final isCritical = widget.severity == AlertSeverity.critical;
-    final numberSize = (underMinute ? 58.0 : 46.0) * (isCritical ? 1.15 : 1.0);
-    final label = isCritical
-        ? 'NOTIFYING FAMILY IN'
-        : (underMinute ? 'SECONDS' : 'REMAINING');
+    final numberSize = notified
+        ? 52.0
+        : (underMinute ? 58.0 : 46.0) * (isCritical ? 1.15 : 1.0);
+    final label = notified
+        ? (widget.telegramSent
+            ? (widget.lastNotifiedCount > 0
+                ? 'CONTACTS NOTIFIED'
+                : 'NO LINKED CONTACTS')
+            : 'NOTIFYING FAMILY')
+        : (isCritical
+            ? 'NOTIFYING FAMILY IN'
+            : (underMinute ? 'SECONDS' : 'REMAINING'));
 
     return SizedBox(
       width: size,

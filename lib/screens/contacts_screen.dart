@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,7 @@ import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
+import '../services/temperature_history_service.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/gender_selector.dart';
@@ -981,6 +983,28 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                 ],
               ),
             ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${child.temperature.toStringAsFixed(0)}°C',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: child.isWarning ? AppColors.warning : AppColors.navy,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  child.isWarning ? 'WARNING' : 'SAFE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: child.isWarning ? AppColors.warning : AppColors.safe,
+                  ),
+                ),
+              ],
+            ),
             _childOptionsButton(context, child),
           ],
         ),
@@ -1127,14 +1151,51 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   }
 }
 
-// ── Child detail bottom sheet (unchanged) ─────────────────────────────────────
+// ── Child detail bottom sheet ─────────────────────────────────────────────────
 
-class _ChildDetailSheet extends StatelessWidget {
+class _ChildDetailSheet extends StatefulWidget {
   const _ChildDetailSheet({required this.child});
   final _ChildProfile child;
 
   @override
+  State<_ChildDetailSheet> createState() => _ChildDetailSheetState();
+}
+
+class _ChildDetailSheetState extends State<_ChildDetailSheet> {
+  late final Stream<SeatStatus> _liveStream = LiveService().liveStream();
+
+  _ChildProfile _withLive(_ChildProfile base, SeatStatus live) {
+    return _ChildProfile(
+      id: base.id,
+      deviceId: base.deviceId,
+      name: base.name,
+      dob: base.dob,
+      battery: live.battery,
+      isWarning: live.severity == SeatSeverity.warning,
+      temperature: live.temperature,
+      buckled: live.buckled,
+      distanceNear: live.distanceNear,
+      gender: base.gender,
+      weightKg: base.weightKg,
+      heightCm: base.heightCm,
+      photoPath: base.photoPath,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    return StreamBuilder<SeatStatus>(
+      stream: _liveStream,
+      builder: (context, snap) {
+        final child = snap.hasData
+            ? _withLive(widget.child, snap.data!)
+            : widget.child;
+        return _buildSheet(context, child);
+      },
+    );
+  }
+
+  Widget _buildSheet(BuildContext context, _ChildProfile child) {
     final safe = !child.isWarning;
     final isGirl = child.gender == 'Girl';
     final statusColor =
@@ -1326,7 +1387,10 @@ class _ChildDetailSheet extends StatelessWidget {
                           fontSize: 12,
                           color: Color(0x8C031E2A))),
                   const SizedBox(height: 12),
-                  _TempGraph(isGirl: isGirl),
+                  _TempGraph(
+                    isGirl: isGirl,
+                    currentTemp: child.temperature,
+                  ),
                   const SizedBox(height: 24),
                   const Text('Device Info',
                       style: TextStyle(
@@ -1441,59 +1505,103 @@ class _ChildDetailSheet extends StatelessWidget {
 
 // ── Temperature graph widget (custom painted) ────────────────────────────────
 
-class _TempGraph extends StatelessWidget {
-  const _TempGraph({this.isGirl = false});
+class _TempGraph extends StatefulWidget {
+  const _TempGraph({this.isGirl = false, required this.currentTemp});
 
   final bool isGirl;
+  final double currentTemp;
 
-  // Mock hourly readings for the last 12 hours
-  static const _data = <double>[
-    22.1, 22.8, 23.2, 23.5, 24.0, 23.8,
-    23.4, 23.1, 22.9, 23.3, 23.6, 23.0,
-  ];
-  static const _dangerLine = 32.0;
-  static const _minY = 20.0;
-  static const _maxY = 36.0;
+  @override
+  State<_TempGraph> createState() => _TempGraphState();
+}
+
+class _TempGraphState extends State<_TempGraph> {
+  List<TemperatureSample> _samples = const [];
+  Timer? _refresh;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _refresh = Timer.periodic(const Duration(seconds: 30), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _refresh?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final rows = await TemperatureHistoryService.instance.fetchLast12Hours();
+    if (!mounted) return;
+    setState(() => _samples = rows);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final nowTemp = widget.currentTemp > 0 ? widget.currentTemp : null;
+    final buckets =
+        TemperatureHistoryService.hourlyBuckets(_samples, DateTime.now());
+    final plotData = TemperatureHistoryService.fillBuckets(buckets, nowTemp);
+    final dangerLine = kHeatThresholdC;
+
+    var minY = 18.0;
+    var maxY = dangerLine + 6;
+    for (final v in plotData) {
+      if (v - 2 < minY) minY = v - 2;
+      if (v + 2 > maxY) maxY = v + 2;
+    }
+
     return Container(
       height: 160,
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
       decoration: BoxDecoration(
-        color: isGirl ? const Color(0xFFFCEAF2) : const Color(0xFFF0F7FF),
+        color: widget.isGirl
+            ? const Color(0xFFFCEAF2)
+            : const Color(0xFFF0F7FF),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        children: [
-          Expanded(
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _TempLinePainter(
-                  data: _data,
-                  minY: _minY,
-                  maxY: _maxY,
-                  dangerLine: _dangerLine),
+      child: plotData.isEmpty
+          ? const Center(
+              child: Text(
+                'Collecting temperature history…',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    painter: _TempLinePainter(
+                      data: plotData,
+                      minY: minY,
+                      maxY: maxY,
+                      dangerLine: dangerLine,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(
+                    7,
+                    (i) {
+                      final hoursAgo = 12 - i * 2;
+                      final label = hoursAgo == 0 ? 'Now' : '-${hoursAgo}h';
+                      return Text(label,
+                          style: const TextStyle(
+                              fontSize: 10, color: Color(0x8C031E2A)));
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 6),
-          // X-axis labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(
-              7,
-              (i) {
-                final hoursAgo = 12 - i * 2;
-                final label = hoursAgo == 0 ? 'Now' : '-${hoursAgo}h';
-                return Text(label,
-                    style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0x8C031E2A)));
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1513,8 +1621,10 @@ class _TempLinePainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    double xOf(int i) => i / (data.length - 1) * w;
-    double yOf(double v) => h - ((v - minY) / (maxY - minY)) * h;
+    double xOf(int i) =>
+        data.length == 1 ? w / 2 : i / (data.length - 1) * w;
+    final ySpan = (maxY - minY).abs() < 0.01 ? 1.0 : (maxY - minY);
+    double yOf(double v) => h - ((v - minY) / ySpan) * h;
 
     // ── danger threshold line
     final dangerY = yOf(dangerLine);
@@ -1522,7 +1632,7 @@ class _TempLinePainter extends CustomPainter {
       Offset(0, dangerY),
       Offset(w, dangerY),
       Paint()
-        ..color = const Color(0xFFFF4444).withValues(alpha: 0.5)
+        ..color = AppColors.warning.withValues(alpha: 0.5)
         ..strokeWidth = 1
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -1530,10 +1640,12 @@ class _TempLinePainter extends CustomPainter {
         ..filterQuality = FilterQuality.high,
     );
     // label
-    const dangerStyle = TextStyle(
-        fontSize: 9, color: Color(0xFFFF4444), fontWeight: FontWeight.w600);
+    final dangerStyle = TextStyle(
+        fontSize: 9, color: AppColors.warning, fontWeight: FontWeight.w600);
     final dangerTp = TextPainter(
-        text: const TextSpan(text: '32°C danger', style: dangerStyle),
+        text: TextSpan(
+            text: '${dangerLine.toStringAsFixed(0)}°C danger',
+            style: dangerStyle),
         textDirection: TextDirection.ltr)
       ..layout();
     dangerTp.paint(canvas, Offset(w - dangerTp.width - 4, dangerY - 12));
@@ -1557,8 +1669,8 @@ class _TempLinePainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFF088BEA).withValues(alpha: 0.25),
-            const Color(0xFF088BEA).withValues(alpha: 0.02),
+            AppColors.accent.withValues(alpha: 0.25),
+            AppColors.accent.withValues(alpha: 0.02),
           ],
         ).createShader(Rect.fromLTWH(0, 0, w, h))
         ..style = PaintingStyle.fill,
@@ -1576,7 +1688,7 @@ class _TempLinePainter extends CustomPainter {
     canvas.drawPath(
       linePath,
       Paint()
-        ..color = const Color(0xFF088BEA)
+        ..color = AppColors.accent
         ..strokeWidth = 2
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -1592,7 +1704,7 @@ class _TempLinePainter extends CustomPainter {
         canvas.drawCircle(
           Offset(cx, cy),
           4,
-          Paint()..color = const Color(0xFF088BEA),
+          Paint()..color = AppColors.accent,
         );
         canvas.drawCircle(
           Offset(cx, cy),
@@ -1605,7 +1717,7 @@ class _TempLinePainter extends CustomPainter {
                 text: label,
                 style: const TextStyle(
                     fontSize: 9,
-                    color: Color(0xFF088BEA),
+                    color: AppColors.accent,
                     fontWeight: FontWeight.w600)),
             textDirection: TextDirection.ltr)
           ..layout();
@@ -1615,29 +1727,37 @@ class _TempLinePainter extends CustomPainter {
     }
 
     // ── Y-axis labels
-    for (final temp in [22.0, 26.0, 30.0, 34.0]) {
-      final ty = yOf(temp);
-      if (ty < 0 || ty > h) continue;
-      final tp = TextPainter(
-          text: TextSpan(
-              text: '${temp.toInt()}°',
-              style: const TextStyle(
-                  fontSize: 9, color: Color(0x8C031E2A))),
-          textDirection: TextDirection.ltr)
-        ..layout();
-      tp.paint(canvas, Offset(0, ty - tp.height / 2));
-      canvas.drawLine(
-        Offset(tp.width + 2, ty),
-        Offset(w, ty),
-        Paint()
-          ..color = const Color(0x18031E2A)
-          ..strokeWidth = 0.5,
-      );
+    final step = (maxY - minY) <= 12 ? 4.0 : 6.0;
+    var tick = (minY / step).ceil() * step;
+    while (tick <= maxY) {
+      final ty = yOf(tick);
+      if (ty >= 0 && ty <= h) {
+        final tp = TextPainter(
+            text: TextSpan(
+                text: '${tick.toInt()}°',
+                style: const TextStyle(
+                    fontSize: 9, color: Color(0x8C031E2A))),
+            textDirection: TextDirection.ltr)
+          ..layout();
+        tp.paint(canvas, Offset(0, ty - tp.height / 2));
+        canvas.drawLine(
+          Offset(tp.width + 2, ty),
+          Offset(w, ty),
+          Paint()
+            ..color = const Color(0x18031E2A)
+            ..strokeWidth = 0.5,
+        );
+      }
+      tick += step;
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
+  bool shouldRepaint(covariant _TempLinePainter old) =>
+      old.data != data ||
+      old.minY != minY ||
+      old.maxY != maxY ||
+      old.dangerLine != dangerLine;
 }
 
 // ── Child edit profile bottom sheet ─────────────────────────────────────────

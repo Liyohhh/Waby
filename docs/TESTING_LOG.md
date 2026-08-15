@@ -1204,6 +1204,19 @@
   - Toggle OFF → motor stops (no pulse).
   - Caution buckle reminder vibrates only when the switch is on.
 
+## BUG-089
+- Date: 2026-08-15
+- Area: Heat alert froze at 0s or vanished when temperature flickered
+- Root cause: After the countdown hit 0 the ring kept showing `0` / "NOTIFYING FAMILY IN" with no notified state. `_onStatus` also resolved heat on the first live tick below threshold (DHT NaN → 0°C), which closed the sheet.
+- Fix: At 0s the ring shows ✓ plus Contacts notified / No linked contacts. Heat/left-behind do not auto-clear until the condition has been gone for the heat debounce (30s) / 10s; once Telegram has fired the sheet stays until Acknowledge.
+
+## TEST-091
+- Date: 2026-08-15
+- Scope: Heat sheet at 0s and through temp flicker
+- Verification target:
+  - Heat countdown reaching 0 → ✓ and notified copy; sheet stays until Acknowledge.
+  - Brief temp dip / 0°C glitch during an active heat alert does not dismiss the sheet.
+
 ## BUG-088
 - Date: 2026-08-15
 - Area: `SeatStatus` battery parsing vs firmware
@@ -1216,4 +1229,59 @@
 - Verification target:
   - Live `battery` 44 (int or string) → Home shows 44%, even if `battery_voltage` is a string like `"3.72"`.
   - `flutter analyze` clean on `lib/models/seat_status.dart`.
+
+## BUG-090
+- Date: 2026-08-15
+- Area: Home place name and car/plate alignment
+- Root cause: "Unknown place" was left-aligned in the temperature column; the car image and plate sat slightly left/high of the intended header composition.
+- Fix: Center the location row in the left column. Nudge the car + plate down and right (`left` 210→228, `top` 78→92).
+
+## TEST-092
+- Date: 2026-08-15
+- Scope: Home header layout
+- Verification target:
+  - Place name (including "Unknown place") sits centered in the left half, not flush-left under the greeting.
+  - Car image and number plate sit slightly further right and lower than before, still above the wave.
+
+## BUG-091
+- Date: 2026-08-15
+- Area: Family → Children live telemetry
+- Root cause: List cards showed name/age only, so Realtime ticks were invisible. The detail sheet was a frozen `_ChildProfile` snapshot from tap time.
+- Fix: Cards show live °C + SAFE/WARNING from `LiveService`. Detail sheet is a `StreamBuilder` so temp/buckle/distance/battery keep updating while open and after dismiss.
+
+## TEST-093
+- Date: 2026-08-15
+- Scope: Children tab live updates
+- Verification target:
+  - Change seat temperature / buckle without opening a child → list card °C and SAFE/WARNING update.
+  - Open the sheet, change sensors, values update without closing.
+  - Close the sheet; list continues to update.
+
+## BUG-092
+- Date: 2026-08-15
+- Area: Android notification shade during alerts
+- Root cause: `_emitUserFacingAlert` skipped `PushNotificationService.show` while the app was resumed. Sheet dispose also `cancelAll()`, wiping any tray entry.
+- Fix: Always post a shade notification on alert (silent while foreground so in-app sound is not doubled). Do not cancel tray notifications when the sheet closes; still cancel on acknowledge/resolve.
+
+## TEST-094
+- Date: 2026-08-15
+- Scope: Android notification drawer
+- Verification target:
+  - Trigger heat / left-behind / buckle with the app open → swipe down the status bar and see a Waby notification.
+  - Acknowledge / clear the alert → notification is removed.
+  - Allow Notifications permission if Android prompts.
+
+## BUG-093
+- Date: 2026-08-15
+- Area: Children Temperature Analytics used a mock 12h series
+- Root cause: `_TempGraph` hardcoded 22–24°C and a 32°C danger line. `live` is a single overwriting row, so 12h history needs a sample table.
+- Fix: `temperature_samples` + trigger (≤1/min) + app fallback insert. Graph reads last 12h, hourly buckets, danger line = `kHeatThresholdC` (30°C).
+
+## TEST-095
+- Date: 2026-08-15
+- Scope: 12-hour temperature analytics
+- Verification target:
+  - After running `supabase/migrations/20260815_temperature_samples.sql`, wait ~1–2 minutes with the seat online → `SELECT * FROM temperature_samples ORDER BY recorded_at DESC LIMIT 5` shows DHT values.
+  - Children detail graph uses those samples (not the old flat 22–24 mock). Danger line reads 30°C.
+  - Before SQL is applied, graph shows the live reading or "Collecting temperature history…".
 

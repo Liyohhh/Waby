@@ -14,6 +14,7 @@ import 'car_service.dart';
 import 'child_service.dart';
 import 'live_service.dart';
 import 'push_notification_service.dart';
+import 'temperature_history_service.dart';
 
 String alertIdOf({
   required String childId,
@@ -102,6 +103,9 @@ class AlertService {
   final Map<String, DateTime> _buckleSnoozedUntil = {};
   static const Duration buckleAckSnooze = Duration(minutes: 5);
   static const _buckleSnoozePrefsKey = 'waby_buckle_snooze_until';
+  /// Heat/left-behind must stay visible through a brief live glitch (DHT NaN
+  /// → 0°C, one dropped present tick). Only auto-clear after this hold.
+  final Map<String, DateTime> _conditionMissingSince = {};
 
   bool get sheetOpen => _sheetOpen;
   void setSheetOpen(bool value) => _sheetOpen = value;
@@ -114,6 +118,7 @@ class AlertService {
     _activeCarName = null;
     _activeCarPlate = null;
     _hasPrimaryChild = false;
+    _conditionMissingSince.clear();
     _buckleSnoozedUntil.clear();
     unawaited(_persistBuckleSnoozes());
   }
@@ -261,6 +266,7 @@ class AlertService {
   }
 
   void _onStatus(SeatStatus status) {
+    unawaited(TemperatureHistoryService.instance.recordIfDue(status.temperature));
     final now = DateTime.now();
     final conditions = _conditionsFor(status, now);
     final visibleTypes = conditions.map((c) => c.alertType).toSet();
@@ -272,14 +278,31 @@ class AlertService {
     }
     for (final id in _active.keys.toList()) {
       final alert = _active[id]!;
-      if (!visibleTypes.contains(alert.alertType)) {
-        _resolveAlert(alert.alertId);
-        if (alert.alertType == 'buckle') {
-          // Rebuckled — any future unbuckle is a fresh episode, not a
-          // continuation of one the caregiver already acknowledged.
-          _buckleSnoozedUntil.remove(alert.childId);
-          unawaited(_persistBuckleSnoozes());
+      if (visibleTypes.contains(alert.alertType)) {
+        _conditionMissingSince.remove(alert.alertId);
+        continue;
+      }
+      // Telegram already went out — keep the sheet until Acknowledge so the
+      // caregiver sees "family notified" instead of a vanishing 0s timer.
+      if (alert.telegramSent) continue;
+
+      if (alert.alertType == 'heat' || alert.alertType == 'left_behind') {
+        _conditionMissingSince.putIfAbsent(alert.alertId, () => now);
+        final hold = alert.alertType == 'heat'
+            ? heatDebounce
+            : const Duration(seconds: 10);
+        if (now.difference(_conditionMissingSince[alert.alertId]!) < hold) {
+          continue;
         }
+      }
+
+      _conditionMissingSince.remove(alert.alertId);
+      _resolveAlert(alert.alertId);
+      if (alert.alertType == 'buckle') {
+        // Rebuckled — any future unbuckle is a fresh episode, not a
+        // continuation of one the caregiver already acknowledged.
+        _buckleSnoozedUntil.remove(alert.childId);
+        unawaited(_persistBuckleSnoozes());
       }
     }
 
@@ -465,6 +488,7 @@ class AlertService {
   }
 
   void _resolveAlert(String alertId) {
+    _conditionMissingSince.remove(alertId);
     final removed = _active.remove(alertId);
     _autoFired.remove(alertId);
     if (removed != null) {
@@ -549,7 +573,7 @@ class AlertService {
       );
     }
 
-    if (!notify || inForeground) return;
+    if (!notify) return;
 
     if (alert.alertType == 'buckle' &&
         alert.severity == AlertSeverity.caution) {
@@ -564,6 +588,8 @@ class AlertService {
       title: title,
       body: body,
       notificationId: alert.alertId.hashCode,
+      // In-app feedback already plays sound/haptics while resumed.
+      playSound: !inForeground,
     );
   }
 
