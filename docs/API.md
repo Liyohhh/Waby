@@ -4,7 +4,7 @@
 |---|---|
 | **Supabase project** | `pvafygrloelptlmnhfog` |
 | **Surfaces** | Firmware REST · Edge Functions · App Realtime / RPC |
-| **Last updated** | 2026-08-15 |
+| **Last updated** | 2026-08-18 |
 
 Companion: `docs/DATABASE.md` (tables, RLS, RPCs).
 
@@ -100,7 +100,7 @@ from('live').stream(primaryKey: ['id']).eq('id', 1)
   → CaregiverProximityService.applyTo (BLE RSSI overrides distance_near)
 ```
 
-Consumed by Home UI and `AlertService` (presence, heat, buckle, battery, GPS fields).
+The family's **hardware-linked** child (`children.hardware_linked`) shows this row. Later children use `SimulatedStatusService` (always SAFE). `AlertService` still listens here but only names alerts after the hardware-linked child.
 
 ### Caregiver proximity — BLE RSSI
 

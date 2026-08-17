@@ -7,6 +7,7 @@ class Child {
   final double? weightKg;
   final double? heightCm;
   final String? photoPath;
+  final bool hardwareLinked;
 
   const Child({
     required this.id,
@@ -17,6 +18,7 @@ class Child {
     this.weightKg,
     this.heightCm,
     this.photoPath,
+    this.hardwareLinked = false,
   });
 
   factory Child.fromMap(Map<String, dynamic> m) => Child(
@@ -28,5 +30,16 @@ class Child {
         weightKg: (m['weight_kg'] as num?)?.toDouble(),
         heightCm: (m['height_cm'] as num?)?.toDouble(),
         photoPath: m['photo_path'] as String?,
+        hardwareLinked: _asBool(m['hardware_linked']),
       );
+
+  static bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.toLowerCase();
+      if (v == 'true' || v == 't' || v == '1') return true;
+    }
+    return false;
+  }
 }

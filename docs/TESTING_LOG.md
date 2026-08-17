@@ -1357,3 +1357,33 @@
   - Walk ~10 m away with the phone (app open) → **Far** within ~8–12 s; left-behind can fire.
   - Without the new firmware, Near/Far stays on the last `live` value (no false Far).
 
+## BUG-099
+- Date: 2026-08-18
+- Area: Every child card showed the same global `live` row
+- Root cause: One ESP32 writes `live` id=1; Home/Family/Admin/AlertService all bound every child to that row.
+- Fix: `children.hardware_linked` (first child per family). That child reads `live`; later children get a cached always-SAFE `SimulatedStatusService` status. `AlertService` only names alerts after the hardware-linked child.
+
+## TEST-101
+- Date: 2026-08-18
+- Scope: Per-family first child = hardware, later children simulated
+- Verification target:
+  - Run `supabase/migrations/20260818_children_hardware_linked.sql` in the SQL editor.
+  - Existing family: earliest child has `hardware_linked=true`; others false.
+  - New account: first Add Device child tracks the physical seat (temp/buckle/near/alerts); a second child stays SAFE (present, buckled, Near, battery 70–95, temp 22–26) even when the seat is unbuckled/hot/far.
+  - Home header temperature still follows the ESP32 `live` row.
+  - Unbuckle/leave the real seat → alerts name the first child only, never the simulated sibling.
+
+## BUG-100
+- Date: 2026-08-18
+- Area: New family Home showed the shared ESP32 temperature with no device
+- Root cause: Home header always bound to `live` id=1, even when the family had zero children.
+- Fix: Header uses live telemetry only if the family has a hardware-linked child. Otherwise temperature shows `--`, the bar is empty, and place name is hidden.
+
+## TEST-102
+- Date: 2026-08-18
+- Scope: New family empty Home
+- Verification target:
+  - Create a new account + new family with no device → Home temperature is `--`, no place name, empty child list.
+  - Add the first child/device → header switches to the real `live` °C.
+  - Existing families with a hardware-linked child still show live temp.
+

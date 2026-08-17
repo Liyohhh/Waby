@@ -20,6 +20,7 @@ import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
 import '../services/place_name_service.dart';
+import '../services/simulated_status_service.dart';
 import '../widgets/gender_selector.dart';
 import '../widgets/low_battery_banner.dart';
 import '../widgets/signed_avatar.dart';
@@ -208,14 +209,22 @@ class _HomeScreenState extends State<HomeScreen> {
             stream: _liveStream,
             builder: (context, liveSnap) {
               final rawLive = liveSnap.data ?? SeatStatus.empty();
-              unawaited(PlaceNameService.instance.onLive(rawLive));
-              // Always show the ESP32 `live` row — demo seeds must not hide hardware.
-              final headerStatus = rawLive;
+              final hasHardwareSeat = children.any(
+                (c) => SimulatedStatusService.instance
+                    .usesHardware(c, children),
+              );
+              if (hasHardwareSeat) {
+                unawaited(PlaceNameService.instance.onLive(rawLive));
+              }
+              // No child yet (new family) — do not show the shared ESP32 feed.
+              final headerStatus = hasHardwareSeat ? rawLive : null;
               final batteryEntries = children
                   .map((child) {
+                    final status = SimulatedStatusService.instance
+                        .resolve(child, children, rawLive);
                     return (
                       name: child.name,
-                      battery: rawLive.battery,
+                      battery: status.battery,
                     );
                   })
                   .where((entry) => entry.battery < 20)
@@ -460,16 +469,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             for (final c in children) ...[
                               Builder(builder: (_) {
+                                final status = SimulatedStatusService.instance
+                                    .resolve(c, children, rawLive);
                                 return _ChildCard(
                                   name: c.name,
                                   dob: _formatDob(c.dob),
                                   details:
                                       _formatDetails(c.gender, c.weightKg, c.heightCm),
-                                  status: _mapSeverity(rawLive.severity),
-                                  present: rawLive.present,
-                                  buckled: rawLive.buckled,
-                                  near: rawLive.distanceNear,
-                                  battery: rawLive.battery,
+                                  status: _mapSeverity(status.severity),
+                                  present: status.present,
+                                  buckled: status.buckled,
+                                  near: status.distanceNear,
+                                  battery: status.battery,
                                   photoPath: c.photoPath,
                                   gender: c.gender,
                                 );
@@ -540,7 +551,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _header(BuildContext context, SeatStatus status, String firstName) {
+  Widget _header(BuildContext context, SeatStatus? live, String firstName) {
+    final connected = live != null;
+    final temp = live?.temperature ?? 0;
+    final tempHot = connected && temp > kHeatThresholdC;
+    final tempColor =
+        tempHot ? AppColors.warning : const Color(0xFF0063BA);
     // Outer Stack: bg → wave → car (on top of wave) → text
     return Stack(
       children: [
@@ -700,8 +716,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       valueListenable:
                           PlaceNameService.instance.resolvedLabel,
                       builder: (context, resolved, child) {
+                        if (!connected || live == null) {
+                          return const SizedBox.shrink();
+                        }
                         final name =
-                            PlaceNameService.instance.displayName(status);
+                            PlaceNameService.instance.displayName(live);
                         if (name == null || name.isEmpty) {
                           return const SizedBox.shrink();
                         }
@@ -739,19 +758,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.thermostat,
-                            color: status.temperature > kHeatThresholdC
-                                ? AppColors.warning
-                                : const Color(0xFF0063BA),
+                            color: tempColor,
                             size: 64),
                         const SizedBox(width: 4),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text('${status.temperature.toStringAsFixed(0)}°C',
+                            Text(
+                                connected
+                                    ? '${temp.toStringAsFixed(0)}°C'
+                                    : '--',
                                 style: TextStyle(
-                                    color: status.temperature > kHeatThresholdC
-                                        ? AppColors.warning
-                                        : const Color(0xFF0063BA),
+                                    color: tempColor,
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800)),
                             Text("$firstName's car",
@@ -767,9 +785,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
-                          value: ((status.temperature - 20) /
-                                  (kHeatThresholdC - 20))
-                              .clamp(0.0, 1.0),
+                          value: connected
+                              ? ((temp - 20) / (kHeatThresholdC - 20))
+                                  .clamp(0.0, 1.0)
+                              : 0,
                           minHeight: 6,
                           backgroundColor: Colors.black12,
                           color: AppColors.accent,

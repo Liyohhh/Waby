@@ -11,6 +11,7 @@ import '../services/alert_service.dart';
 import '../services/auth_service.dart';
 import '../services/child_service.dart';
 import '../services/live_service.dart';
+import '../services/simulated_status_service.dart';
 
 /// Admin dashboard — live seat telemetry from `live` id=1 plus family children.
 class AdminScreen extends StatefulWidget {
@@ -83,7 +84,13 @@ class _AdminScreenState extends State<AdminScreen> {
             stream: _childrenStream,
             builder: (context, childSnap) {
               final children = childSnap.data ?? const <Child>[];
-              final seats = children.map((c) => _toChildData(c, live)).toList();
+              final seats = children
+                  .map((c) => _toChildData(
+                        c,
+                        SimulatedStatusService.instance
+                            .resolve(c, children, live),
+                      ))
+                  .toList();
               final user = _UserData(
                 name: AppState.greetingName.value ?? 'Family',
                 email: AuthService().currentUser?.email ?? '',

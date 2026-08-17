@@ -16,6 +16,7 @@ import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
+import '../services/simulated_status_service.dart';
 import '../services/temperature_history_service.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/contact_status_badge.dart';
@@ -751,6 +752,7 @@ class _ChildProfile {
     this.weightKg,
     this.heightCm,
     this.photoPath,
+    this.hardwareLinked = false,
   });
 
   final String id;
@@ -766,6 +768,7 @@ class _ChildProfile {
   double? weightKg;
   double? heightCm;
   String? photoPath;
+  bool hardwareLinked;
 
   String get ageLabel => _ageFromDob(dob);
 }
@@ -792,12 +795,16 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
   // Local overrides until stream reflects edits (name/dob/weight/height).
   final Map<String, _ChildProfile> _localOverrides = {};
 
-  _ChildProfile _toProfile(Child c, SeatStatus rawLive) {
-    final temperature = rawLive.temperature;
-    final buckled = rawLive.buckled;
-    final distanceNear = rawLive.distanceNear;
-    final battery = rawLive.battery;
-    final isWarning = rawLive.severity == SeatSeverity.warning;
+  _ChildProfile _toProfile(Child c, List<Child> family, SeatStatus rawLive) {
+    final status =
+        SimulatedStatusService.instance.resolve(c, family, rawLive);
+    final temperature = status.temperature;
+    final buckled = status.buckled;
+    final distanceNear = status.distanceNear;
+    final battery = status.battery;
+    final isWarning = status.severity == SeatSeverity.warning;
+    final hardwareLinked =
+        SimulatedStatusService.instance.usesHardware(c, family);
 
     if (_localOverrides.containsKey(c.id)) {
       final o = _localOverrides[c.id]!;
@@ -815,6 +822,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         weightKg: o.weightKg,
         heightCm: o.heightCm,
         photoPath: o.photoPath ?? c.photoPath,
+        hardwareLinked: hardwareLinked,
       );
     }
     return _ChildProfile(
@@ -831,6 +839,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       weightKg: c.weightKg,
       heightCm: c.heightCm,
       photoPath: c.photoPath,
+      hardwareLinked: hardwareLinked,
     );
   }
 
@@ -897,7 +906,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
                   }
                   return Column(
                     children: List.generate(children.length, (i) {
-                      final profile = _toProfile(children[i], rawLive);
+                      final profile = _toProfile(children[i], children, rawLive);
                       return Padding(
                         padding: EdgeInsets.only(
                             bottom: i < children.length - 1 ? 8 : 0),
@@ -1179,11 +1188,17 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
       weightKg: base.weightKg,
       heightCm: base.heightCm,
       photoPath: base.photoPath,
+      hardwareLinked: base.hardwareLinked,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.child.hardwareLinked) {
+      final simulated =
+          SimulatedStatusService.instance.forChild(widget.child.id);
+      return _buildSheet(context, _withLive(widget.child, simulated), simulated);
+    }
     return StreamBuilder<SeatStatus>(
       stream: _liveStream,
       builder: (context, snap) {
@@ -1395,6 +1410,7 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                   _TempGraph(
                     isGirl: isGirl,
                     currentTemp: child.temperature,
+                    useHardwareHistory: child.hardwareLinked,
                   ),
                   const SizedBox(height: 24),
                   const Text('Device Info',
@@ -1522,10 +1538,15 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
 // ── Temperature graph widget (custom painted) ────────────────────────────────
 
 class _TempGraph extends StatefulWidget {
-  const _TempGraph({this.isGirl = false, required this.currentTemp});
+  const _TempGraph({
+    this.isGirl = false,
+    required this.currentTemp,
+    this.useHardwareHistory = true,
+  });
 
   final bool isGirl;
   final double currentTemp;
+  final bool useHardwareHistory;
 
   @override
   State<_TempGraph> createState() => _TempGraphState();
@@ -1549,6 +1570,11 @@ class _TempGraphState extends State<_TempGraph> {
   }
 
   Future<void> _load() async {
+    if (!widget.useHardwareHistory) {
+      if (!mounted) return;
+      setState(() => _samples = const []);
+      return;
+    }
     final rows = await TemperatureHistoryService.instance.fetchLast12Hours();
     if (!mounted) return;
     setState(() => _samples = rows);

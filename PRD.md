@@ -59,7 +59,7 @@ Every year, children are injured or die after being left alone in vehicles, ofte
 | **Primary caregiver** | Live status, alerts, own profile & child records | Account owner or family member; Home + Settings + Profile |
 | **Family member** | Shared view of children/devices after joining | Joins via **Family Join Code**; same family-scoped RLS data |
 | **Emergency contact (next-of-kin)** | Receive urgent alerts without installing the app | Added as `contacts` row; links Telegram with a **link code** to `@WabyBabyBot` |
-| **Examiner / demo** | Predictable SAFE + WARNING children | Demo account with seeded family, children, contact |
+| **Examiner / demo** | First child per family is the physical seat; later children always SAFE | Demo account with seeded family, children, contact |
 
 ---
 
@@ -322,7 +322,7 @@ This three-tier escalation follows graded alarm practice (reminder → warning �
 | `profiles` | Caregiver account | `family_id`, `nickname`, `phone`, `relation`, `country`, `role`, `active_car_id`, `alert_timer_seconds`, plus `full_name` / `email` / `avatar_path` |
 | `families` | Family unit | `name`, `invite_code`, `created_by` |
 | `devices` | Seat devices | `name`, `photo_path`, `user_id`, `family_id` (`stamp_family_id`) |
-| `children` | Child profiles | `device_id`, `name`, `dob`, `gender` (Boy/Girl), `weight_kg`, `height_cm`, `photo_path` |
+| `children` | Child profiles | `device_id`, `name`, `dob`, `gender` (Boy/Girl), `weight_kg`, `height_cm`, `photo_path`, `hardware_linked` |
 | `contacts` | Emergency contacts | `name`, `phone`, `relation`, `link_code`, `telegram_chat_id`, `family_id` |
 | `cars` | Family vehicles | `name`, `plate_number`, `color`; Realtime publication |
 | `live` | Sensor snapshot | Single row `id = 1` including GPS / `place_name` / `car_moving` |
@@ -425,7 +425,7 @@ These are **product acceptance tests**, not suggestions:
 | Item | Detail |
 |------|--------|
 | Demo login | `waby.demo@waby.app` / `WabyDemo123!` |
-| Seeded children | Jason Tan (SAFE overlay), Nur Alysha (WARNING overlay) when demo display applies |
+| Seeded children | First child (Jason Tan) is hardware-linked to `live` id=1. Later children (Nur Alysha) are simulated always-SAFE |
 | Seeded contact | Ahmad Tan (Father) |
 | Settings | “Send Test Notification” and “Test Alert Screens” for examiner walkthrough |
 | Logs | One row per alert event for viva / evidence |
@@ -438,7 +438,7 @@ These are **product acceptance tests**, not suggestions:
 | Area | Current state |
 |------|----------------|
 | Device pairing | Simulated delay (~1.5s); no real BT/Wi‑Fi handshake in app |
-| Live telemetry | Single `live` row (`id = 1`) shared across UI |
+| Live telemetry | Single `live` row (`id = 1`). First child per family is hardware-linked; later children are simulated always-SAFE |
 | Far-distance slider | Local UI only |
 | Vibration / Audible Warning toggles | Local preference UI; sounds play via `AlertFeedbackService` on active alerts |
 | Child detail temperature / GPS / graph | Partially mock (e.g. graph illustrative); live GPS also on `live` row |

@@ -5,7 +5,7 @@
 | **Backend** | Supabase Postgres (project `pvafygrloelptlmnhfog`) |
 | **Client** | Flutter via `supabase_flutter` |
 | **Authority** | Live schema in Supabase is authoritative; this ERD is maintained by hand |
-| **Last updated** | 2026-08-15 |
+| **Last updated** | 2026-08-18 |
 
 ---
 
@@ -95,6 +95,7 @@ erDiagram
     numeric weight_kg
     numeric height_cm
     text photo_path
+    bool hardware_linked
   }
 
   contacts {
@@ -242,6 +243,7 @@ Also used by the client: `full_name`, `email`, `avatar_path`, `created_at` (see 
 | `weight_kg` | numeric | |
 | `height_cm` | numeric | |
 | `photo_path` | text | Storage path under `avatars` |
+| `hardware_linked` | bool | First child in the family reads the shared `live` id=1 seat. Later children are simulated (always SAFE). Partial unique index: at most one `true` per `family_id`. Migration `20260818_children_hardware_linked.sql` |
 
 ---
 

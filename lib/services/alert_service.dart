@@ -16,6 +16,7 @@ import 'child_service.dart';
 import 'live_service.dart';
 import 'place_name_service.dart';
 import 'push_notification_service.dart';
+import 'simulated_status_service.dart';
 import 'temperature_history_service.dart';
 
 String alertIdOf({
@@ -240,7 +241,15 @@ class AlertService {
   }
 
   void _onChildren(List<Child> children) {
-    if (children.isEmpty) {
+    Child? linked;
+    for (final child in children) {
+      if (SimulatedStatusService.instance.usesHardware(child, children)) {
+        linked = child;
+        break;
+      }
+    }
+
+    if (linked == null) {
       _hasPrimaryChild = false;
       _pending.clear();
       for (final id in _active.keys.toList()) {
@@ -250,8 +259,8 @@ class AlertService {
       return;
     }
     _hasPrimaryChild = true;
-    _primaryChildId = children.first.id;
-    _primaryChildName = children.first.name;
+    _primaryChildId = linked.id;
+    _primaryChildName = linked.name;
 
     var changed = false;
     for (final entry in _active.values) {
