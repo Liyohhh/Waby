@@ -1,112 +1,162 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../core/app_state.dart';
+import '../core/constants.dart';
 import '../core/theme.dart';
+import '../models/child.dart';
 import '../models/seat_status.dart';
 import '../services/alert_service.dart';
+import '../services/auth_service.dart';
+import '../services/child_service.dart';
+import '../services/live_service.dart';
 
-/// Admin dashboard — shows all monitored users and their live seat data.
-/// Data is mocked for demo; wire to Supabase in production.
-class AdminScreen extends StatelessWidget {
+/// Admin dashboard — live seat telemetry from `live` id=1 plus family children.
+class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
-  // ── Mock data ─────────────────────────────────────────────────────────────
+  @override
+  State<AdminScreen> createState() => _AdminScreenState();
+}
 
-  static const _users = [
-    _UserData(
-      name: 'Mom — Sarah Tan',
-      email: 'sarah@example.com',
-      role: 'Parent',
-      children: [
-        _ChildData(name: 'Jason Tan',   tempC: 23, buckled: true,  near: true,  battery: 88, status: _SeatStatus.safe),
-        _ChildData(name: 'Nur Alysha', tempC: 29, buckled: false, near: false, battery: 15, status: _SeatStatus.warning),
-      ],
-    ),
-    _UserData(
-      name: 'Dad — Ahmad Razif',
-      email: 'ahmad@example.com',
-      role: 'Parent',
-      children: [
-        _ChildData(name: 'Rayyan',  tempC: 24, buckled: true,  near: true,  battery: 72, status: _SeatStatus.safe),
-      ],
-    ),
-    _UserData(
-      name: 'Grandma — Lily Lim',
-      email: 'lily@example.com',
-      role: 'Guardian',
-      children: [
-        _ChildData(name: 'Mia Lim', tempC: 31, buckled: true,  near: false, battery: 42, status: _SeatStatus.heat),
-      ],
-    ),
-  ];
-
-  // ── Design constants ──────────────────────────────────────────────────────
-
-  static const _kGutter     = 20.0;
+class _AdminScreenState extends State<AdminScreen> {
+  static const _kGutter = 20.0;
   static const _kCardRadius = 12.0;
   static const _kSectionGap = 20.0;
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  late final Stream<SeatStatus> _liveStream = LiveService().liveStream();
+  late final Stream<List<Child>> _childrenStream =
+      ChildService().myChildrenStream();
+  late final Future<List<_AlertItem>> _alertsFuture = _fetchAlerts();
+
+  _SeatStatus _statusOf(SeatStatus live) {
+    if (live.reason == AlertReason.heat) return _SeatStatus.heat;
+    if (live.severity == SeatSeverity.warning) return _SeatStatus.warning;
+    return _SeatStatus.safe;
+  }
+
+  _ChildData _toChildData(Child child, SeatStatus live) {
+    return _ChildData(
+      name: child.name,
+      tempC: live.temperature.round(),
+      buckled: live.buckled,
+      near: live.distanceNear,
+      battery: live.battery,
+      status: _statusOf(live),
+    );
+  }
+
+  Future<List<_AlertItem>> _fetchAlerts() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('alert_events')
+          .select('message, started_at, alert_type')
+          .order('started_at', ascending: false)
+          .limit(8);
+      final user = AppState.greetingName.value ?? 'Family';
+      return (rows as List).map((row) {
+        final map = row as Map<String, dynamic>;
+        final at = DateTime.tryParse(map['started_at']?.toString() ?? '');
+        return _AlertItem(
+          time: at != null ? DateFormat.jm().format(at.toLocal()) : '',
+          user: user,
+          message: (map['message'] as String?)?.trim().isNotEmpty == true
+              ? map['message'] as String
+              : (map['alert_type'] as String? ?? 'Alert'),
+        );
+      }).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final totalUsers    = _users.length;
-    final totalChildren = _users.fold(0, (s, u) => s + u.children.length);
-    final totalAlerts   = _users.fold(
-      0, (s, u) => s + u.children.where((c) => c.status != _SeatStatus.safe).length);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: _kSectionGap),
+      body: StreamBuilder<SeatStatus>(
+        stream: _liveStream,
+        builder: (context, liveSnap) {
+          final live = liveSnap.data ?? SeatStatus.empty();
+          return StreamBuilder<List<Child>>(
+            stream: _childrenStream,
+            builder: (context, childSnap) {
+              final children = childSnap.data ?? const <Child>[];
+              final seats = children.map((c) => _toChildData(c, live)).toList();
+              final user = _UserData(
+                name: AppState.greetingName.value ?? 'Family',
+                email: AuthService().currentUser?.email ?? '',
+                role: 'Admin',
+                children: seats,
+              );
+              final alertCount =
+                  seats.where((c) => c.status != _SeatStatus.safe).length;
 
-            // ── Summary stats ─────────────────────────────────────────────
-            _buildStats(
-              totalUsers: totalUsers,
-              totalChildren: totalChildren,
-              totalAlerts: totalAlerts,
-            ),
-            const SizedBox(height: _kSectionGap),
-            _buildAlertTriggers(),
-            const SizedBox(height: _kSectionGap),
-
-            // ── User cards ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-              child: Row(
-                children: const [
-                  Text('Monitored Users',
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...(_users.map((u) => Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  _kGutter, 0, _kGutter, 12),
-              child: _buildUserCard(u),
-            ))),
-
-            // ── Recent alerts ─────────────────────────────────────────────
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _kGutter),
-              child: const Text('Recent Alerts',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary)),
-            ),
-            const SizedBox(height: 12),
-            _buildAlerts(),
-            const SizedBox(height: 100),
-          ],
-        ),
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: _kSectionGap),
+                    _buildStats(
+                      totalUsers: 1,
+                      totalChildren: seats.length,
+                      totalAlerts: alertCount,
+                    ),
+                    const SizedBox(height: _kSectionGap),
+                    _buildAlertTriggers(),
+                    const SizedBox(height: _kSectionGap),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+                      child: Row(
+                        children: const [
+                          Text('Monitored seats',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          _kGutter, 0, _kGutter, 12),
+                      child: seats.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Text(
+                                'No children registered yet.',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13),
+                              ),
+                            )
+                          : _buildUserCard(user),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+                      child: const Text('Recent Alerts',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary)),
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<List<_AlertItem>>(
+                      future: _alertsFuture,
+                      builder: (context, snap) =>
+                          _buildAlerts(snap.data ?? const []),
+                    ),
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -408,7 +458,7 @@ class AdminScreen extends StatelessWidget {
                   children: [
                     _miniPill(Icons.thermostat,
                         '${child.tempC}°C',
-                        child.tempC >= 30
+                        child.tempC >= kHeatThresholdC
                             ? AppColors.warning
                             : AppColors.dot),
                     const SizedBox(width: 6),
@@ -490,21 +540,24 @@ class AdminScreen extends StatelessWidget {
 
   // ── Recent alerts ─────────────────────────────────────────────────────────
 
-  Widget _buildAlerts() {
-    final alerts = [
-      _AlertItem(
-          time: '2:14 PM',
-          user: 'Sarah Tan',
-          message: 'Nur Alysha — seat unbuckled while caregiver is far'),
-      _AlertItem(
-          time: '1:47 PM',
-          user: 'Lily Lim',
-          message: 'Mia Lim — seat temperature exceeded 30 °C'),
-      _AlertItem(
-          time: '11:32 AM',
-          user: 'Ahmad Razif',
-          message: 'Rayyan — left-behind alert triggered'),
-    ];
+  Widget _buildAlerts(List<_AlertItem> alerts) {
+    if (alerts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(_kCardRadius),
+          ),
+          child: const Text(
+            'No alert events yet.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kGutter),

@@ -1285,3 +1285,75 @@
   - Children detail graph uses those samples (not the old flat 22–24 mock). Danger line reads 30°C.
   - Before SQL is applied, graph shows the live reading or "Collecting temperature history…".
 
+## BUG-094
+- Date: 2026-08-15
+- Area: Children Device Info GPS was a hardcoded KL coordinate
+- Root cause: `_infoRow` used `3.1478° N, 101.6953° E`. `SeatStatus` did not parse `live.latitude` / `live.longitude`.
+- Fix: Parse GPS from the live row (string-tolerant). Firmware `0.0, 0.0` shows as "No GPS fix"; a real fix shows live coordinates and updates with the stream.
+
+## TEST-096
+- Date: 2026-08-15
+- Scope: Live GPS in Family → Children detail
+- Verification target:
+  - With NEO-6M fix on `live` (non-zero lat/lng) → Device Info GPS matches those coordinates (N/S E/W).
+  - With `0, 0` or null → "No GPS fix", never the old KL mock.
+  - Coordinates update if the seat moves without reopening the sheet.
+
+## BUG-095
+- Date: 2026-08-15
+- Area: Home showed "Unknown place" even with a GPS fix
+- Root cause: ESP32 reverse-geocode often stores `Unknown place` on `live.place_name` (empty BigDataCloud fields, or HTTP geocode fail with `placeNameReady` still true). The app displayed that string as-is.
+- Fix: `PlaceNameService` reverse-geocodes live lat/lng on the phone (HTTPS BigDataCloud, Nominatim fallback) and Home/Telegram use that label instead of the placeholder. Does not write back to `live` (firmware would overwrite at 1 Hz).
+
+## TEST-097
+- Date: 2026-08-15
+- Scope: Known place name on Home
+- Verification target:
+  - With a real GPS fix and `live.place_name` = "Unknown place" → Home shows "Locating…" then a locality/city (not "Unknown place").
+  - No GPS fix → location row hidden (not "Unknown place").
+  - Telegram escalate uses the resolved name when the live column is still a placeholder.
+
+## BUG-096
+- Date: 2026-08-15
+- Area: Place lookup needed a simpler, more reliable API path
+- Root cause: Custom `HttpClient` reverse-geocode was easy to fail silently; firmware still writes "Unknown place".
+- Fix: Use the `geocoding` plugin (Android/Google geocoder, no key) first, then Nominatim and BigDataCloud via `http`. Home also triggers lookup on each live tick. Label is "suburb, state" when both exist.
+
+## TEST-098
+- Date: 2026-08-15
+- Scope: API reverse-geocode on Home
+- Verification target:
+  - Full restart after `geocoding` + `http` (not hot reload).
+  - GPS fix + Unknown place on `live` → Home shows a real locality (e.g. "Subang Jaya, Selangor"), not "Unknown place".
+  - Phone must be online for the first lookup.
+
+## BUG-097
+- Date: 2026-08-15
+- Area: Remaining mock hardware values in Family, Home, and Admin
+- Root cause: Children Device Info always said "Weight detected". Home temp bar was scaled to 32°C. Admin listed fake users (Jason/Alysha/…) and fake recent alerts.
+- Fix: Seat sensor follows `live.present`. Home bar max is `kHeatThresholdC` (30°C). Admin seats and recent alerts read `live` + `children` + `alert_events`.
+
+## TEST-099
+- Date: 2026-08-15
+- Scope: Live hardware vs leftover mocks
+- Verification target:
+  - Lift the baby off the FSR → Children Device Info shows "Seat empty"; put weight back → "Weight detected".
+  - Home temp scale labels 20°C … 30°C.
+  - Admin panel child temp/buckle/battery match the `live` row, not Sarah Tan / 88%.
+
+## BUG-098
+- Date: 2026-08-15
+- Area: Caregiver Near/Far was hardcoded `distance_near: true` in firmware
+- Root cause: No proximity sensor. ESP32 always PATCHed true, so left-behind could not fire.
+- Fix: ESP32 advertises BLE name `WabySeat` and omits `distance_near` from the live PATCH. The app scans RSSI (≥ −70 Near, ≤ −82 or lost 8s Far) and writes `live.distance_near`. Overlay applies only after the beacon is seen once this session.
+
+## TEST-100
+- Date: 2026-08-15
+- Scope: BLE RSSI near/far
+- Verification target:
+  - Flash the updated `.ino` (backup `Project_1_draft_v3.ino.bak-20260815-ble`). Serial shows `BLE advertising as WabySeat`.
+  - Full `flutter run` (new BLE plugin). Allow Bluetooth + Location.
+  - Phone next to the seat, baby present → Home/Family Distance **Near**.
+  - Walk ~10 m away with the phone (app open) → **Far** within ~8–12 s; left-behind can fire.
+  - Without the new firmware, Near/Far stays on the last `live` value (no false Far).
+

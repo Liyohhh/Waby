@@ -136,7 +136,7 @@ erDiagram
 | `temperature` | numeric | Seat °C from DHT11 |
 | `present` | bool | Infant presence (FSR) |
 | `buckled` | bool | Buckle latched |
-| `distance_near` | bool | Caregiver near seat |
+| `distance_near` | bool | Caregiver near seat. **App-owned:** BLE RSSI of the `WabySeat` beacon. Firmware does not PATCH this field. |
 | `battery` | int | Device battery % |
 | `battery_voltage` | numeric | Pack voltage from firmware (optional) |
 | `car_moving` | bool | GPS-derived motion flag |

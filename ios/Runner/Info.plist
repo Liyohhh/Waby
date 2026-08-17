@@ -26,6 +26,12 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSBluetoothAlwaysUsageDescription</key>
+		<string>Waby uses Bluetooth to tell whether you are near the baby seat.</string>
+		<key>NSBluetoothPeripheralUsageDescription</key>
+		<string>Waby uses Bluetooth to tell whether you are near the baby seat.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Waby uses location permission so it can scan for the seat over Bluetooth.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>Waby needs camera access to let you take a profile or device photo.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

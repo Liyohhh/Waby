@@ -17,6 +17,9 @@ class SeatStatus {
   final DateTime? updatedAt;
   final String? placeName;
   final bool carMoving;
+  final double? latitude;
+  final double? longitude;
+  final double? gpsAccuracyM;
 
   const SeatStatus({
     required this.temperature,
@@ -28,6 +31,9 @@ class SeatStatus {
     this.updatedAt,
     this.placeName,
     this.carMoving = true,
+    this.latitude,
+    this.longitude,
+    this.gpsAccuracyM,
   });
 
   factory SeatStatus.empty() => const SeatStatus(
@@ -49,7 +55,57 @@ class SeatStatus {
         // Default true (fail-safe: alert) if the column is missing/null,
         // e.g. before the firmware sends it.
         carMoving: _asBool(map['car_moving'], true),
+        latitude: _asNullableDouble(map['latitude']),
+        longitude: _asNullableDouble(map['longitude']),
+        gpsAccuracyM: _asNullableDouble(map['gps_accuracy_m']),
       );
+
+  /// Firmware sends `0.0, 0.0` when the NEO-6M has no fix.
+  bool get hasGpsFix {
+    final lat = latitude;
+    final lng = longitude;
+    if (lat == null || lng == null) return false;
+    return lat != 0 || lng != 0;
+  }
+
+  String get gpsLabel {
+    if (!hasGpsFix) return 'No GPS fix';
+    final lat = latitude!;
+    final lng = longitude!;
+    final latHem = lat >= 0 ? 'N' : 'S';
+    final lngHem = lng >= 0 ? 'E' : 'W';
+    return '${lat.abs().toStringAsFixed(4)}° $latHem, ${lng.abs().toStringAsFixed(4)}° $lngHem';
+  }
+
+  SeatStatus copyWith({
+    double? temperature,
+    bool? present,
+    bool? buckled,
+    bool? distanceNear,
+    int? battery,
+    double? batteryVoltage,
+    DateTime? updatedAt,
+    String? placeName,
+    bool? carMoving,
+    double? latitude,
+    double? longitude,
+    double? gpsAccuracyM,
+  }) {
+    return SeatStatus(
+      temperature: temperature ?? this.temperature,
+      present: present ?? this.present,
+      buckled: buckled ?? this.buckled,
+      distanceNear: distanceNear ?? this.distanceNear,
+      battery: battery ?? this.battery,
+      batteryVoltage: batteryVoltage ?? this.batteryVoltage,
+      updatedAt: updatedAt ?? this.updatedAt,
+      placeName: placeName ?? this.placeName,
+      carMoving: carMoving ?? this.carMoving,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      gpsAccuracyM: gpsAccuracyM ?? this.gpsAccuracyM,
+    );
+  }
 
   /// Firmware always PATCHes `battery` as a 0–100 int. Postgres/`numeric`
   /// (and some Realtime payloads) may deliver it as a string — parse, never

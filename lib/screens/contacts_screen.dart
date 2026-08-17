@@ -1187,15 +1187,20 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
     return StreamBuilder<SeatStatus>(
       stream: _liveStream,
       builder: (context, snap) {
-        final child = snap.hasData
-            ? _withLive(widget.child, snap.data!)
+        final live = snap.data;
+        final child = live != null
+            ? _withLive(widget.child, live)
             : widget.child;
-        return _buildSheet(context, child);
+        return _buildSheet(context, child, live);
       },
     );
   }
 
-  Widget _buildSheet(BuildContext context, _ChildProfile child) {
+  Widget _buildSheet(
+    BuildContext context,
+    _ChildProfile child,
+    SeatStatus? live,
+  ) {
     final safe = !child.isWarning;
     final isGirl = child.gender == 'Girl';
     final statusColor =
@@ -1399,10 +1404,14 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                           color: Color(0xFF031E2A))),
                   const SizedBox(height: 12),
                   _infoRow(Icons.gps_fixed, 'GPS',
-                      '3.1478° N, 101.6953° E',
+                      live?.gpsLabel ?? 'No GPS fix',
                       isGirl: isGirl),
                   _infoRow(
-                      Icons.sensors, 'Seat sensor', 'Weight detected',
+                      Icons.sensors,
+                      'Seat sensor',
+                      live?.present == true
+                          ? 'Weight detected'
+                          : 'Seat empty',
                       isGirl: isGirl),
                     const SizedBox(height: 24),
                   ],
@@ -1492,11 +1501,18 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                 style: const TextStyle(
                     fontSize: 13, color: Color(0x8C031E2A))),
           ),
-          Text(value,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF031E2A))),
+                  color: Color(0xFF031E2A)),
+            ),
+          ),
         ],
       ),
     );

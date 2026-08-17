@@ -30,7 +30,7 @@ Companion: `docs/DATABASE.md` (tables, RLS, RPCs).
 | `temperature` | Always | `0.0` if `!tempValid`; else last good DHT reading (1 decimal) |
 | `present` | Always | `true` / `false` from hysteretic presence |
 | `buckled` | Always | Buckle LOW = locked |
-| `distance_near` | Always | Currently hardcoded `true` (proximity placeholder) |
+| `distance_near` | App (BLE RSSI) | Firmware no longer sends this. Phone scans `WabySeat` beacon. |
 | `car_moving` | Always | GPS speed above motion threshold |
 | `battery` | Always | 0–100 % from firmware |
 | `battery_voltage` | Always | Pack voltage (requires `live.battery_voltage` column) |
@@ -97,9 +97,34 @@ Bot webhook for emergency-contact linking.
 ```
 from('live').stream(primaryKey: ['id']).eq('id', 1)
   → SeatStatus.fromMap(row) | SeatStatus.empty()
+  → CaregiverProximityService.applyTo (BLE RSSI overrides distance_near)
 ```
 
 Consumed by Home UI and `AlertService` (presence, heat, buckle, battery, GPS fields).
+
+### Caregiver proximity — BLE RSSI
+
+ESP32 advertises as `WabySeat`. `CaregiverProximityService` scans ~every 3s:
+
+| RSSI | Meaning |
+|------|---------|
+| ≥ −70 dBm | Near |
+| ≤ −82 dBm | Far |
+| Beacon lost for 8s (after it was seen) | Far |
+
+Until the beacon is seen once this session, `live.distance_near` is left unchanged (avoids false left-behind if firmware is not yet flashed). The app PATCHes `distance_near` when the value changes.
+
+Consumed by Home UI and `AlertService` (presence, heat, buckle, battery, GPS fields).
+
+`SeatStatus` parses `latitude`, `longitude`, `gps_accuracy_m`, and `place_name`. Firmware `0.0, 0.0` is treated as no fix. Family → Children → Device Info GPS uses `SeatStatus.gpsLabel` (not a hardcoded coordinate).
+
+When `place_name` is empty or `"Unknown place"`, `PlaceNameService` reverse-geocodes live lat/lng for Home and Telegram:
+
+1. Device geocoder (`geocoding` package — Google on Android, no API key)
+2. OpenStreetMap Nominatim `GET /reverse`
+3. BigDataCloud `GET /data/reverse-geocode-client`
+
+It does not PATCH `live.place_name` (ESP32 would overwrite it on the next cycle).
 
 ### Temperature history — `temperature_samples`
 

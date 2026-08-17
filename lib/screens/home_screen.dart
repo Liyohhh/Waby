@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +19,7 @@ import '../services/device_service.dart';
 import '../services/family_service.dart';
 import '../services/image_upload_service.dart';
 import '../services/live_service.dart';
+import '../services/place_name_service.dart';
 import '../widgets/gender_selector.dart';
 import '../widgets/low_battery_banner.dart';
 import '../widgets/signed_avatar.dart';
@@ -206,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
             stream: _liveStream,
             builder: (context, liveSnap) {
               final rawLive = liveSnap.data ?? SeatStatus.empty();
+              unawaited(PlaceNameService.instance.onLive(rawLive));
               // Always show the ESP32 `live` row — demo seeds must not hide hardware.
               final headerStatus = rawLive;
               final batteryEntries = children
@@ -693,36 +696,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (status.placeName != null &&
-                        status.placeName!.isNotEmpty)
-                      SizedBox(
-                        width: leftWidth,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.location_on_outlined,
-                                  size: 14,
-                                  color: AppColors.textSecondary),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  status.placeName!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
+                    ValueListenableBuilder<String?>(
+                      valueListenable:
+                          PlaceNameService.instance.resolvedLabel,
+                      builder: (context, resolved, child) {
+                        final name =
+                            PlaceNameService.instance.displayName(status);
+                        if (name == null || name.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return SizedBox(
+                          width: leftWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.location_on_outlined,
+                                    size: 14,
+                                    color: AppColors.textSecondary),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
+                    ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -755,27 +767,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
-                          value: ((status.temperature - 20) / (32 - 20))
+                          value: ((status.temperature - 20) /
+                                  (kHeatThresholdC - 20))
                               .clamp(0.0, 1.0),
                           minHeight: 6,
                           backgroundColor: Colors.black12,
-                          color: const Color(0xFF088BEA),
+                          color: AppColors.accent,
                         ),
                       ),
                     ),
                     const SizedBox(height: 4),
                     SizedBox(
                       width: leftWidth,
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('20°C',
+                          const Text('20°C',
                               style: TextStyle(
                                   color: Color(0xFF031E2A),
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold)),
-                          Text('32°C',
-                              style: TextStyle(
+                          Text('${kHeatThresholdC.toStringAsFixed(0)}°C',
+                              style: const TextStyle(
                                   color: Color(0xFF031E2A),
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold)),

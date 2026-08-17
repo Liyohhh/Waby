@@ -11,8 +11,10 @@ import '../models/child.dart';
 import '../models/seat_status.dart';
 import 'alert_feedback_service.dart';
 import 'car_service.dart';
+import 'caregiver_proximity_service.dart';
 import 'child_service.dart';
 import 'live_service.dart';
+import 'place_name_service.dart';
 import 'push_notification_service.dart';
 import 'temperature_history_service.dart';
 
@@ -64,6 +66,8 @@ class ActiveAlert {
 
 class AlertService {
   AlertService._internal() {
+    unawaited(CaregiverProximityService.instance.start());
+    CaregiverProximityService.instance.isNear.addListener(_onProximityTick);
     _liveSub = LiveService().liveStream().listen(_onStatus);
     _childrenSub = _childService.myChildrenStream().listen(_onChildren);
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -106,6 +110,7 @@ class AlertService {
   /// Heat/left-behind must stay visible through a brief live glitch (DHT NaN
   /// → 0°C, one dropped present tick). Only auto-clear after this hold.
   final Map<String, DateTime> _conditionMissingSince = {};
+  SeatStatus? _lastIncomingStatus;
 
   bool get sheetOpen => _sheetOpen;
   void setSheetOpen(bool value) => _sheetOpen = value;
@@ -265,10 +270,18 @@ class AlertService {
     if (changed) _emit();
   }
 
+  void _onProximityTick() {
+    final incoming = _lastIncomingStatus;
+    if (incoming != null) _onStatus(incoming);
+  }
+
   void _onStatus(SeatStatus status) {
-    unawaited(TemperatureHistoryService.instance.recordIfDue(status.temperature));
+    _lastIncomingStatus = status;
+    final merged = CaregiverProximityService.instance.applyTo(status);
+    unawaited(TemperatureHistoryService.instance.recordIfDue(merged.temperature));
+    unawaited(PlaceNameService.instance.onLive(merged));
     final now = DateTime.now();
-    final conditions = _conditionsFor(status, now);
+    final conditions = _conditionsFor(merged, now);
     final visibleTypes = conditions.map((c) => c.alertType).toSet();
 
     for (final type in _pending.keys.toList()) {
@@ -692,6 +705,9 @@ class AlertService {
       await _loadActiveCarName();
 
       final live = await _latestLiveRow();
+      final placeName = PlaceNameService.instance.bestName(
+        livePlace: live?['place_name']?.toString(),
+      );
       final response = await Supabase.instance.client.functions.invoke(
         'send-telegram-alert',
         body: {
@@ -710,9 +726,7 @@ class AlertService {
             'longitude': (live!['longitude'] as num).toDouble(),
           if (live?['gps_accuracy_m'] != null)
             'gps_accuracy_m': (live!['gps_accuracy_m'] as num).toDouble(),
-          if (live?['place_name'] != null &&
-              (live!['place_name'] as String).isNotEmpty)
-            'place_name': live['place_name'],
+          'place_name': ?placeName,
           if (live?['updated_at'] != null)
             'last_seen': live!['updated_at'].toString(),
           'message': alert.message,

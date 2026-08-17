@@ -304,7 +304,7 @@ This three-tier escalation follows graded alarm practice (reminder → warning �
 | FSR (weight/presence) | `present` | Empty → idle; occupied → evaluate other rules |
 | Auto-detect buckle | `buckled` | Caution when present + near + unbuckled |
 | DHT11 temperature | `temperature` | Warning when present && > **30.0°C** (`kHeatThresholdC`) |
-| Caregiver proximity | `distance_near` | Far + present → left-behind |
+| Caregiver proximity | `distance_near` (app BLE RSSI of `WabySeat`) | Far + present → left-behind |
 | Battery | `battery` | Caution when < 20% |
 | GPS NEO-6M | `latitude`, `longitude`, `gps_accuracy_m`, `place_name`, `car_moving` | Pushed on `live`; included in Telegram escalate payload |
 | LED + buzzer | On-device alarm | Firmware; app does not drive them |

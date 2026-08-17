@@ -4,6 +4,18 @@ export 'demo_data.dart';
 /// in Project_1_draft_v3.ino (currently 30.0).
 const double kHeatThresholdC = 30.0;
 
+/// BLE advertised name of the ESP32 seat (must match firmware `BLE_SEAT_NAME`).
+const String kBleSeatName = 'WabySeat';
+
+/// RSSI (dBm) at or above this → caregiver Near. Higher (e.g. -50) is closer.
+const int kBleRssiNearDbm = -70;
+
+/// RSSI (dBm) at or below this → caregiver Far.
+const int kBleRssiFarDbm = -82;
+
+/// No WabySeat advertisement for this long, after having seen it → Far.
+const Duration kBleLostAfter = Duration(seconds: 8);
+
 const List<String> kGenderOptions = ['Boy', 'Girl'];
 
 const List<String> kCountryOptions = [
