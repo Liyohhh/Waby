@@ -1387,3 +1387,17 @@
   - Add the first child/device → header switches to the real `live` °C.
   - Existing families with a hardware-linked child still show live temp.
 
+## BUG-101
+- Date: 2026-08-18
+- Area: Near/Far flickered on raw BLE RSSI
+- Root cause: Each scan sample was compared to −70/−82 with no smoothing, so indoor RSSI noise flipped distance.
+- Fix: EMA (α=0.25) on RSSI before hysteresis; band widened to Near ≥ −68 dBm / Far ≤ −85 dBm. Lost-beacon timeout still forces Far and clears the EMA.
+
+## TEST-103
+- Date: 2026-08-18
+- Scope: Smoothed BLE Near/Far
+- Verification target:
+  - Phone next to seat → Near stays Near through small RSSI dips.
+  - Walk ~10 m away → Far after smoothed RSSI crosses −85 (or 8s lost).
+  - Walk back → Near only after smoothed RSSI ≥ −68.
+

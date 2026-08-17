@@ -26,6 +26,8 @@ class CaregiverProximityService {
   bool _scanning = false;
   DateTime? _lastSeenAt;
   bool? _lastPersistedNear;
+  double? _emaRssi;
+  static const double _rssiAlpha = 0.25;
   Timer? _scanTimer;
   StreamSubscription<List<ScanResult>>? _scanSub;
 
@@ -107,14 +109,18 @@ class CaregiverProximityService {
   }
 
   void _applyRssi(int rssi) {
+    final smoothed = _emaRssi == null
+        ? rssi.toDouble()
+        : _emaRssi! + _rssiAlpha * (rssi - _emaRssi!);
+    _emaRssi = smoothed;
     final current = isNear.value;
     bool next;
     if (current == true) {
-      next = rssi > kBleRssiFarDbm;
+      next = smoothed > kBleRssiFarDbm;
     } else if (current == false) {
-      next = rssi >= kBleRssiNearDbm;
+      next = smoothed >= kBleRssiNearDbm;
     } else {
-      next = rssi >= kBleRssiNearDbm;
+      next = smoothed >= kBleRssiNearDbm;
     }
     _setNear(next);
   }
@@ -125,6 +131,7 @@ class CaregiverProximityService {
     if (seen == null) return;
     if (DateTime.now().difference(seen) >= kBleLostAfter) {
       lastRssi.value = null;
+      _emaRssi = null;
       _setNear(false);
     }
   }

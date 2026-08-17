@@ -8,10 +8,10 @@ const double kHeatThresholdC = 30.0;
 const String kBleSeatName = 'WabySeat';
 
 /// RSSI (dBm) at or above this → caregiver Near. Higher (e.g. -50) is closer.
-const int kBleRssiNearDbm = -70;
+const int kBleRssiNearDbm = -68;
 
 /// RSSI (dBm) at or below this → caregiver Far.
-const int kBleRssiFarDbm = -82;
+const int kBleRssiFarDbm = -85;
 
 /// No WabySeat advertisement for this long, after having seen it → Far.
 const Duration kBleLostAfter = Duration(seconds: 8);

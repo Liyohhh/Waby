@@ -108,8 +108,8 @@ ESP32 advertises as `WabySeat`. `CaregiverProximityService` scans ~every 3s:
 
 | RSSI | Meaning |
 |------|---------|
-| ≥ −70 dBm | Near |
-| ≤ −82 dBm | Far |
+| ≥ −68 dBm | Near |
+| ≤ −85 dBm | Far |
 | Beacon lost for 8s (after it was seen) | Far |
 
 Until the beacon is seen once this session, `live.distance_near` is left unchanged (avoids false left-behind if firmware is not yet flashed). The app PATCHes `distance_near` when the value changes.
