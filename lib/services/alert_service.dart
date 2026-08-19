@@ -217,15 +217,19 @@ class AlertService {
     return _alertTimerSeconds;
   }
 
-  // Heat must persist for this long before the alert fires (not just be
-  // momentarily read). Cabin temperature research shows real hot-car danger
-  // develops over minutes, not seconds, so this window only needs to be long
-  // enough to reject a transient sensor glitch/spike — 30s is ~30 consecutive
-  // above-threshold pushes at the firmware's ~1s push rate, while still being
-  // a small fraction of the multi-minute timescale over which real heat risk
-  // actually builds.
-  static const Duration heatDebounce = Duration(seconds: 30);
-  static const Duration leftBehindGrace = Duration(minutes: 2);
+  // DEMO MODE: instant heat trigger for live examiner demo, no debounce.
+  // Revert to Duration(seconds: 30) before final submission — the 30s
+  // window exists to reject DHT11 sensor glitches (see BUG-075 in
+  // TESTING_LOG.md). Instant firing is fine for a controlled hairdryer
+  // demo where you're intentionally sustaining the heat, but leaving
+  // this at zero long-term reopens the false-positive risk at rest.
+  static const Duration heatDebounce = Duration.zero;
+  // DEMO MODE: instant left-behind trigger for live examiner demo, no
+  // grace period. Revert to Duration(minutes: 2) before final submission
+  // — the 2-minute grace exists so a caregiver briefly stepping away
+  // (locking the car, grabbing a bag) doesn't false-alarm. Zero grace
+  // means the alert fires the moment the BLE proximity flips to Far.
+  static const Duration leftBehindGrace = Duration.zero;
 
   Duration _graceFor(AlertReason reason) {
     switch (reason) {
@@ -407,6 +411,35 @@ class AlertService {
             // left-behind timer.
             tracked.totalSeconds = elapsedSeconds;
             changed = true;
+          }
+        }
+      }
+
+      // Symmetric case: when heat and left-behind co-occur, heat's own
+      // tier should also collapse to red immediately — the combined
+      // condition (hot seat + no caregiver) is the actual lethal pattern
+      // regardless of which tier heat's temperature reading alone would
+      // justify. Without this, heat can sit at orange (38-42°C) while
+      // left-behind independently escalates to critical and fires
+      // Telegram, which reads as inconsistent on screen.
+      if (tracked.alertType == 'heat' && tracked.tier < 3) {
+        final leftBehindCoOccurring = _active.values.any(
+          (a) => a.alertType == 'left_behind' && a.childId == tracked.childId,
+        );
+        if (leftBehindCoOccurring) {
+          tracked.tier = 3;
+          changed = true;
+          _emit();
+          if (tracked.lastFiredTier != 3) {
+            tracked.lastFiredTier = 3;
+            await _emitUserFacingAlert(tracked, notify: true);
+            if (await Vibration.hasVibrator()) {
+              unawaited(Vibration.vibrate(
+                pattern: Int64List.fromList(
+                  [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
+                ),
+              ));
+            }
           }
         }
       }

@@ -9,6 +9,7 @@ import '../models/child.dart';
 import '../models/seat_status.dart';
 import '../services/alert_service.dart';
 import '../services/auth_service.dart';
+import '../services/caregiver_proximity_service.dart';
 import '../services/child_service.dart';
 import '../services/live_service.dart';
 import '../services/simulated_status_service.dart';
@@ -485,6 +486,15 @@ class _AdminScreenState extends State<AdminScreen> {
                     _miniPill(Icons.location_on,
                         child.near ? 'Near' : 'Far',
                         child.near ? AppColors.accent : AppColors.textSecondary),
+                    const SizedBox(width: 6),
+                    ValueListenableBuilder<int?>(
+                      valueListenable:
+                          CaregiverProximityService.instance.lastRssi,
+                      builder: (context, rssi, _) => _miniPill(
+                          Icons.bluetooth_audio,
+                          rssi == null ? 'no signal' : '$rssi dBm',
+                          AppColors.textSecondary),
+                    ),
                   ],
                 ),
               ],

@@ -1580,5 +1580,58 @@
   - Auto-alert timer is still under Alert Timing.
   - Near/Far still follows BLE RSSI, not a Settings slider.
 
+## BUG-115
+- Date: 2026-08-19
+- Area: Near often failed at close range after Near was tightened to −55 dBm
+- Root cause: Pocket/body obstruction typically costs 5–10 dBm vs open-air calibration, so −55 was unreachable.
+- Fix: Near threshold −62 dBm. Admin seat row shows live raw RSSI (`lastRssi`) next to Near/Far.
+
+## TEST-117
+- Date: 2026-08-19
+- Scope: Near −62 dBm + Admin RSSI pill
+- Verification target:
+  - Phone in pocket ~1–3 m from seat → Near can latch (two median readings ≥ −62).
+  - Admin monitored-seat row shows `−XXdBm` or `no signal`.
+  - `flutter analyze` clean on constants + admin screen.
+
+## BUG-116
+- Date: 2026-08-19
+- Area: Heat alert waited 30s, too slow for a live hairdryer demo
+- Root cause: `heatDebounce` is 30s to reject DHT11 glitches (BUG-075).
+- Fix: DEMO ONLY — `heatDebounce = Duration.zero`. Revert to 30s before final submission.
+
+## TEST-118
+- Date: 2026-08-19
+- Scope: Instant heat demo
+- Verification target:
+  - Heat the seat past orange (38°C) → heat alert starts without a 30s wait.
+  - Comment in `alert_service.dart` still says to restore 30s before submission.
+
+## BUG-117
+- Date: 2026-08-19
+- Area: Left-behind waited 2 minutes, too slow for a live walk-away demo
+- Root cause: `leftBehindGrace` is 2 minutes so a brief step-away does not false-alarm.
+- Fix: DEMO ONLY — `leftBehindGrace = Duration.zero`. Revert to 2 minutes before final submission.
+
+## TEST-119
+- Date: 2026-08-19
+- Scope: Instant left-behind demo
+- Verification target:
+  - Baby present, walk Far → left-behind starts as soon as BLE flips to Far.
+  - Comment in `alert_service.dart` still says to restore 2 minutes before submission.
+
+## BUG-118
+- Date: 2026-08-19
+- Area: Heat stayed orange while left-behind went critical when both were active
+- Root cause: Co-occurrence only collapsed left-behind's timer. Heat tier still followed temperature (38–42°C = orange).
+- Fix: If heat and left-behind are both active for the same child, heat jumps to tier 3 (critical sound + UI) immediately.
+
+## TEST-120
+- Date: 2026-08-19
+- Scope: Heat + left-behind co-occurrence
+- Verification target:
+  - Orange heat (~39°C) then walk Far → heat sheet turns critical, not stuck orange.
+  - `flutter analyze` clean on `alert_service.dart`.
+
 
 

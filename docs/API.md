@@ -108,7 +108,7 @@ ESP32 advertises as `WabySeat`. `CaregiverProximityService` scans ~every 3s:
 
 | RSSI | Meaning |
 |------|---------|
-| ≥ −55 dBm | Near |
+| ≥ −62 dBm | Near |
 | ≤ −75 dBm | Far |
 | Beacon lost for 8s (after it was seen) | Far |
 
