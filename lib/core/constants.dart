@@ -18,11 +18,13 @@ const double kHeatThresholdC = kHeatOrangeThresholdC;
 /// BLE advertised name of the ESP32 seat (must match firmware `BLE_SEAT_NAME`).
 const String kBleSeatName = 'WabySeat';
 
-/// RSSI (dBm) at or above this → caregiver Near. Higher (e.g. -50) is closer.
-const int kBleRssiNearDbm = -68;
+/// RSSI (dBm) at or above this → caregiver Near.
+/// Calibrated: 1 m ≈ −39 dBm, 3 m ≈ −41 to −60 dBm.
+const int kBleRssiNearDbm = -55;
 
 /// RSSI (dBm) at or below this → caregiver Far.
-const int kBleRssiFarDbm = -85;
+/// Calibrated: 5 m ≈ −70+ dBm; multipath can spike to ~−90 dBm.
+const int kBleRssiFarDbm = -75;
 
 /// No WabySeat advertisement for this long, after having seen it → Far.
 const Duration kBleLostAfter = Duration(seconds: 8);

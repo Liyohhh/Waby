@@ -26,8 +26,11 @@ class CaregiverProximityService {
   bool _scanning = false;
   DateTime? _lastSeenAt;
   bool? _lastPersistedNear;
-  double? _emaRssi;
-  static const double _rssiAlpha = 0.25;
+  final List<int> _rssiWindow = [];
+  static const int _rssiWindowSize = 5;
+  bool? _pendingNear;
+  int _pendingCount = 0;
+  static const int _requiredConsecutive = 2;
   Timer? _scanTimer;
   StreamSubscription<List<ScanResult>>? _scanSub;
 
@@ -109,20 +112,40 @@ class CaregiverProximityService {
   }
 
   void _applyRssi(int rssi) {
-    final smoothed = _emaRssi == null
-        ? rssi.toDouble()
-        : _emaRssi! + _rssiAlpha * (rssi - _emaRssi!);
-    _emaRssi = smoothed;
+    _rssiWindow.add(rssi);
+    if (_rssiWindow.length > _rssiWindowSize) _rssiWindow.removeAt(0);
+
+    final sorted = List<int>.from(_rssiWindow)..sort();
+    final median = sorted[sorted.length ~/ 2];
+
     final current = isNear.value;
     bool next;
     if (current == true) {
-      next = smoothed > kBleRssiFarDbm;
+      next = median > kBleRssiFarDbm;
     } else if (current == false) {
-      next = smoothed >= kBleRssiNearDbm;
+      next = median >= kBleRssiNearDbm;
     } else {
-      next = smoothed >= kBleRssiNearDbm;
+      next = median >= kBleRssiNearDbm;
     }
-    _setNear(next);
+
+    if (next == current) {
+      _pendingNear = null;
+      _pendingCount = 0;
+      return;
+    }
+
+    if (_pendingNear == next) {
+      _pendingCount++;
+    } else {
+      _pendingNear = next;
+      _pendingCount = 1;
+    }
+
+    if (_pendingCount >= _requiredConsecutive) {
+      _setNear(next);
+      _pendingNear = null;
+      _pendingCount = 0;
+    }
   }
 
   void _checkLost() {
@@ -131,7 +154,9 @@ class CaregiverProximityService {
     if (seen == null) return;
     if (DateTime.now().difference(seen) >= kBleLostAfter) {
       lastRssi.value = null;
-      _emaRssi = null;
+      _rssiWindow.clear();
+      _pendingNear = null;
+      _pendingCount = 0;
       _setNear(false);
     }
   }

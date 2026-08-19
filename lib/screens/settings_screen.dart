@@ -31,7 +31,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _appAlerts     = true;
   bool _vibration     = true;
   bool _audibleWarn   = false;
-  double _distance    = 2;   // meters
   double _alertTimer  = 60;  // seconds
   String _displayName = 'Account owner';
   String? _avatarPath;
@@ -175,20 +174,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ]),
 
-                  // ── Distance Setting ───────────────────────────────────
-                  _sectionLabel('Distance Setting'),
+                  // ── Alert Timing ───────────────────────────────────────
+                  _sectionLabel('Alert Timing'),
                   _card([
-                    _sliderRow(
-                      icon: Icons.social_distance_outlined,
-                      label: 'Far Distance Alert',
-                      value: _distance,
-                      min: 1,
-                      max: 5,
-                      divisions: 4,
-                      badgeText: '${_distance.round()} m',
-                      onChanged: (v) => setState(() => _distance = v),
-                    ),
-                    _divider(),
                     _sliderRow(
                       icon: Icons.timer_outlined,
                       label: 'Auto-alert timer',

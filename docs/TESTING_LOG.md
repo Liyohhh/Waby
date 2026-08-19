@@ -1552,5 +1552,33 @@
   - Same name keeps the same color after restart.
   - `flutter analyze` clean on the new widget and contacts screen.
 
+## BUG-113
+- Date: 2026-08-19
+- Area: Near/Far still flipped on indoor RSSI spikes (~−90 dBm)
+- Root cause: EMA still pulled toward a single outlier; −68/−85 band did not match the 1–5 m calibration.
+- Fix: 5-sample rolling median + 2-reading debounce. Near ≥ −55 dBm, Far ≤ −75 dBm. Lost-beacon timeout clears the window and pending state.
+
+## TEST-115
+- Date: 2026-08-19
+- Scope: Median + debounce BLE Near/Far
+- Verification target:
+  - Phone ~1 m from seat → Near; a one-off −90 dBm spike does not flip to Far.
+  - Walk ~5 m away → Far after two consistent median readings (or 8s lost).
+  - Walk back inside ~3 m → Near only after two readings ≥ −55 dBm.
+
+## BUG-114
+- Date: 2026-08-19
+- Area: Settings still showed a Far Distance Alert slider
+- Root cause: Local-only 1–5 m UI that never drove BLE Near/Far.
+- Fix: Removed the slider and `_distance` state. Section renamed Alert Timing (auto-alert timer only). Help copy updated.
+
+## TEST-116
+- Date: 2026-08-19
+- Scope: Far Distance Alert removed
+- Verification target:
+  - Settings has no Distance Setting / Far Distance Alert row.
+  - Auto-alert timer is still under Alert Timing.
+  - Near/Far still follows BLE RSSI, not a Settings slider.
+
 
 

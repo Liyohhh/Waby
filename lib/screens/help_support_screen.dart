@@ -38,8 +38,8 @@ class HelpSupportScreen extends StatelessWidget {
           'members you add can receive alerts by email.',
     ),
     (
-      q: 'How do I change the alert distance or timing?',
-      a: 'Open Settings and adjust the sliders under Distance Setting.',
+      q: 'How do I change the auto-alert timer?',
+      a: 'Open Settings and adjust the Auto-alert timer slider under Alert Timing.',
     ),
   ];
 

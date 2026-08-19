@@ -286,7 +286,7 @@ This three-tier escalation follows graded alarm practice (reminder → warning �
 | Send test notification | Real local notification |
 | Test alert screens | Fire test critical/caution paths |
 | Family Management | Members + emergency contacts CRUD as above |
-| Far distance 1–5 m | UI only (not sent to device) unless later wired |
+| Far distance 1–5 m | Removed from Settings; Near/Far is BLE RSSI only |
 | App Alerts / Vibration / Audible Warning | Local preference UI; must not override safety detection unless product explicitly wires them |
 | Privacy & Data / Help & Support | Informational screens |
 | Sign out / Delete account | Fully wired |
@@ -294,7 +294,7 @@ This three-tier escalation follows graded alarm practice (reminder → warning �
 **Settings layout (UX)**
 - Page background light grey `#F4F6F9` (same surface as Profile / Privacy / Help).
 - Rows grouped in white cards (radius 16, soft navy shadow) with navy Poppins section labels — visual parity with Home/Family cards.
-- Sections: Notifications · Distance Setting · Connectivity & Access · Support & Safety · auth actions.
+- Sections: Notifications · Alert Timing · Connectivity & Access · Support & Safety · auth actions.
 
 ---
 
@@ -440,7 +440,7 @@ These are **product acceptance tests**, not suggestions:
 |------|----------------|
 | Device pairing | Simulated delay (~1.5s); no real BT/Wi‑Fi handshake in app |
 | Live telemetry | Single `live` row (`id = 1`). First child per family is hardware-linked; later children are simulated always-SAFE |
-| Far-distance slider | Local UI only |
+| Far-distance slider | Removed; proximity is BLE RSSI only |
 | Vibration / Audible Warning toggles | Local preference UI; sounds play via `AlertFeedbackService` on active alerts |
 | Child detail temperature / GPS / graph | Partially mock (e.g. graph illustrative); live GPS also on `live` row |
 | Admin screens | Present but not in main auth routing |
