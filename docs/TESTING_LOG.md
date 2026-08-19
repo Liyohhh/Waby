@@ -1401,3 +1401,17 @@
   - Walk ~10 m away → Far after smoothed RSSI crosses −85 (or 8s lost).
   - Walk back → Near only after smoothed RSSI ≥ −68.
 
+## BUG-102
+- Date: 2026-08-18
+- Area: New child/family inherited the shared seat's 12h temperature graph
+- Root cause: `temperature_samples` is global; the graph always fetched the last 12 hours with no per-child start time.
+- Fix: Parse `children.created_at` and pass it as `since` to `fetchLast12Hours`. The query lower bound is the later of (now − 12h) and that timestamp. No schema change.
+
+## TEST-104
+- Date: 2026-08-18
+- Scope: Temperature history scoped to child created_at
+- Verification target:
+  - Existing hardware-linked child still shows up to 12h of samples.
+  - Add a new first child on a new family → graph does not show samples from before that child was created (falls back to live reading until new samples arrive).
+  - Simulated children still skip hardware history.
+

@@ -8,6 +8,7 @@ class Child {
   final double? heightCm;
   final String? photoPath;
   final bool hardwareLinked;
+  final DateTime? createdAt;
 
   const Child({
     required this.id,
@@ -19,6 +20,7 @@ class Child {
     this.heightCm,
     this.photoPath,
     this.hardwareLinked = false,
+    this.createdAt,
   });
 
   factory Child.fromMap(Map<String, dynamic> m) => Child(
@@ -31,6 +33,9 @@ class Child {
         heightCm: (m['height_cm'] as num?)?.toDouble(),
         photoPath: m['photo_path'] as String?,
         hardwareLinked: _asBool(m['hardware_linked']),
+        createdAt: m['created_at'] != null
+            ? DateTime.tryParse(m['created_at'].toString())
+            : null,
       );
 
   static bool _asBool(dynamic value) {

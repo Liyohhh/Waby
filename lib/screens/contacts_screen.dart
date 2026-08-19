@@ -753,6 +753,7 @@ class _ChildProfile {
     this.heightCm,
     this.photoPath,
     this.hardwareLinked = false,
+    this.createdAt,
   });
 
   final String id;
@@ -769,6 +770,7 @@ class _ChildProfile {
   double? heightCm;
   String? photoPath;
   bool hardwareLinked;
+  DateTime? createdAt;
 
   String get ageLabel => _ageFromDob(dob);
 }
@@ -823,6 +825,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
         heightCm: o.heightCm,
         photoPath: o.photoPath ?? c.photoPath,
         hardwareLinked: hardwareLinked,
+        createdAt: o.createdAt ?? c.createdAt,
       );
     }
     return _ChildProfile(
@@ -840,6 +843,7 @@ class _ChildrenSectionState extends State<_ChildrenSection> {
       heightCm: c.heightCm,
       photoPath: c.photoPath,
       hardwareLinked: hardwareLinked,
+      createdAt: c.createdAt,
     );
   }
 
@@ -1189,6 +1193,7 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
       heightCm: base.heightCm,
       photoPath: base.photoPath,
       hardwareLinked: base.hardwareLinked,
+      createdAt: base.createdAt,
     );
   }
 
@@ -1411,6 +1416,7 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                     isGirl: isGirl,
                     currentTemp: child.temperature,
                     useHardwareHistory: child.hardwareLinked,
+                    historySince: child.createdAt,
                   ),
                   const SizedBox(height: 24),
                   const Text('Device Info',
@@ -1542,11 +1548,13 @@ class _TempGraph extends StatefulWidget {
     this.isGirl = false,
     required this.currentTemp,
     this.useHardwareHistory = true,
+    this.historySince,
   });
 
   final bool isGirl;
   final double currentTemp;
   final bool useHardwareHistory;
+  final DateTime? historySince;
 
   @override
   State<_TempGraph> createState() => _TempGraphState();
@@ -1575,7 +1583,8 @@ class _TempGraphState extends State<_TempGraph> {
       setState(() => _samples = const []);
       return;
     }
-    final rows = await TemperatureHistoryService.instance.fetchLast12Hours();
+    final rows = await TemperatureHistoryService.instance
+        .fetchLast12Hours(since: widget.historySince);
     if (!mounted) return;
     setState(() => _samples = rows);
   }

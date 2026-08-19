@@ -39,14 +39,18 @@ class TemperatureHistoryService {
     }
   }
 
-  Future<List<TemperatureSample>> fetchLast12Hours() async {
+  Future<List<TemperatureSample>> fetchLast12Hours({DateTime? since}) async {
     try {
-      final since =
+      final twelveHoursAgo =
           DateTime.now().toUtc().subtract(const Duration(hours: 12));
+      final sinceUtc = since?.toUtc();
+      final lowerBound = sinceUtc == null || twelveHoursAgo.isAfter(sinceUtc)
+          ? twelveHoursAgo
+          : sinceUtc;
       final rows = await _db
           .from('temperature_samples')
           .select('recorded_at, temperature')
-          .gte('recorded_at', since.toIso8601String())
+          .gte('recorded_at', lowerBound.toIso8601String())
           .order('recorded_at');
       return (rows as List)
           .map((row) {
