@@ -321,14 +321,14 @@ class _AdminScreenState extends State<AdminScreen> {
             label: 'Trigger ORANGE (heat)',
             color: AppColors.warning,
             onTap: () => AlertService.instance
-                .fireTestAlert(AlertReason.heat, testTemp: 39.5),
+                .fireTestAlert(AlertReason.heat, testTemp: 32.0),
           ),
           const SizedBox(height: 10),
           _triggerButton(
             label: 'Trigger RED (heat)',
             color: AppColors.critical,
             onTap: () => AlertService.instance
-                .fireTestAlert(AlertReason.heat, testTemp: 43.0),
+                .fireTestAlert(AlertReason.heat, testTemp: 34.0),
           ),
         ],
       ),

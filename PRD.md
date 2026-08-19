@@ -217,8 +217,8 @@ assets/
 |-----------|----------|-------------|-------|
 | `!present` | Safe / empty UI | `none` | No left-behind / heat / buckle alarms |
 | `present && !distanceNear` | Warning | `leftBehind` | **Highest priority**; buckle irrelevant |
-| `present && temperature > kHeatOrangeThresholdC` (38.0°C) | Warning (tier 2) | `heat` | Orange heat; firmware `TEMP_THRESHOLD` should match orange |
-| `present && temperature > kHeatRedThresholdC` (42.0°C) | Critical (tier 3) | `heat` | Red heat; escalates immediately, not by elapsed time |
+| `present && temperature > kHeatOrangeThresholdC` (31.0°C) | Warning (tier 2) | `heat` | Orange heat; firmware `TEMP_THRESHOLD` should match orange |
+| `present && temperature > kHeatRedThresholdC` (33.0°C) | Critical (tier 3) | `heat` | Red heat; escalates immediately, not by elapsed time |
 | `present && !buckled && distanceNear` | Caution | `buckleReminder` | Gentle only |
 | `battery < 20` | Caution | `lowBattery` | Home banner only; not part of the modal critical path |
 
@@ -304,7 +304,7 @@ This three-tier escalation follows graded alarm practice (reminder → warning �
 |-----------------|---------|---------------|
 | FSR (weight/presence) | `present` | Empty → idle; occupied → evaluate other rules |
 | Auto-detect buckle | `buckled` | Caution when present + near + unbuckled |
-| DHT11 temperature | `temperature` | Warning (orange) when present && > **38.0°C**; critical (red) when > **42.0°C** |
+| DHT11 temperature | `temperature` | Warning (orange) when present && > **31.0°C**; critical (red) when > **33.0°C** |
 | Caregiver proximity | `distance_near` (app BLE RSSI of `WabySeat`) | Far + present → left-behind |
 | Battery | `battery` | Caution when < 20% |
 | GPS NEO-6M | `latitude`, `longitude`, `gps_accuracy_m`, `place_name`, `car_moving` | Pushed on `live`; included in Telegram escalate payload |
@@ -411,7 +411,7 @@ These are **product acceptance tests**, not suggestions:
 
 1. No presence → no left-behind / heat / buckle critical path.
 2. Presence + caregiver far → left-behind warning **regardless of buckle**.
-3. Presence + temperature > **38.0°C** → orange heat (tier 2, after 30s debounce). Presence + temperature > **42.0°C** → red heat (tier 3 immediately).
+3. Presence + temperature > **31.0°C** → orange heat (tier 2). Presence + temperature > **33.0°C** → red heat (tier 3 immediately).
 4. Presence + near + unbuckled → buckle **caution** only (no Telegram ladder).
 5. Battery < 20% → caution only.
 6. Critical path: grace → tier 1 (~33%) → tier 2 (~66%) → Telegram at 100%.

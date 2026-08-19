@@ -556,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _header(BuildContext context, SeatStatus? live, String firstName) {
     final connected = live != null;
     final temp = live?.temperature ?? 0;
-    final tempHot = connected && temp > kHeatThresholdC;
+    final tempHot = connected && temp >= kHeatThresholdC;
     final tempColor =
         tempHot ? AppColors.warning : const Color(0xFF0063BA);
     // Outer Stack: bg → wave → car (on top of wave) → text

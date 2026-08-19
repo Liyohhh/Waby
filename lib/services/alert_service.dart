@@ -111,6 +111,7 @@ class AlertService {
   /// Heat/left-behind must stay visible through a brief live glitch (DHT NaN
   /// → 0°C, one dropped present tick). Only auto-clear after this hold.
   final Map<String, DateTime> _conditionMissingSince = {};
+  final Map<String, DateTime> _pendingMissingSince = {};
   SeatStatus? _lastIncomingStatus;
 
   bool get sheetOpen => _sheetOpen;
@@ -125,6 +126,7 @@ class AlertService {
     _activeCarPlate = null;
     _hasPrimaryChild = false;
     _conditionMissingSince.clear();
+    _pendingMissingSince.clear();
     _buckleSnoozedUntil.clear();
     unawaited(_persistBuckleSnoozes());
   }
@@ -230,12 +232,10 @@ class AlertService {
   // don't accidentally zero out the other and cause the alert to
   // flap on/off with every small sensor wobble.
   static const Duration heatResolveHold = Duration(seconds: 3);
-  // DEMO MODE: instant left-behind trigger for live examiner demo, no
-  // grace period. Revert to Duration(minutes: 2) before final submission
-  // — the 2-minute grace exists so a caregiver briefly stepping away
-  // (locking the car, grabbing a bag) doesn't false-alarm. Zero grace
-  // means the alert fires the moment the BLE proximity flips to Far.
-  static const Duration leftBehindGrace = Duration.zero;
+  // Left-behind grace: caregiver can briefly go Far (locking the car,
+  // grabbing a bag, body blocking BLE) without firing a notification.
+  // Was Duration.zero for demo; 30s is live — not the original 2 minutes.
+  static const Duration leftBehindGrace = Duration(seconds: 30);
 
   Duration _graceFor(AlertReason reason) {
     switch (reason) {
@@ -262,6 +262,7 @@ class AlertService {
     if (linked == null) {
       _hasPrimaryChild = false;
       _pending.clear();
+      _pendingMissingSince.clear();
       for (final id in _active.keys.toList()) {
         _resolveAlert(id);
       }
@@ -304,9 +305,23 @@ class AlertService {
     final visibleTypes = conditions.map((c) => c.alertType).toSet();
 
     for (final type in _pending.keys.toList()) {
-      if (!visibleTypes.contains(type)) {
-        _pending.remove(type);
+      if (visibleTypes.contains(type)) {
+        _pendingMissingSince.remove(type);
+        continue;
       }
+      // Condition briefly vanished (e.g. a stray Near blip during the
+      // left-behind grace). Tolerate short gaps so proximity jitter doesn't
+      // restart the grace countdown; only cancel after a sustained miss.
+      final pending = _pending[type]!;
+      if (pending.reason == AlertReason.leftBehind) {
+        _pendingMissingSince.putIfAbsent(type, () => now);
+        if (now.difference(_pendingMissingSince[type]!) <
+            const Duration(seconds: 10)) {
+          continue;
+        }
+      }
+      _pendingMissingSince.remove(type);
+      _pending.remove(type);
     }
     for (final id in _active.keys.toList()) {
       final alert = _active[id]!;
@@ -395,6 +410,7 @@ class AlertService {
       final pending = _pending[type]!;
       if (now.difference(pending.detectedAt) >= _graceFor(pending.reason)) {
         _pending.remove(type);
+        _pendingMissingSince.remove(type);
         _activate(pending.toCondition(), now);
         changed = true;
       }
@@ -850,8 +866,8 @@ class AlertService {
         detail: '$childName · Buckle unlatched',
       ));
     }
-    if (status.present && status.temperature > kHeatOrangeThresholdC) {
-      final isRed = status.temperature > kHeatRedThresholdC;
+    if (status.present && status.temperature >= kHeatOrangeThresholdC) {
+      final isRed = status.temperature >= kHeatRedThresholdC;
       conditions.add(_AlertCondition(
         childId: childId,
         childName: childName,
@@ -927,8 +943,8 @@ class AlertService {
           logToServer: false,
         );
       case AlertReason.heat:
-        final temp = testTemp ?? 41.0;
-        final isRed = temp > kHeatRedThresholdC;
+        final temp = testTemp ?? 32.0;
+        final isRed = temp >= kHeatRedThresholdC;
         _activate(
           _AlertCondition(
             childId: childId,

@@ -30,7 +30,8 @@ class CaregiverProximityService {
   static const int _rssiWindowSize = 11;
   bool? _pendingNear;
   int _pendingCount = 0;
-  static const int _requiredConsecutive = 2;
+  static const int _requiredNearConsecutive = 2; // responsive: quick to Near
+  static const int _requiredFarConsecutive = 6; // sticky: slow to flip Far
   Timer? _scanTimer;
   StreamSubscription<List<ScanResult>>? _scanSub;
 
@@ -141,7 +142,9 @@ class CaregiverProximityService {
       _pendingCount = 1;
     }
 
-    if (_pendingCount >= _requiredConsecutive) {
+    final requiredCount =
+        next ? _requiredNearConsecutive : _requiredFarConsecutive;
+    if (_pendingCount >= requiredCount) {
       _setNear(next);
       _pendingNear = null;
       _pendingCount = 0;

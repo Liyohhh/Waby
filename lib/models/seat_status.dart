@@ -141,7 +141,7 @@ class SeatStatus {
   SeatSeverity get severity {
     const lowBattery = 20;        // %
     if (present && !distanceNear) return SeatSeverity.warning;              // left-behind
-    if (present && temperature > kHeatThresholdC) return SeatSeverity.warning; // heat
+    if (present && temperature >= kHeatThresholdC) return SeatSeverity.warning; // heat
     if (present && !buckled && distanceNear) return SeatSeverity.caution;    // buckle reminder
     if (battery < lowBattery) return SeatSeverity.caution;                   // low battery
     return SeatSeverity.safe;
@@ -150,7 +150,7 @@ class SeatStatus {
   AlertReason get reason {
     const lowBatteryPct = 20;
     if (present && !distanceNear) return AlertReason.leftBehind;
-    if (present && temperature > kHeatThresholdC) return AlertReason.heat;
+    if (present && temperature >= kHeatThresholdC) return AlertReason.heat;
     if (present && !buckled && distanceNear) return AlertReason.buckleReminder;
     if (battery < lowBatteryPct) return AlertReason.lowBattery;
     return AlertReason.none;

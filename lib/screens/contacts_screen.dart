@@ -1355,10 +1355,10 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                         icon: Icons.thermostat,
                         label: 'Temperature',
                         value: '${child.temperature.toStringAsFixed(0)}°C',
-                        sub: child.temperature > kHeatThresholdC
+                        sub: child.temperature >= kHeatThresholdC
                             ? 'High temperature'
                             : 'Normal range',
-                        safe: child.temperature <= kHeatThresholdC,
+                        safe: child.temperature < kHeatThresholdC,
                       )),
                       const SizedBox(width: 12),
                       Expanded(

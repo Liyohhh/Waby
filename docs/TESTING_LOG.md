@@ -1675,5 +1675,64 @@
   - Walk farther until median ≤ −80 → Far.
   - Admin dBm value is steadier than raw lastRssi.
 
+## BUG-122
+- Date: 2026-08-20
+- Area: Near/Far flapped; left-behind notification fired on every brief Far
+- Root cause: Same 2-reading confirm for Near and Far; lost window 4s; `leftBehindGrace` was demo-zeroed.
+- Fix: Near still 2 consecutive; Far needs 6. Lost-beacon 6s. Left-behind grace 30s.
+
+## TEST-124
+- Date: 2026-08-20
+- Scope: Sticky Far + 30s left-behind grace
+- Verification target:
+  - Brief body-block / RSSI dip at 1.5 m → stays Near; no left-behind ping.
+  - Walk away and stay Far >30s → left-behind fires once, not a burst.
+  - No remaining `_requiredConsecutive`.
+
+## BUG-123
+- Date: 2026-08-20
+- Area: A stray Near blip during left-behind grace restarted the whole 30s countdown
+- Root cause: Pending alerts were deleted as soon as the condition vanished; only active alerts used `_conditionMissingSince`.
+- Fix: `_pendingMissingSince` holds left-behind pending for 10s of miss so jitter does not reset `detectedAt`.
+
+## TEST-125
+- Date: 2026-08-20
+- Scope: Left-behind pending grace vs Near blips
+- Verification target:
+  - Walk Far, get a brief Near flicker mid-grace → left-behind still fires ~30s from the first Far, not +30s from the blip.
+  - Stay Near for >10s during grace → pending cancels; no left-behind.
+
+## BUG-124
+- Date: 2026-08-20
+- Area: Heat warning/critical lines were 38°C / 42°C, too high for a room-temp demo
+- Root cause: Thresholds matched heatstroke-core numbers, not cabin demo temps.
+- Fix: Orange/WARNING 31°C, red/CRITICAL 33°C. `kHeatThresholdC` aliases 31°C (Home pill, graph danger line). Admin test temps 32°C / 34°C.
+
+## TEST-126
+- Date: 2026-08-20
+- Scope: Heat 31°C / 33°C
+- Verification target:
+  - Seat >31°C → orange heat; Home danger line reads 31°C.
+  - Seat >33°C → same alert goes critical.
+  - Firmware `TEMP_THRESHOLD` should be 31 if on-device buzzer should match.
+
+## BUG-125
+- Date: 2026-08-20
+- Area: Home showed 31°C but no heat warning alert
+- Root cause: Heat used `temperature > 31.0`. DHT11 often reports exactly 31.0, so the alert never started. Home rounds to a whole degree, so 31 on screen could also be 30.5–31.0.
+- Fix: Heat warning at `>= 31°C`, critical at `>= 33°C` (alert, seat severity, Home/Family). Still requires `present`.
+
+## TEST-127
+- Date: 2026-08-20
+- Scope: Heat warning at exactly 31°C
+- Verification target:
+  - Weight on seat, live temp 31.0°C → orange heat sheet/notification.
+  - Empty seat at 31°C → no heat alert (presence still required).
+  - 33.0°C → critical.
+
+
+
+
+
 
 

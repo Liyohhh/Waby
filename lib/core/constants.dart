@@ -1,14 +1,12 @@
 export 'demo_data.dart';
 
-/// Heat-alarm ORANGE threshold in °C — cabin heating into a dangerous
-/// range. Must match firmware TEMP_THRESHOLD in Project_1_draft_v3.ino.
-const double kHeatOrangeThresholdC = 38.0;
+/// Heat-alarm ORANGE / WARNING threshold in °C.
+/// Must match firmware TEMP_THRESHOLD in Project_1_draft_v3.ino.
+const double kHeatOrangeThresholdC = 31.0;
 
-/// Heat-alarm RED threshold in °C — cabin heat is at/above the range
-/// associated with heatstroke onset (~40°C core) and approaching a
-/// lethal core temperature (~42°C+). Above this, tier escalates to
-/// CRITICAL immediately.
-const double kHeatRedThresholdC = 42.0;
+/// Heat-alarm RED / CRITICAL threshold in °C. Above this, tier
+/// escalates to CRITICAL immediately.
+const double kHeatRedThresholdC = 33.0;
 
 /// Alias kept for screens that only need a single "is this hot" line
 /// (home severity pill, temperature graph danger line, contacts list).
@@ -26,7 +24,7 @@ const int kBleRssiNearDbm = -74;
 const int kBleRssiFarDbm = -80;
 
 /// No WabySeat advertisement for this long, after having seen it → Far.
-const Duration kBleLostAfter = Duration(seconds: 4);
+const Duration kBleLostAfter = Duration(seconds: 6);
 
 const List<String> kGenderOptions = ['Boy', 'Girl'];
 
