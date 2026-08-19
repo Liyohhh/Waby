@@ -334,6 +334,14 @@ class AlertService {
         active
           ..detail = condition.detail
           ..message = condition.message;
+        if (condition.alertType == 'heat' && condition.initialTier != null) {
+          final newTier = condition.initialTier!;
+          if (newTier > active.tier) {
+            active.tier = newTier;
+            active.lastFiredTier = newTier;
+            unawaited(_emitUserFacingAlert(active, notify: true));
+          }
+        }
         continue;
       }
 
@@ -343,7 +351,8 @@ class AlertService {
           ..detail = condition.detail
           ..message = condition.message
           ..childId = condition.childId
-          ..childName = condition.childName;
+          ..childName = condition.childName
+          ..initialTier = condition.initialTier;
         continue;
       }
 
@@ -402,38 +411,40 @@ class AlertService {
         }
       }
 
-      final tier = _tierFor(tracked.reason, tracked.startedAt, tracked.totalSeconds);
-      if (tier != tracked.tier) {
-        tracked.tier = tier;
-        changed = true;
-        // Push the new tier to the UI immediately. Don't let anything
-        // below (sound, haptics) block this — a hung await here previously
-        // froze the alert screen's color/wording on tier 1 forever, even
-        // though sound and the final telegram escalation still fired.
-        _emit();
-      }
+      if (tracked.alertType != 'heat') {
+        final tier = _tierFor(tracked.reason, tracked.startedAt, tracked.totalSeconds);
+        if (tier != tracked.tier) {
+          tracked.tier = tier;
+          changed = true;
+          // Push the new tier to the UI immediately. Don't let anything
+          // below (sound, haptics) block this — a hung await here previously
+          // froze the alert screen's color/wording on tier 1 forever, even
+          // though sound and the final telegram escalation still fired.
+          _emit();
+        }
 
-      if (tier != tracked.lastFiredTier && tier >= 2) {
-        tracked.lastFiredTier = tier;
-        await _emitUserFacingAlert(tracked, notify: true);
-        // Distinctive "escalation moment" haptic at each transition.
-        // Fire-and-forget: never await a vibration call from inside the
-        // tick loop, since a plugin-level hang here must not block future
-        // ticks or emits.
-        if (await Vibration.hasVibrator()) {
-          final buckleReminder = tracked.alertType == 'buckle';
-          var allowVibration = true;
-          if (buckleReminder) {
-            final prefs = await SharedPreferences.getInstance();
-            allowVibration = prefs.getBool(kVibrationPrefKey) ?? true;
-          }
-          if (allowVibration) {
-            final burst = tier == 3
-                ? Int64List.fromList(
-                    [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
-                  )
-                : Int64List.fromList([0, 80, 60, 80, 60, 80, 60, 200]);
-            unawaited(Vibration.vibrate(pattern: burst));
+        if (tier != tracked.lastFiredTier && tier >= 2) {
+          tracked.lastFiredTier = tier;
+          await _emitUserFacingAlert(tracked, notify: true);
+          // Distinctive "escalation moment" haptic at each transition.
+          // Fire-and-forget: never await a vibration call from inside the
+          // tick loop, since a plugin-level hang here must not block future
+          // ticks or emits.
+          if (await Vibration.hasVibrator()) {
+            final buckleReminder = tracked.alertType == 'buckle';
+            var allowVibration = true;
+            if (buckleReminder) {
+              final prefs = await SharedPreferences.getInstance();
+              allowVibration = prefs.getBool(kVibrationPrefKey) ?? true;
+            }
+            if (allowVibration) {
+              final burst = tier == 3
+                  ? Int64List.fromList(
+                      [0, 60, 40, 60, 40, 60, 40, 60, 40, 300],
+                    )
+                  : Int64List.fromList([0, 80, 60, 80, 60, 80, 60, 200]);
+              unawaited(Vibration.vibrate(pattern: burst));
+            }
           }
         }
       }
@@ -537,8 +548,8 @@ class AlertService {
       reason: condition.reason,
       startedAt: startedAt,
       totalSeconds: totalSecondsFor(condition.reason),
-      tier: condition.alertType == 'heat' ? 3 : 1,
-      lastFiredTier: condition.alertType == 'heat' ? 3 : 1,
+      tier: condition.initialTier ?? (condition.alertType == 'heat' ? 2 : 1),
+      lastFiredTier: condition.initialTier ?? (condition.alertType == 'heat' ? 2 : 1),
       telegramSent: false,
       lastNotifiedCount: 0,
       message: condition.message,
@@ -563,10 +574,6 @@ class AlertService {
   }
 
   int _tierFor(AlertReason reason, DateTime startedAt, int totalSeconds) {
-    // Heat is an immediate physical danger reading, not a state that needs
-    // time to confirm — treat it as critical the moment it's active rather
-    // than ramping through caution/warning first.
-    if (reason == AlertReason.heat) return 3;
     final elapsed = DateTime.now().difference(startedAt).inSeconds;
     final t2 = (totalSeconds * 0.33).round();
     final t3 = (totalSeconds * 0.66).round();
@@ -612,14 +619,6 @@ class AlertService {
       notificationId: alert.alertId.hashCode,
       // In-app feedback already plays sound/haptics while resumed.
       playSound: !inForeground,
-    );
-  }
-
-  Future<void> sendTestNotification() async {
-    await PushNotificationService.instance.show(
-      severity: AlertSeverity.caution,
-      title: 'Waby test alert',
-      body: 'This is a test notification from Waby.',
     );
   }
 
@@ -807,15 +806,19 @@ class AlertService {
         detail: '$childName · Buckle unlatched',
       ));
     }
-    if (status.present && status.temperature > kHeatThresholdC) {
+    if (status.present && status.temperature > kHeatOrangeThresholdC) {
+      final isRed = status.temperature > kHeatRedThresholdC;
       conditions.add(_AlertCondition(
         childId: childId,
         childName: childName,
         reason: AlertReason.heat,
         alertType: 'heat',
-        severity: AlertSeverity.critical,
-        message: 'Seat temperature has exceeded a safe level.',
+        severity: isRed ? AlertSeverity.critical : AlertSeverity.warning,
+        message: isRed
+            ? 'Seat temperature is critical — act now.'
+            : 'Seat temperature is rising to a dangerous level.',
         detail: "$childName's seat — ${status.temperature.toStringAsFixed(1)}°C",
+        initialTier: isRed ? 3 : 2,
       ));
     }
     if (status.present && !status.distanceNear) {
@@ -859,7 +862,7 @@ class AlertService {
     _activeController.add(_sortedAlerts());
   }
 
-  void fireTestAlert(AlertReason reason) {
+  void fireTestAlert(AlertReason reason, {double? testTemp}) {
     if (reason == AlertReason.none) return;
     final now = DateTime.now();
     final childId = _primaryChildId;
@@ -880,15 +883,20 @@ class AlertService {
           logToServer: false,
         );
       case AlertReason.heat:
+        final temp = testTemp ?? 41.0;
+        final isRed = temp > kHeatRedThresholdC;
         _activate(
           _AlertCondition(
             childId: childId,
             childName: childName,
             reason: reason,
             alertType: 'heat',
-            severity: AlertSeverity.critical,
-            message: 'Seat temperature has exceeded a safe level.',
-            detail: "$childName's seat — 41.0°C",
+            severity: isRed ? AlertSeverity.critical : AlertSeverity.warning,
+            message: isRed
+                ? 'Seat temperature is critical — act now.'
+                : 'Seat temperature is rising to a dangerous level.',
+            detail: "$childName's seat — ${temp.toStringAsFixed(1)}°C",
+            initialTier: isRed ? 3 : 2,
           ),
           now,
           logToServer: false,
@@ -933,6 +941,7 @@ class _AlertCondition {
   final AlertSeverity severity;
   final String message;
   final String detail;
+  final int? initialTier;
 
   const _AlertCondition({
     required this.childId,
@@ -942,6 +951,7 @@ class _AlertCondition {
     required this.severity,
     required this.message,
     required this.detail,
+    this.initialTier,
   });
 }
 
@@ -954,6 +964,7 @@ class _PendingAlert {
   String message;
   String detail;
   final AlertSeverity severity;
+  int? initialTier;
 
   _PendingAlert({
     required this.reason,
@@ -964,6 +975,7 @@ class _PendingAlert {
     required this.message,
     required this.detail,
     required this.severity,
+    this.initialTier,
   });
 
   factory _PendingAlert.fromCondition(
@@ -979,6 +991,7 @@ class _PendingAlert {
       message: condition.message,
       detail: condition.detail,
       severity: condition.severity,
+      initialTier: condition.initialTier,
     );
   }
 
@@ -990,6 +1003,7 @@ class _PendingAlert {
         severity: severity,
         message: message,
         detail: detail,
+        initialTier: initialTier,
       );
 }
 

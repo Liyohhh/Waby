@@ -1415,3 +1415,142 @@
   - Add a new first child on a new family → graph does not show samples from before that child was created (falls back to live reading until new samples arrive).
   - Simulated children still skip hardware history.
 
+## BUG-103
+- Date: 2026-08-19
+- Area: Heat always jumped to CRITICAL (tier 3) at a single 30°C line
+- Root cause: One threshold plus `_tierFor(heat) == 3` and `_activate` seeding heat at tier 3, so cabin warmth and true heatstroke were the same alarm.
+- Fix: Orange 38°C (tier 2) and red 42°C (tier 3). Heat tier follows live temperature, not elapsed time. `kHeatThresholdC` aliases orange for graph/pill. Admin has separate ORANGE/RED test buttons.
+
+## TEST-105
+- Date: 2026-08-19
+- Scope: Two-tier heat (orange / red)
+- Verification target:
+  - Admin → Trigger ORANGE (heat) → warning/orange sheet, not critical red.
+  - Admin → Trigger RED (heat) → critical immediately.
+  - Live temp 38–42°C after 30s debounce → orange; crossing 42°C upgrades the same alert to red without waiting out the timer.
+  - Home pill / graph danger line still uses 38°C (`kHeatThresholdC`).
+  - `flutter analyze` clean on the touched files.
+
+## BUG-104
+- Date: 2026-08-19
+- Area: Alert sheet stage chip labels were swapped vs colors
+- Root cause: `alertStageLabel` used WARNING for yellow (tier 1 / buckle) and CAUTION for orange (tier 2).
+- Fix: Labels now match colors — yellow CAUTION, orange WARNING, red CRITICAL. `alertStageColor` unchanged.
+
+## TEST-106
+- Date: 2026-08-19
+- Scope: Alert stage chip wording
+- Verification target:
+  - Buckle test → yellow chip reads CAUTION.
+  - Admin ORANGE heat → orange chip reads WARNING.
+  - Admin RED heat → red chip reads CRITICAL.
+
+## BUG-105
+- Date: 2026-08-19
+- Area: Family child detail used gender pink/blue on Live Status, graph, and Device Info
+- Root cause: `_statCard`, `_infoRow`, and `_TempGraph` tinted fills from `isGirl`.
+- Fix: Gender colour stays on the header only. Live Status is four separate white cards with a soft-blue shadow. Temperature Analytics and Device Info use the same neutral card style.
+
+## TEST-107
+- Date: 2026-08-19
+- Scope: Neutral child-detail body cards
+- Verification target:
+  - Open a boy and a girl from Family → header gradient/avatar still gender-coloured.
+  - Temperature / Buckle / Distance / Battery are four separate white cards (not one combined box), same blue-tinted shadow for both genders.
+  - Temperature Analytics and Device Info match that white + blue-shadow look.
+  - Unsafe tiles (heat / unbuckled) still show a light-red fill.
+
+## BUG-106
+- Date: 2026-08-19
+- Area: Child-detail cards drew over the gender header when sliding the sheet up
+- Root cause: The scrollable body was a later Column sibling (paints on top) and had `clipBehavior: Clip.none`, so list cards painted over the pinned header.
+- Fix: Clip the ListView to its pane (`ClipRect` + white `ColoredBox`). Header stays pinned; cards scroll under it, not over it.
+
+## TEST-108
+- Date: 2026-08-19
+- Scope: Child-detail sheet scroll vs header
+- Verification target:
+  - Open a child on Family, drag the sheet up, then scroll the body.
+  - Live Status / graph / Device Info cards never cover the name/avatar header.
+  - Four Live Status cards stay separate while scrolling.
+
+## BUG-107
+- Date: 2026-08-19
+- Area: Child-detail card blue shadow was too blurred
+- Root cause: `_neutralShadow` used blurRadius 12 and a downward-only offset, so the tint spread evenly.
+- Fix: Tighter light-grey shadow (blur 2, alpha ~20%) offset bottom-right `(2, 3)` so the lift is subtle but still visible.
+
+## TEST-109
+- Date: 2026-08-19
+- Scope: Child-detail card shadow
+- Verification target:
+  - Live Status / graph / Device Info cards show a small light-grey shadow at the bottom-right edge, not a blue blur.
+  - Cards still read as slightly raised, not flat.
+
+## BUG-108
+- Date: 2026-08-19
+- Area: Settings still exposed Send Test Notification
+- Root cause: Examiner-only shade test was left on the live Settings list.
+- Fix: Removed the Settings row and `AlertService.sendTestNotification`. Test Alert Screens later removed too (BUG-109).
+
+## TEST-110
+- Date: 2026-08-19
+- Scope: Hide test notification
+- Verification target:
+  - Settings has no “Send Test Notification” row.
+
+## BUG-109
+- Date: 2026-08-19
+- Area: Settings still exposed Test Alert Screens
+- Root cause: Examiner fire-test sheet was left on the live Settings list after hiding the shade test.
+- Fix: Removed the Test Alert Screens row. `fireTestAlert` stays for Admin.
+
+## TEST-111
+- Date: 2026-08-19
+- Scope: Hide Test Alert Screens
+- Verification target:
+  - Settings has no Test Alert Screens row after Sound.
+  - Admin examiner triggers still fire Left Behind / Heat / Buckle.
+
+## BUG-110
+- Date: 2026-08-19
+- Area: Home “Add Device” sat under the floating nav at max scroll
+- Root cause: `extendBody: true` draws the pill over the body; Home only left 110px, which is shorter than the pill + home-indicator.
+- Fix: Bottom spacer is `MediaQuery.padding.bottom + 148` so Add Device clears the nav when scrolled to the end.
+
+## TEST-112
+- Date: 2026-08-19
+- Scope: Home scroll vs bottom nav
+- Verification target:
+  - Scroll Home to the bottom → Add Device sits fully above the navy pill, with a little gap.
+  - Same on a device with a home indicator.
+
+## BUG-111
+- Date: 2026-08-19
+- Area: Add Device connect sheet felt too short
+- Root cause: Connect step used `mainAxisSize: min` with tight padding, so the slide-up panel sat low on the screen.
+- Fix: Connect sheet is 42% of the screen, with more vertical padding, a larger icon, a 56px Connect button, and extra bottom padding so Connect sits higher off the sheet edge.
+
+## TEST-113
+- Date: 2026-08-19
+- Scope: Add Device connect sheet height
+- Verification target:
+  - Home → Add Device → the connect panel is taller than before.
+  - Connect still advances to the child form.
+
+## BUG-112
+- Date: 2026-08-19
+- Area: Emergency contacts used a generic person icon
+- Root cause: `_emergencyContactRow` always drew `Icons.person_outline` on a pale circle.
+- Fix: `InitialsAvatar` shows name initials with a stable color from the name hash. Light-blue outer ring kept.
+
+## TEST-114
+- Date: 2026-08-19
+- Scope: Emergency contact initials
+- Verification target:
+  - Family → emergency contact shows initials (e.g. “Ahmad Tan” → AT), not a person icon.
+  - Same name keeps the same color after restart.
+  - `flutter analyze` clean on the new widget and contacts screen.
+
+
+

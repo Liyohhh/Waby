@@ -1,8 +1,19 @@
 export 'demo_data.dart';
 
-/// Heat-alarm threshold in °C. Must match firmware TEMP_THRESHOLD
-/// in Project_1_draft_v3.ino (currently 30.0).
-const double kHeatThresholdC = 30.0;
+/// Heat-alarm ORANGE threshold in °C — cabin heating into a dangerous
+/// range. Must match firmware TEMP_THRESHOLD in Project_1_draft_v3.ino.
+const double kHeatOrangeThresholdC = 38.0;
+
+/// Heat-alarm RED threshold in °C — cabin heat is at/above the range
+/// associated with heatstroke onset (~40°C core) and approaching a
+/// lethal core temperature (~42°C+). Above this, tier escalates to
+/// CRITICAL immediately.
+const double kHeatRedThresholdC = 42.0;
+
+/// Alias kept for screens that only need a single "is this hot" line
+/// (home severity pill, temperature graph danger line, contacts list).
+/// Points at the earlier (orange) threshold.
+const double kHeatThresholdC = kHeatOrangeThresholdC;
 
 /// BLE advertised name of the ESP32 seat (must match firmware `BLE_SEAT_NAME`).
 const String kBleSeatName = 'WabySeat';

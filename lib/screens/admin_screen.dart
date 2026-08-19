@@ -317,9 +317,17 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           const SizedBox(height: 10),
           _triggerButton(
-            label: 'Trigger CRITICAL (heat)',
+            label: 'Trigger ORANGE (heat)',
+            color: AppColors.warning,
+            onTap: () => AlertService.instance
+                .fireTestAlert(AlertReason.heat, testTemp: 39.5),
+          ),
+          const SizedBox(height: 10),
+          _triggerButton(
+            label: 'Trigger RED (heat)',
             color: AppColors.critical,
-            onTap: () => AlertService.instance.fireTestAlert(AlertReason.heat),
+            onTap: () => AlertService.instance
+                .fireTestAlert(AlertReason.heat, testTemp: 43.0),
           ),
         ],
       ),

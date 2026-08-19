@@ -504,7 +504,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 110),
+                    SizedBox(
+                      height: MediaQuery.of(context).padding.bottom + 148,
+                    ),
                   ],
                 ),
               );
@@ -1452,16 +1454,15 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
     }
 
     return Container(
+      height: MediaQuery.of(context).size.height * 0.42,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 64),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            // Drag handle
             Center(
               child: Container(
                 width: 40,
@@ -1472,7 +1473,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             const Text(
               'Add Device',
@@ -1483,7 +1484,7 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                 color: AppColors.navy,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             const Text(
               'Tap Connect to link your Waby seat.',
               textAlign: TextAlign.center,
@@ -1492,26 +1493,26 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(height: 28),
-            Center(
-              child: _connecting
-                  ? const SizedBox(
-                      height: 64,
-                      width: 64,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
+            Expanded(
+              child: Center(
+                child: _connecting
+                    ? const SizedBox(
+                        height: 80,
+                        width: 80,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: AppColors.accent,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.wifi_tethering,
+                        size: 80,
                         color: AppColors.accent,
                       ),
-                    )
-                  : const Icon(
-                      Icons.wifi_tethering,
-                      size: 64,
-                      color: AppColors.accent,
-                    ),
+              ),
             ),
-            const SizedBox(height: 28),
             SizedBox(
-              height: 52,
+              height: 56,
               child: ElevatedButton(
                 onPressed: _connecting ? null : _connect,
                 style: ElevatedButton.styleFrom(

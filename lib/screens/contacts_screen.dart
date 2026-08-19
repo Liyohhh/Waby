@@ -21,6 +21,7 @@ import '../services/temperature_history_service.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/contact_status_badge.dart';
 import '../widgets/gender_selector.dart';
+import '../widgets/initials_avatar.dart';
 import '../widgets/signed_avatar.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -343,15 +344,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   shape: BoxShape.circle,
                   color: const Color(0xFFD4EEF8).withAlpha(180),
                 ),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFFE8F6FB),
-                  child: Icon(
-                    Icons.person_outline,
-                    color: AppColors.navy,
-                    size: 20,
-                  ),
-                ),
+                child: InitialsAvatar(name: c.name, radius: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1249,7 +1242,10 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
           color: Colors.white,
           child: Column(
             children: [
-              Container(
+              Material(
+                color: Colors.transparent,
+                elevation: 0,
+                child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 decoration: BoxDecoration(
@@ -1337,10 +1333,14 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                   ],
                 ),
               ),
+              ),
               Expanded(
-                child: ListView(
+                child: ClipRect(
+                  child: ColoredBox(
+                    color: Colors.white,
+                    child: ListView(
                   controller: scrollCtrl,
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                 children: [
                   const Text('Live Status',
                       style: TextStyle(
@@ -1359,7 +1359,6 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                             ? 'High temperature'
                             : 'Normal range',
                         safe: child.temperature <= kHeatThresholdC,
-                        isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1369,7 +1368,6 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                         value: child.buckled ? 'Buckled' : 'Unbuckled',
                         sub: child.buckled ? 'Secured' : 'Not secured',
                         safe: child.buckled,
-                        isGirl: isGirl,
                       )),
                     ],
                   ),
@@ -1385,7 +1383,6 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                             ? 'Caregiver close'
                             : 'Caregiver away',
                         safe: child.distanceNear,
-                        isGirl: isGirl,
                       )),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1395,12 +1392,10 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                         value: '${child.battery}%',
                         sub: child.battery > 20 ? 'Good' : 'Low battery',
                         safe: child.battery > 20,
-                        isGirl: isGirl,
                       )),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  // ── Temperature Analytics ────────────────────────────────
                   const Text('Temperature Analytics',
                       style: TextStyle(
                           fontSize: 15,
@@ -1412,11 +1407,13 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                           fontSize: 12,
                           color: Color(0x8C031E2A))),
                   const SizedBox(height: 12),
-                  _TempGraph(
-                    isGirl: isGirl,
-                    currentTemp: child.temperature,
-                    useHardwareHistory: child.hardwareLinked,
-                    historySince: child.createdAt,
+                  _neutralCard(
+                    padding: EdgeInsets.zero,
+                    child: _TempGraph(
+                      currentTemp: child.temperature,
+                      useHardwareHistory: child.hardwareLinked,
+                      historySince: child.createdAt,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text('Device Info',
@@ -1425,18 +1422,26 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF031E2A))),
                   const SizedBox(height: 12),
-                  _infoRow(Icons.gps_fixed, 'GPS',
-                      live?.gpsLabel ?? 'No GPS fix',
-                      isGirl: isGirl),
-                  _infoRow(
-                      Icons.sensors,
-                      'Seat sensor',
-                      live?.present == true
-                          ? 'Weight detected'
-                          : 'Seat empty',
-                      isGirl: isGirl),
+                  _neutralCard(
+                    child: Column(
+                      children: [
+                        _infoRow(Icons.gps_fixed, 'GPS',
+                            live?.gpsLabel ?? 'No GPS fix'),
+                        _infoRow(
+                          Icons.sensors,
+                          'Seat sensor',
+                          live?.present == true
+                              ? 'Weight detected'
+                              : 'Seat empty',
+                          padBottom: false,
+                        ),
+                      ],
+                    ),
+                  ),
                     const SizedBox(height: 24),
                   ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1446,31 +1451,47 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
     );
   }
 
+  static final _neutralShadow = [
+    BoxShadow(
+      color: AppColors.hint.withAlpha(70),
+      blurRadius: 2,
+      offset: const Offset(2, 3),
+    ),
+  ];
+
+  Widget _neutralCard({
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(14),
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: _neutralShadow,
+      ),
+      child: child,
+    );
+  }
+
   Widget _statCard({
     required IconData icon,
     required String label,
     required String value,
     required String sub,
     required bool safe,
-    bool isGirl = false,
   }) {
-    final bg = !safe
-        ? const Color(0xFFFFE8E8)
-        : isGirl
-            ? const Color(0xFFFCEAF2)
-            : const Color(0xFFE0EEF9);
-    final iconColor = !safe
-        ? const Color(0xFFC2291D)
-        : isGirl
-            ? const Color(0xFFD6608A)
-            : const Color(0xFF1F61B2);
+    final bg = !safe ? const Color(0xFFFFE8E8) : AppColors.card;
+    final iconColor = !safe ? AppColors.warning : AppColors.accent;
     final valueColor =
-        safe ? const Color(0xFF031E2A) : const Color(0xFFC2291D);
+        safe ? AppColors.textPrimary : AppColors.warning;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(14),
+        boxShadow: _neutralShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1497,25 +1518,19 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
   }
 
   Widget _infoRow(IconData icon, String label, String value,
-      {bool isGirl = false}) {
+      {bool padBottom = true}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: padBottom ? 12 : 0),
       child: Row(
         children: [
           Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: isGirl
-                  ? const Color(0xFFFCEAF2)
-                  : const Color(0xFFE9F5FE),
+              color: const Color(0xFFE9F5FE),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon,
-                color: isGirl
-                    ? const Color(0xFFD6608A)
-                    : const Color(0xFF1F61B2),
-                size: 18),
+            child: Icon(icon, color: AppColors.accent, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1545,13 +1560,11 @@ class _ChildDetailSheetState extends State<_ChildDetailSheet> {
 
 class _TempGraph extends StatefulWidget {
   const _TempGraph({
-    this.isGirl = false,
     required this.currentTemp,
     this.useHardwareHistory = true,
     this.historySince,
   });
 
-  final bool isGirl;
   final double currentTemp;
   final bool useHardwareHistory;
   final DateTime? historySince;
@@ -1604,55 +1617,51 @@ class _TempGraphState extends State<_TempGraph> {
       if (v + 2 > maxY) maxY = v + 2;
     }
 
-    return Container(
+    return SizedBox(
       height: 160,
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-      decoration: BoxDecoration(
-        color: widget.isGirl
-            ? const Color(0xFFFCEAF2)
-            : const Color(0xFFF0F7FF),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: plotData.isEmpty
-          ? const Center(
-              child: Text(
-                'Collecting temperature history…',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+        child: plotData.isEmpty
+            ? const Center(
+                child: Text(
+                  'Collecting temperature history…',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: CustomPaint(
-                    size: Size.infinite,
-                    painter: _TempLinePainter(
-                      data: plotData,
-                      minY: minY,
-                      maxY: maxY,
-                      dangerLine: dangerLine,
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: _TempLinePainter(
+                        data: plotData,
+                        minY: minY,
+                        maxY: maxY,
+                        dangerLine: dangerLine,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(
-                    7,
-                    (i) {
-                      final hoursAgo = 12 - i * 2;
-                      final label = hoursAgo == 0 ? 'Now' : '-${hoursAgo}h';
-                      return Text(label,
-                          style: const TextStyle(
-                              fontSize: 10, color: Color(0x8C031E2A)));
-                    },
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(
+                      7,
+                      (i) {
+                        final hoursAgo = 12 - i * 2;
+                        final label = hoursAgo == 0 ? 'Now' : '-${hoursAgo}h';
+                        return Text(label,
+                            style: const TextStyle(
+                                fontSize: 10, color: Color(0x8C031E2A)));
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

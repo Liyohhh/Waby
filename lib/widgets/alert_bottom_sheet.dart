@@ -668,9 +668,11 @@ Color alertStageHalo(String alertType, int tier) =>
     alertStageColor(alertType, tier).withValues(alpha: 0.10);
 
 String alertStageLabel(String alertType, int tier) {
-  if (alertType == 'buckle') return 'WARNING';
-  if (tier <= 1) return 'WARNING';
-  if (tier == 2) return 'CAUTION';
+  // Buckle always renders in yellow (alertSoft), so it uses the yellow
+  // label for consistency with color meaning.
+  if (alertType == 'buckle') return 'CAUTION';
+  if (tier <= 1) return 'CAUTION';
+  if (tier == 2) return 'WARNING';
   return 'CRITICAL';
 }
 

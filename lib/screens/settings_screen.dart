@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
 import '../models/contact.dart';
-import '../models/seat_status.dart';
 import '../services/alert_service.dart';
 import '../services/auth_service.dart';
 import '../services/alert_feedback_service.dart';
@@ -174,60 +173,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         await _setReminderPreference(kSoundPrefKey, v);
                       },
                     ),
-                    _divider(),
-                    _navRow(Icons.send_outlined, 'Send Test Notification',
-                        onTap: () async {
-                      await AlertService.instance.sendTestNotification();
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Test notification sent'),
-                          behavior: SnackBarBehavior.floating,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }),
-                    _divider(),
-                    _navRow(Icons.crop_din_outlined, 'Test Alert Screens',
-                        onTap: () => showModalBottomSheet<void>(
-                              context: context,
-                              builder: (ctx) => SafeArea(
-                                child: Wrap(
-                                  children: [
-                                    ListTile(
-                                      leading: const Icon(
-                                          Icons.person_off_outlined),
-                                      title: const Text('Left Behind'),
-                                      onTap: () {
-                                        Navigator.pop(ctx);
-                                        AlertService.instance.fireTestAlert(
-                                            AlertReason.leftBehind);
-                                      },
-                                    ),
-                                    ListTile(
-                                      leading: const Icon(
-                                          Icons.thermostat_outlined),
-                                      title: const Text('Heat'),
-                                      onTap: () {
-                                        Navigator.pop(ctx);
-                                        AlertService.instance
-                                            .fireTestAlert(AlertReason.heat);
-                                      },
-                                    ),
-                                    ListTile(
-                                      leading:
-                                          const Icon(Icons.link_outlined),
-                                      title: const Text('Buckle Reminder'),
-                                      onTap: () {
-                                        Navigator.pop(ctx);
-                                        AlertService.instance.fireTestAlert(
-                                            AlertReason.buckleReminder);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )),
                   ]),
 
                   // ── Distance Setting ───────────────────────────────────
