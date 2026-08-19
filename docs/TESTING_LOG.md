@@ -1633,5 +1633,47 @@
   - Orange heat (~39°C) then walk Far → heat sheet turns critical, not stuck orange.
   - `flutter analyze` clean on `alert_service.dart`.
 
+## BUG-119
+- Date: 2026-08-19
+- Area: Demo heat debounce of zero also cleared heat on every DHT wobble; resolving heat silenced left-behind audio
+- Root cause: Resolve-hold reused `heatDebounce`. `_resolveAlert` always called `stop()` / `cancelAll()`.
+- Fix: `heatResolveHold = 3s` separate from activation debounce. Sound/notifications stop only when `_active` is empty.
+
+## TEST-121
+- Date: 2026-08-19
+- Scope: Heat resolve-hold + multi-alert audio
+- Verification target:
+  - Heat stays up through a 1–2s temp dip; clears after ~3s below threshold.
+  - Heat + left-behind active, heat then clears → left-behind sound continues.
+  - `flutter analyze` clean on `alert_service.dart`.
+
+## BUG-120
+- Date: 2026-08-20
+- Area: BLE Near/Far stuttered and lagged
+- Root cause: 3s startScan bursts exceed Android’s ~5 scans / 30s throttle, so later bursts delay or drop.
+- Fix: One continuous scan (`continuousUpdates`, no timeout) plus a 2s watchdog. Lost-beacon window 4s.
+
+## TEST-122
+- Date: 2026-08-20
+- Scope: Continuous BLE scan
+- Verification target:
+  - Admin RSSI pill updates often (every advertisement), not in 3s jumps.
+  - Walk away → Far within ~4s of losing the beacon.
+  - No remaining `_scanning` / `_scanBurst` references.
+
+## BUG-121
+- Date: 2026-08-20
+- Area: Near/Far still jumpy; −62/−75 did not match in-car 1.5 m readings
+- Root cause: 5-sample median still swung with continuous packets. In-car RSSI at 1.5 m was −70 to −76 (median ~−73), so −62 never counted as Near.
+- Fix: Window 11; Near ≥ −74 dBm; Far ≤ −80 dBm. Admin pill shows `smoothedRssi` (median).
+
+## TEST-123
+- Date: 2026-08-20
+- Scope: In-car BLE thresholds + median pill
+- Verification target:
+  - Phone ~1.5 m in the car → Admin median ~−73 and Near.
+  - Walk farther until median ≤ −80 → Far.
+  - Admin dBm value is steadier than raw lastRssi.
+
 
 

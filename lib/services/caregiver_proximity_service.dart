@@ -20,14 +20,14 @@ class CaregiverProximityService {
 
   final ValueNotifier<bool?> isNear = ValueNotifier<bool?>(null);
   final ValueNotifier<int?> lastRssi = ValueNotifier<int?>(null);
+  final ValueNotifier<int?> smoothedRssi = ValueNotifier<int?>(null);
 
   bool _started = false;
   bool _everSeenSeat = false;
-  bool _scanning = false;
   DateTime? _lastSeenAt;
   bool? _lastPersistedNear;
   final List<int> _rssiWindow = [];
-  static const int _rssiWindowSize = 5;
+  static const int _rssiWindowSize = 11;
   bool? _pendingNear;
   int _pendingCount = 0;
   static const int _requiredConsecutive = 2;
@@ -45,17 +45,20 @@ class CaregiverProximityService {
     _started = true;
 
     _scanSub = FlutterBluePlus.scanResults.listen(_onScanResults);
-    unawaited(FlutterBluePlus.adapterState.first);
     FlutterBluePlus.adapterState.listen((state) {
       if (state == BluetoothAdapterState.on) {
-        unawaited(_scanBurst());
+        unawaited(_ensureScanning());
       }
     });
 
-    _scanTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      unawaited(_scanBurst());
+    // One long-lived scan + a light watchdog. We do NOT stop/start every few
+    // seconds (Android throttles that). The watchdog only restarts the scan
+    // if it has actually stopped, and expires stale reads.
+    _scanTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_ensureScanning());
+      _checkLost();
     });
-    unawaited(_scanBurst());
+    unawaited(_ensureScanning());
   }
 
   void stop() {
@@ -64,25 +67,21 @@ class CaregiverProximityService {
     _scanTimer = null;
     _scanSub = null;
     _started = false;
+    unawaited(FlutterBluePlus.stopScan());
   }
 
-  Future<void> _scanBurst() async {
-    if (_scanning) return;
-    if (FlutterBluePlus.adapterStateNow != BluetoothAdapterState.on) {
-      _checkLost();
-      return;
-    }
-    _scanning = true;
+  Future<void> _ensureScanning() async {
+    if (FlutterBluePlus.adapterStateNow != BluetoothAdapterState.on) return;
+    if (FlutterBluePlus.isScanningNow) return; // already scanning, leave it
     try {
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 2),
+        continuousUpdates: true, // keep receiving RSSI from the same beacon
+        continuousDivisor: 1, // emit on every advertisement packet
         androidUsesFineLocation: true,
+        // no timeout: one persistent scan instead of bursts
       );
     } catch (_) {
-      // Permission denied or adapter off — do not invent Far.
-    } finally {
-      _scanning = false;
-      _checkLost();
+      // Permission denied / adapter off — do not invent Far.
     }
   }
 
@@ -117,6 +116,7 @@ class CaregiverProximityService {
 
     final sorted = List<int>.from(_rssiWindow)..sort();
     final median = sorted[sorted.length ~/ 2];
+    smoothedRssi.value = median;
 
     final current = isNear.value;
     bool next;
@@ -154,6 +154,7 @@ class CaregiverProximityService {
     if (seen == null) return;
     if (DateTime.now().difference(seen) >= kBleLostAfter) {
       lastRssi.value = null;
+      smoothedRssi.value = null;
       _rssiWindow.clear();
       _pendingNear = null;
       _pendingCount = 0;

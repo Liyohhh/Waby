@@ -224,6 +224,12 @@ class AlertService {
   // demo where you're intentionally sustaining the heat, but leaving
   // this at zero long-term reopens the false-positive risk at rest.
   static const Duration heatDebounce = Duration.zero;
+  // Resolve-hold: how long a brief dip below the heat threshold is
+  // tolerated before the alert actually clears. Kept separate from
+  // heatDebounce (the activation delay) so demo-mode changes to one
+  // don't accidentally zero out the other and cause the alert to
+  // flap on/off with every small sensor wobble.
+  static const Duration heatResolveHold = Duration(seconds: 3);
   // DEMO MODE: instant left-behind trigger for live examiner demo, no
   // grace period. Revert to Duration(minutes: 2) before final submission
   // — the 2-minute grace exists so a caregiver briefly stepping away
@@ -315,7 +321,7 @@ class AlertService {
       if (alert.alertType == 'heat' || alert.alertType == 'left_behind') {
         _conditionMissingSince.putIfAbsent(alert.alertId, () => now);
         final hold = alert.alertType == 'heat'
-            ? heatDebounce
+            ? heatResolveHold
             : const Duration(seconds: 10);
         if (now.difference(_conditionMissingSince[alert.alertId]!) < hold) {
           continue;
@@ -559,8 +565,13 @@ class AlertService {
     _autoFired.remove(alertId);
     if (removed != null) {
       unawaited(_markResolved(removed));
-      unawaited(AlertFeedbackService.instance.stop());
-      unawaited(PushNotificationService.instance.cancelAll());
+      // Only silence feedback if nothing else is still active — a
+      // shared AudioPlayer means stopping it here would otherwise cut
+      // off a different alert (e.g. left-behind) that's still ongoing.
+      if (_active.isEmpty) {
+        unawaited(AlertFeedbackService.instance.stop());
+        unawaited(PushNotificationService.instance.cancelAll());
+      }
     }
   }
 

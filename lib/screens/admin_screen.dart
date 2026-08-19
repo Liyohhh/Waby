@@ -489,7 +489,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     const SizedBox(width: 6),
                     ValueListenableBuilder<int?>(
                       valueListenable:
-                          CaregiverProximityService.instance.lastRssi,
+                          CaregiverProximityService.instance.smoothedRssi,
                       builder: (context, rssi, _) => _miniPill(
                           Icons.bluetooth_audio,
                           rssi == null ? 'no signal' : '$rssi dBm',
