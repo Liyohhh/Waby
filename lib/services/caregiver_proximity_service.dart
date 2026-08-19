@@ -31,7 +31,7 @@ class CaregiverProximityService {
   bool? _pendingNear;
   int _pendingCount = 0;
   static const int _requiredNearConsecutive = 2; // responsive: quick to Near
-  static const int _requiredFarConsecutive = 6; // sticky: slow to flip Far
+  static const int _requiredFarConsecutive = 15; // sticky: slow to flip Far
   Timer? _scanTimer;
   StreamSubscription<List<ScanResult>>? _scanSub;
 

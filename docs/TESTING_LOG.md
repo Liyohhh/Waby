@@ -1728,6 +1728,36 @@
 - Verification target:
   - Weight on seat, live temp 31.0°C → orange heat sheet/notification.
   - Empty seat at 31°C → no heat alert (presence still required).
+
+## BUG-126
+- Date: 2026-08-20
+- Area: Acknowledging heat at 31°C immediately spawned another heat notification
+- Root cause: Heat debounce is zero for demo. After Acknowledge the condition was still true, so `_activate` ran again on the next live tick.
+- Fix: 30-second heat ack snooze (same child). Critical (≥33°C / tier 3) still breaks through.
+
+## TEST-128
+- Date: 2026-08-20
+- Scope: Heat acknowledge gap
+- Verification target:
+  - 31°C heat → Acknowledge → no new heat sheet/notification for 30 seconds while temp stays ~31°C.
+  - During that gap, temp ≥33°C → critical heat still fires.
+  - After 30 seconds at 31°C → warning heat can fire again.
+
+## BUG-127
+- Date: 2026-08-20
+- Area: Brief RSSI fades still flipped Near → Far
+- Root cause: Far only needed 6 confirms; band −74/−80 was tight; lost-beacon at 6s treated a dropout as Far.
+- Fix: Far needs 15 consecutive confirms. Enter Near at ≥ −78 dBm; leave Near only at ≤ −90 dBm. Lost-beacon window 20s.
+
+## TEST-129
+- Date: 2026-08-20
+- Scope: Stickier Near
+- Verification target:
+  - At ~1.5 m, brief fades / body block <20s → stays Near.
+  - Walk away and stay weak (median ≤ −90) long enough for 15 Far confirms → Far.
+  - Walk back to ≥ −78 → Near after 2 confirms.
+
+
   - 33.0°C → critical.
 
 

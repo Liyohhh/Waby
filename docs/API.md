@@ -108,11 +108,11 @@ ESP32 advertises as `WabySeat`. `CaregiverProximityService` scans ~every 3s:
 
 | RSSI | Meaning |
 |------|---------|
-| ≥ −74 dBm | Near |
-| ≤ −80 dBm | Far |
-| Beacon lost for 6s (after it was seen) | Far |
+| ≥ −78 dBm | Near |
+| ≤ −90 dBm | Far |
+| Beacon lost for 20s (after it was seen) | Far |
 
-RSSI is an 11-sample rolling median, then Near/Far only commits after two consistent readings. Until the beacon is seen once this session, `live.distance_near` is left unchanged (avoids false left-behind if firmware is not yet flashed). The app PATCHes `distance_near` when the value changes.
+RSSI is an 11-sample rolling median. Near commits after 2 consistent readings; Far after 15. Until the beacon is seen once this session, `live.distance_near` is left unchanged (avoids false left-behind if firmware is not yet flashed). The app PATCHes `distance_near` when the value changes.
 
 Consumed by Home UI and `AlertService` (presence, heat, buckle, battery, GPS fields).
 

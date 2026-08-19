@@ -107,6 +107,10 @@ class AlertService {
   // change) instead of instantly re-firing on the next live tick.
   final Map<String, DateTime> _buckleSnoozedUntil = {};
   static const Duration buckleAckSnooze = Duration(minutes: 5);
+  // After Acknowledge on heat, don't re-open the same 31°C episode
+  // immediately. Critical (≥33°C) still breaks through.
+  final Map<String, DateTime> _heatSnoozedUntil = {};
+  static const Duration heatAckSnooze = Duration(seconds: 30);
   static const _buckleSnoozePrefsKey = 'waby_buckle_snooze_until';
   /// Heat/left-behind must stay visible through a brief live glitch (DHT NaN
   /// → 0°C, one dropped present tick). Only auto-clear after this hold.
@@ -128,6 +132,7 @@ class AlertService {
     _conditionMissingSince.clear();
     _pendingMissingSince.clear();
     _buckleSnoozedUntil.clear();
+    _heatSnoozedUntil.clear();
     unawaited(_persistBuckleSnoozes());
   }
 
@@ -387,6 +392,14 @@ class AlertService {
           continue; // Acknowledged recently — same episode, stay quiet.
         }
       }
+      if (condition.alertType == 'heat') {
+        final snoozedUntil = _heatSnoozedUntil[condition.childId];
+        if (snoozedUntil != null && now.isBefore(snoozedUntil)) {
+          // Still orange/warning — wait out the ack gap. Critical
+          // (tier 3 / ≥33°C) must still fire.
+          if (condition.initialTier != 3) continue;
+        }
+      }
 
       final grace = _graceFor(condition.reason);
       if (grace == Duration.zero) {
@@ -570,6 +583,10 @@ class AlertService {
       _buckleSnoozedUntil[alert.childId] =
           DateTime.now().add(buckleAckSnooze);
       unawaited(_persistBuckleSnoozes());
+    }
+    if (alert != null && alert.alertType == 'heat') {
+      _heatSnoozedUntil[alert.childId] =
+          DateTime.now().add(heatAckSnooze);
     }
     _resolveAlert(alertId);
     _emit();

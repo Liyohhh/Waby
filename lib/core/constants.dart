@@ -16,15 +16,14 @@ const double kHeatThresholdC = kHeatOrangeThresholdC;
 /// BLE advertised name of the ESP32 seat (must match firmware `BLE_SEAT_NAME`).
 const String kBleSeatName = 'WabySeat';
 
-/// RSSI (dBm) at or above this → caregiver Near.
-/// Measured in-car at 1.5 m: raw −70 to −76, median ~−73.
-const int kBleRssiNearDbm = -74;
+/// RSSI (dBm) at or above this → enter Near.
+const int kBleRssiNearDbm = -78;
 
-/// RSSI (dBm) at or below this → caregiver Far.
-const int kBleRssiFarDbm = -80;
+/// RSSI (dBm) at or below this → drop to Far (wide hysteresis so Near sticks).
+const int kBleRssiFarDbm = -90;
 
 /// No WabySeat advertisement for this long, after having seen it → Far.
-const Duration kBleLostAfter = Duration(seconds: 6);
+const Duration kBleLostAfter = Duration(seconds: 20);
 
 const List<String> kGenderOptions = ['Boy', 'Girl'];
 
