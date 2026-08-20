@@ -239,8 +239,8 @@ class AlertService {
   static const Duration heatResolveHold = Duration(seconds: 3);
   // Left-behind grace: caregiver can briefly go Far (locking the car,
   // grabbing a bag, body blocking BLE) without firing a notification.
-  // Was Duration.zero for demo; 30s is live — not the original 2 minutes.
-  static const Duration leftBehindGrace = Duration(seconds: 30);
+  // Was Duration.zero for demo; 15s is live — not the original 2 minutes.
+  static const Duration leftBehindGrace = Duration(seconds: 15);
 
   Duration _graceFor(AlertReason reason) {
     switch (reason) {
@@ -327,6 +327,12 @@ class AlertService {
       }
       _pendingMissingSince.remove(type);
       _pending.remove(type);
+    }
+    // Heat episode ended (temp fell back below the warning threshold): clear
+    // any post-Acknowledge cooldown so the NEXT time it heats up, it alerts
+    // fresh instead of staying silenced by a stale snooze.
+    if (!visibleTypes.contains('heat')) {
+      _heatSnoozedUntil.remove(_primaryChildId);
     }
     for (final id in _active.keys.toList()) {
       final alert = _active[id]!;

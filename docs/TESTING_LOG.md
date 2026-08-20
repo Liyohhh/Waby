@@ -1757,12 +1757,43 @@
   - Walk away and stay weak (median ≤ −90) long enough for 15 Far confirms → Far.
   - Walk back to ≥ −78 → Near after 2 confirms.
 
+## BUG-128
+- Date: 2026-08-20
+- Area: Heat acknowledge cooldown
+- Root cause: `_heatSnoozedUntil` was only set on Acknowledge and never cleared when temperature dropped below the warning threshold, so a stale 30s snooze could suppress the next heat episode even after temp had normalized.
+- Fix: In `_onStatus`, after the pending-cleanup loop, remove `_primaryChildId` from `_heatSnoozedUntil` whenever `'heat'` is not in `visibleTypes`.
 
-  - 33.0°C → critical.
+## TEST-130
+- Date: 2026-08-20
+- Scope: Heat snooze self-reset
+- Verification target:
+  - Heat ≥31°C → Acknowledge → temp drops below 31°C → heat rises again → warning fires immediately (no leftover snooze).
+  - Heat ≥31°C → Acknowledge → temp stays ≥31°C → no re-alert for 30s (existing snooze still applies within same episode).
 
+## BUG-129
+- Date: 2026-08-20
+- Area: Door-distance BLE calibration
+- Root cause: Thresholds (−78/−90), 15-reading Far debounce, and 20s lost-beacon window were tuned for sticky in-car proximity; door-distance demo needed faster Far flip at ~−84 dBm.
+- Fix: Near −74 / Far −84, `_requiredFarConsecutive` 6, `kBleLostAfter` 6s.
 
+## TEST-131
+- Date: 2026-08-20
+- Scope: Door-distance Near/Far
+- Verification target:
+  - At seat (median ≥ −74) → Near after 2 confirms.
+  - A few steps from door (median ≤ −84) → Far after 6 confirms.
+  - Brief beacon dropout <6s → stays current state; ≥6s no signal → Far.
 
+## BUG-130
+- Date: 2026-08-20
+- Area: Left-behind grace timing
+- Root cause: 30s grace felt too long for door-distance demo pacing.
+- Fix: `leftBehindGrace` reduced to 15 seconds.
 
-
-
+## TEST-132
+- Date: 2026-08-20
+- Scope: Left-behind grace
+- Verification target:
+  - Caregiver goes Far with baby seated → left-behind alert fires after 15s (not 30s).
+  - Brief Far blip (<10s pending tolerance) still does not restart the grace countdown.
 
